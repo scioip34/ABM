@@ -15,7 +15,8 @@ setup(
     install_requires=[
         'pygame',
         'numpy',
-        'scipy'
+        'scipy',
+        'matplotlib'
     ],
     extras_require={
         'test': [

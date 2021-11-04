@@ -152,7 +152,7 @@ class Agent(pygame.sprite.Sprite):
                 vis_angle = 2 * np.arctan(self.radius/(1*distance))
                 proj_size = 300 * vis_angle # int(self.v_field_res * np.tan(vis_angle))
                 phi_target = supcalc.find_nearest(phis, closed_angle)
-                print(closed_angle)
+                # print(closed_angle)
 
                 proj_start = int(phi_target-proj_size/2)
                 proj_end = int(phi_target + proj_size / 2)

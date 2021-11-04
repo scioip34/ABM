@@ -4,39 +4,35 @@ import sys
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
-import matplotlib
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
-import matplotlib.backends.backend_agg as agg
-
-def plt_to_pygame(fig):
-    canvas = agg.FigureCanvasAgg(fig)
-    canvas.draw()
-    renderer = canvas.get_renderer()
-
-    raw_data = renderer.tostring_rgb()
-    size = canvas.get_width_height()
-
-    return pygame.image.fromstring(raw_data, size, "RGB")
 
 class Simulation:
-    def __init__(self, width=600, height=480):
+    def __init__(self, N, T, v_field_res=800, width=600, height=480, framerate=30):
+        """
+        Initializing the main simulation instance
+        :param N: number of agents
+        :param T: simulation time
+        :param v_field_res: visual field resolution in pixels
+        :param width: width of environment
+        :param height: height of environment
+        :param framerate: framerate of simulation
+        """
         self.WIDTH = width
         self.HEIGHT = height
 
+        self.N = N
+        self.T = T
+        self.framerate = framerate
+        self.v_field_res = v_field_res
+
         self.all_container = pygame.sprite.Group()
 
-        self.N = 3
-        self.T = 100000
-        self.v_field_res = 500
+    def start(self):
 
-    def start(self, randomize=False):
-
+        # Initializing pygame
         pygame.init()
         screen = pygame.display.set_mode([self.WIDTH, self.HEIGHT])
-        #vfield_screen = pygame.display.set_mode([500, 50*self.N])
 
+        # Creating N agents in the environment
         for i in range(self.N):
             x = np.random.randint(self.WIDTH/3, 2*self.WIDTH/3 + 1)
             y = np.random.randint(self.HEIGHT/3, 2*self.HEIGHT/3 + 1)
@@ -50,40 +46,39 @@ class Simulation:
             )
             self.all_container.add(agent)
 
+        # Creating surface to show some graphs (visual fields for now)
         stats = pygame.Surface((self.v_field_res, 50*self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(230)
-        stats_pos = (self.WIDTH // 40, self.HEIGHT // 40)
+        # stats_pos = (self.WIDTH // 40, self.HEIGHT // 40)
+        stats_pos = (0, 0)
 
+        # Creating clock
         clock = pygame.time.Clock()
 
-        fig = plt.figure(figsize=[3, 1.5])
-        # fig, axs = plt.subplots(1, 3)
-
+        # Simulation loop
         for i in range(self.T):
+
+            # Quitting on break event
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
 
+            # Collecting agent coordinates for vision
             obstacle_coords = []
             for ag in self.all_container.sprites():
                 coord = ag.position
                 obstacle_coords.append(coord)
 
+            # Updating all agents accordingly
             self.all_container.update(obstacle_coords)
-            self.all_container.sprites()[0].color = colors.GREEN
             screen.fill(colors.BACKGROUND)
+            self.all_container.draw(screen)
 
-            stats_height = stats.get_height()
-            stats_width = stats.get_width()
+            # Updating our graphs to show visual field
             stats_graph = pygame.PixelArray(stats)
             stats_graph[:, :] = pygame.Color(*colors.WHITE)
-
-
-
             for k in range(self.N):
-                # ax = fig.add_subplot(int(f'{self.N}1{k+1}'))
-                # ax.plot(self.all_container.sprites()[k].v_field)
                 show_base = k*50
                 show_min = (k*50)+23
                 show_max = (k*50)+25
@@ -94,15 +89,14 @@ class Simulation:
                     else:
                         stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
 
-            self.all_container.draw(screen)
-
             del stats_graph
             stats.unlock()
+
+            # Drawing
             screen.blit(stats, stats_pos)
-            # surf = plt_to_pygame(fig)
-            # screen.blit(surf, (0, 0))
             pygame.display.flip()
 
-            clock.tick(30)
+            # Moving time forward
+            clock.tick(self.framerate)
 
         pygame.quit()

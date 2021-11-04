@@ -11,5 +11,5 @@ To run the simulations you will need python 3.8 or 3.9 and pip correspondingly. 
 To test the code:
   1. Clone the repo
   2. Activate your virtual environment (pipenv, venv) if you are using one
-  3. run `pip install -e .` with that you installed the simulation package
+  3. Move into the cloned repo where `setup.py` is located and run `pip install -e .` with that you installed the simulation package
   4. run the start entrypoint of the simulation package by running `abm-start`

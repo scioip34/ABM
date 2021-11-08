@@ -6,31 +6,55 @@ from abm.contrib import colors
 
 
 class Simulation:
-    def __init__(self, N, T, v_field_res=800, width=600, height=480, framerate=30):
+    def __init__(self, N, T, v_field_res=800, width=600, height=480, framerate=30, window_pad=30):
         """
         Initializing the main simulation instance
         :param N: number of agents
         :param T: simulation time
         :param v_field_res: visual field resolution in pixels
-        :param width: width of environment
-        :param height: height of environment
+        :param width: real width of environment (not window size)
+        :param height: real height of environment (not window size)
         :param framerate: framerate of simulation
+        :param window_pad: padding of the environment in simulation window in pixels
         """
+        # Arena parameters
         self.WIDTH = width
         self.HEIGHT = height
+        self.window_pad = window_pad
 
+        # Simulation parameters
         self.N = N
         self.T = T
         self.framerate = framerate
+
+        # Agent parameters
         self.v_field_res = v_field_res
-
-        self.all_container = pygame.sprite.Group()
-
-    def start(self):
 
         # Initializing pygame
         pygame.init()
-        screen = pygame.display.set_mode([self.WIDTH, self.HEIGHT])
+
+        # pygame related class attributes
+        self.all_container = pygame.sprite.Group()
+        self.screen = pygame.display.set_mode([self.WIDTH + 2 * self.window_pad, self.HEIGHT + 2 * self.window_pad])
+        # todo: look into this more in detail so we can control dt
+        self.clock = pygame.time.Clock()
+
+    def draw_walls(self):
+        """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
+        pygame.draw.line(self.screen, colors.BLACK,
+                         [self.window_pad, self.window_pad],
+                         [self.window_pad, self.window_pad + self.HEIGHT])
+        pygame.draw.line(self.screen, colors.BLACK,
+                         [self.window_pad, self.window_pad],
+                         [self.window_pad + self.WIDTH, self.window_pad])
+        pygame.draw.line(self.screen, colors.BLACK,
+                         [self.window_pad + self.WIDTH, self.window_pad],
+                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+        pygame.draw.line(self.screen, colors.BLACK,
+                         [self.window_pad, self.window_pad + self.HEIGHT],
+                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+
+    def start(self):
 
         # Creating N agents in the environment
         for i in range(self.N):
@@ -42,7 +66,8 @@ class Simulation:
                 orientation=0,
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.BLUE,
-                v_field_res=self.v_field_res
+                v_field_res=self.v_field_res,
+                window_pad=self.window_pad
             )
             self.all_container.add(agent)
 
@@ -50,13 +75,9 @@ class Simulation:
         stats = pygame.Surface((self.v_field_res, 50*self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(230)
-        # stats_pos = (self.WIDTH // 40, self.HEIGHT // 40)
-        stats_pos = (0, 0)
+        stats_pos = (int(self.window_pad), int(self.window_pad/2))
 
-        # Creating clock
-        clock = pygame.time.Clock()
-
-        # Simulation loop
+        # Main Simulation loop
         for i in range(self.T):
 
             # Quitting on break event
@@ -65,15 +86,15 @@ class Simulation:
                     sys.exit()
 
             # Collecting agent coordinates for vision
-            obstacle_coords = []
-            for ag in self.all_container.sprites():
-                coord = ag.position
-                obstacle_coords.append(coord)
+            obstacle_coords = [ag.position for ag in self.all_container.sprites()]
 
             # Updating all agents accordingly
             self.all_container.update(obstacle_coords)
-            screen.fill(colors.BACKGROUND)
-            self.all_container.draw(screen)
+
+            # Draw environment and agents
+            self.screen.fill(colors.BACKGROUND)
+            self.draw_walls()
+            self.all_container.draw(self.screen)
 
             # Updating our graphs to show visual field
             stats_graph = pygame.PixelArray(stats)
@@ -93,10 +114,10 @@ class Simulation:
             stats.unlock()
 
             # Drawing
-            screen.blit(stats, stats_pos)
+            self.screen.blit(stats, stats_pos)
             pygame.display.flip()
 
             # Moving time forward
-            clock.tick(self.framerate)
+            self.clock.tick(self.framerate)
 
         pygame.quit()

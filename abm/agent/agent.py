@@ -15,10 +15,11 @@ class Agent(pygame.sprite.Sprite):
     and to make decisions.
     """
 
-    def __init__(self, radius, position, orientation, env_size, color, v_field_res, window_pad):
+    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad):
         """
         Initalization method of main agent class of the simulations
 
+        :param id: ID of agent (int)
         :param radius: radius of the agent in pixels
         :param position: position of the agent in env as (x, y)
         :param orientation: absolute orientation of the agent
@@ -31,6 +32,7 @@ class Agent(pygame.sprite.Sprite):
         super().__init__()
 
         # Initializing agents with init parameters
+        self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
         self.orientation = orientation
@@ -76,21 +78,31 @@ class Agent(pygame.sprite.Sprite):
         # calculating velcoity and orientation change according to visual cues
         vel, theta = supcalc.compute_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
                                                      self.v_field)
+        # print(self.id, vel, theta)
+        # if vel > 0:
+        #     print(f'{self.id}pos')
+        # else:
+        #     print(f'{self.id}neg')
 
-        # updating agent's state variables
-        self.orientation += theta
-        self.prove_orientation()  # bounding orientation into 0 and 2pi
-        self.velocity += vel
+        if self.id>=0:
+            # updating agent's state variables
+            self.orientation += theta
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+            self.velocity += vel
 
-        # updating agent's position
-        self.position[0] += self.velocity * np.cos(-self.orientation)
-        self.position[1] += self.velocity * np.sin(-self.orientation)
+            # updating agent's position
+            self.position[0] += self.velocity * np.cos(-self.orientation)
+            self.position[1] += self.velocity * np.sin(-self.orientation)
 
-        # boundary conditions if applicable
-        self.reflect_from_walls()
+            # boundary conditions if applicable
+            self.reflect_from_walls()
 
-        # updating agent visualization
-        self.draw_update()
+            # updating agent visualization
+            self.draw_update()
+        else:
+            self.position[0] = 600
+            self.position[1] = 200
+            self.draw_update()
 
     def draw_update(self):
         """

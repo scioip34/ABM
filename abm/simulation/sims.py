@@ -5,6 +5,14 @@ from abm.agent.agent import Agent
 from abm.contrib import colors
 
 
+def within_group_collision(sprite1, sprite2):
+    """Custom colllision check that omits collisions of sprite with itself. This way we can use group collision
+    detect WITHIN a single group instead of between multiple groups"""
+    if sprite1 != sprite2:
+        return pygame.sprite.collide_circle(sprite1, sprite2)
+    return False
+
+
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=30, window_pad=30, show_vis_field=False):
@@ -63,9 +71,10 @@ class Simulation:
 
         # Creating N agents in the environment
         for i in range(self.N):
-            x = np.random.randint(self.WIDTH/3, 2*self.WIDTH/3 + 1)
-            y = np.random.randint(self.HEIGHT/3, 2*self.HEIGHT/3 + 1)
+            x = np.random.randint(self.WIDTH / 3, 2 * self.WIDTH / 3 + 1)
+            y = np.random.randint(self.HEIGHT / 3, 2 * self.HEIGHT / 3 + 1)
             agent = Agent(
+                id=i,
                 radius=10,
                 position=(x, y),
                 orientation=0,
@@ -78,10 +87,10 @@ class Simulation:
 
         # Creating surface to show some graphs (visual fields for now)
         if self.show_vis_field:
-            stats = pygame.Surface((self.v_field_res, 50*self.N))
+            stats = pygame.Surface((self.v_field_res, 50 * self.N))
             stats.fill(colors.GREY)
             stats.set_alpha(230)
-            stats_pos = (int(self.window_pad), int(self.window_pad/2))
+            stats_pos = (int(self.window_pad), int(self.window_pad / 2))
 
         # Main Simulation loop
         for i in range(self.T):
@@ -94,7 +103,24 @@ class Simulation:
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
 
-            # Updating all agents accordingly
+            collision_group = pygame.sprite.groupcollide(
+                self.agents,
+                self.agents,
+                False,
+                False,
+                within_group_collision
+            )
+
+            if i > 0:
+                for agent in collision_group:
+                    # Updating all agents accordingly
+                    if agent.velocity >= 0:
+                        agent.velocity += 1
+                    else:
+                        agent.velocity -= 1
+                    agent.velocity *= -1
+
+
             self.agents.update(obstacle_coords)
 
             # Draw environment and agents
@@ -107,9 +133,9 @@ class Simulation:
                 stats_graph = pygame.PixelArray(stats)
                 stats_graph[:, :] = pygame.Color(*colors.WHITE)
                 for k in range(self.N):
-                    show_base = k*50
-                    show_min = (k*50)+23
-                    show_max = (k*50)+25
+                    show_base = k * 50
+                    show_min = (k * 50) + 23
+                    show_max = (k * 50) + 25
 
                     for j in range(self.agents.sprites()[k].v_field_res):
                         if self.agents.sprites()[k].v_field[j] == 1:

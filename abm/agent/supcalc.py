@@ -51,6 +51,9 @@ def compute_state_variables(vel_now, Phi, V_now, t_now=None, V_prev=None, t_prev
     FOV_rescaling_cos = 1
     FOV_rescaling_sin = 1
 
+    # print(f"alp0 : {vswrm.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi)}", )
+    # print(f'alp1 : {vswrm.ALP0 * vswrm.ALP1 * np.sum(np.cos(Phi) * G_vel_spike) * dPhi}')
+
     dvel = vswrm.GAM * (vswrm.V0 - vel_now) + \
            vswrm.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi) + \
            vswrm.ALP0 * vswrm.ALP1 * np.sum(np.cos(Phi) * G_vel_spike) * dPhi

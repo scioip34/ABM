@@ -6,7 +6,8 @@ from abm.contrib import colors
 
 
 class Simulation:
-    def __init__(self, N, T, v_field_res=800, width=600, height=480, framerate=30, window_pad=30):
+    def __init__(self, N, T, v_field_res=800, width=600, height=480,
+                 framerate=30, window_pad=30, show_vis_field=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -16,6 +17,7 @@ class Simulation:
         :param height: real height of environment (not window size)
         :param framerate: framerate of simulation
         :param window_pad: padding of the environment in simulation window in pixels
+        :param show_vis_field: (Bool) turn on visualization for visual field of agents
         """
         # Arena parameters
         self.WIDTH = width
@@ -26,6 +28,9 @@ class Simulation:
         self.N = N
         self.T = T
         self.framerate = framerate
+
+        # Visualization parameters
+        self.show_vis_field = show_vis_field
 
         # Agent parameters
         self.v_field_res = v_field_res
@@ -72,10 +77,11 @@ class Simulation:
             self.all_container.add(agent)
 
         # Creating surface to show some graphs (visual fields for now)
-        stats = pygame.Surface((self.v_field_res, 50*self.N))
-        stats.fill(colors.GREY)
-        stats.set_alpha(230)
-        stats_pos = (int(self.window_pad), int(self.window_pad/2))
+        if self.show_vis_field:
+            stats = pygame.Surface((self.v_field_res, 50*self.N))
+            stats.fill(colors.GREY)
+            stats.set_alpha(230)
+            stats_pos = (int(self.window_pad), int(self.window_pad/2))
 
         # Main Simulation loop
         for i in range(self.T):
@@ -96,25 +102,27 @@ class Simulation:
             self.draw_walls()
             self.all_container.draw(self.screen)
 
-            # Updating our graphs to show visual field
-            stats_graph = pygame.PixelArray(stats)
-            stats_graph[:, :] = pygame.Color(*colors.WHITE)
-            for k in range(self.N):
-                show_base = k*50
-                show_min = (k*50)+23
-                show_max = (k*50)+25
+            if self.show_vis_field:
+                # Updating our graphs to show visual field
+                stats_graph = pygame.PixelArray(stats)
+                stats_graph[:, :] = pygame.Color(*colors.WHITE)
+                for k in range(self.N):
+                    show_base = k*50
+                    show_min = (k*50)+23
+                    show_max = (k*50)+25
 
-                for j in range(self.all_container.sprites()[k].v_field_res):
-                    if self.all_container.sprites()[k].v_field[j] == 1:
-                        stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
-                    else:
-                        stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
+                    for j in range(self.all_container.sprites()[k].v_field_res):
+                        if self.all_container.sprites()[k].v_field[j] == 1:
+                            stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
+                        else:
+                            stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
 
-            del stats_graph
-            stats.unlock()
+                del stats_graph
+                stats.unlock()
 
             # Drawing
-            self.screen.blit(stats, stats_pos)
+            if self.show_vis_field:
+                self.screen.blit(stats, stats_pos)
             pygame.display.flip()
 
             # Moving time forward

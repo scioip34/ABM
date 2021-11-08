@@ -20,7 +20,7 @@ class Simulation:
         self.WIDTH = width
         self.HEIGHT = height
         # window padding for visualization in pixels
-        self.window_pad = 10
+        self.window_pad = 30
 
         # Simulation parameters
         self.N = N

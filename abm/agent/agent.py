@@ -34,8 +34,13 @@ class Agent(pygame.sprite.Sprite):
         self.position = np.array(position, dtype=np.float64)
         self.velocity = 0
         self.orientation = orientation
+
         self.WIDTH = env_size[0]  # env width
         self.HEIGHT = env_size[1]  # env height
+        self.window_pad = 30
+        self.boundaries_x = [self.window_pad, self.window_pad + self.WIDTH]
+        self.boundaries_y = [self.window_pad, self.window_pad + self.HEIGHT]
+
         self.color = color
         # self.sensor_range = 200
         # self.sensor_line_resolution = 50
@@ -108,12 +113,12 @@ class Agent(pygame.sprite.Sprite):
         boundaries of the environment, the agents position and orientation will be changed such that the agent is
          reflected from these boundaries."""
 
-        x = self.position[0]
-        y = self.position[1]
+        x = self.position[0] + self.radius
+        y = self.position[1] + self.radius
 
         # Reflection from left wall
-        if x < 0:
-            self.position[0] = 0
+        if x < self.boundaries_x[0]:
+            self.position[0] = self.boundaries_x[0] - self.radius
 
             if np.pi / 2 <= self.orientation < np.pi:
                 self.orientation -= np.pi / 4
@@ -121,9 +126,9 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation += np.pi / 4
 
         # Reflection from right wall
-        if x > self.WIDTH:
+        if x > self.boundaries_x[1]:
 
-            self.position[0] = self.WIDTH - 1
+            self.position[0] = self.boundaries_x[1] - self.radius - 1
 
             if 3 * np.pi / 2 <= self.orientation < 2 * np.pi:
                 self.orientation -= np.pi / 4
@@ -131,8 +136,8 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation += np.pi / 4
 
         # Reflection from upper wall
-        if y < 0:
-            self.position[1] = 0
+        if y < self.boundaries_y[0]:
+            self.position[1] = self.boundaries_y[0] - self.radius
 
             if np.pi / 2 <= self.orientation <= np.pi:
                 self.orientation += np.pi / 4
@@ -140,8 +145,8 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation -= np.pi / 4
 
         # Reflection from lower wall
-        if y > self.HEIGHT:
-            self.position[1] = self.HEIGHT - 1
+        if y > self.boundaries_y[1]:
+            self.position[1] = self.boundaries_y[1] - self.radius - 1
 
             if 3 * np.pi / 2 <= self.orientation <= 2 * np.pi:
                 self.orientation += np.pi / 4

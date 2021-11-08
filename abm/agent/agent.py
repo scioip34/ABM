@@ -33,11 +33,15 @@ class Agent(pygame.sprite.Sprite):
         # Initializing agents with init parameters
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
-        self.velocity = 0
         self.orientation = orientation
         self.color = color
         self.v_field_res = v_field_res
         self.v_field = np.zeros(self.v_field_res)
+
+        # Non-initializable private attributes
+        self.velocity = 0  # agent absolute velocity
+        self.collected_r = 0  # collected rescource unit collected by agent
+        self.exploration_mode = "Explore"  # could be something like Explore, Flock, Exploit, etc.
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -157,46 +161,61 @@ class Agent(pygame.sprite.Sprite):
 
     def projection_field(self, obstacle_coords):
         """Calculating visual projection field for the agent given the visible obstacles in the environment"""
+        # initializing visual field and relative angles
         v_field = np.zeros(self.v_field_res)
         phis = np.linspace(-np.pi, np.pi, self.v_field_res)
 
+        # center point
         v1_s_x = self.position[0] + self.radius
         v1_s_y = self.position[1] + self.radius
 
+        # point on agent's edge circle according to it's orientation
         v1_e_x = (1 + np.cos(self.orientation)) * self.radius
         v1_e_y = (1 - np.sin(self.orientation)) * self.radius
 
+        # vector between center and edge according to orientation
         v1_x = v1_e_x - v1_s_x
         v1_y = v1_e_y - v1_s_y
 
         v1 = np.array([v1_x, v1_y])
 
+        # calculating closed angle between obstacle and agent according to the position of the obstacle.
+        # then calculating visual projection size according to visual angle on the agents's retina according to distance
+        # between agent and obstacle
         for obstacle_coord in obstacle_coords:
             if not (obstacle_coord[0] == self.position[0] and obstacle_coord[1] == self.position[1]):
+                # center of obstacle (as it must be another agent)
                 v2_e_x = obstacle_coord[0] + self.radius
                 v2_e_y = obstacle_coord[1] + self.radius
 
+                # vector between agent center and obstacle center
                 v2_x = v2_e_x - v1_s_x
                 v2_y = v2_e_y - v1_s_y
 
                 v2 = np.array([v2_x, v2_y])
 
+                # calculating closed angle between v1 and v2
+                # (rotated with the orientation of the agent as it is relative)
                 closed_angle = supcalc.angle_between(v1, v2) + self.orientation
                 if closed_angle > np.pi:
                     closed_angle -= 2 * np.pi
                 if closed_angle < -np.pi:
                     closed_angle += 2 * np.pi
 
+                # calculating size of the projection on the retina
                 c1 = np.array([v1_s_x, v1_s_y])
                 c2 = np.array([v2_e_x, v2_e_y])
                 distance = np.linalg.norm(c2 - c1)
                 vis_angle = 2 * np.arctan(self.radius / (1 * distance))
                 proj_size = 300 * vis_angle
+
+                # placing the projection on the VPF of agent
                 phi_target = supcalc.find_nearest(phis, closed_angle)
 
                 proj_start = int(phi_target - proj_size / 2)
                 proj_end = int(phi_target + proj_size / 2)
 
+                # circular boundaries to the VPF as there is 360 degree vision
                 if proj_start < 0:
                     v_field[self.v_field_res + proj_start:self.v_field_res] = 1
                     proj_start = 0

@@ -39,7 +39,7 @@ class Simulation:
         pygame.init()
 
         # pygame related class attributes
-        self.all_container = pygame.sprite.Group()
+        self.agents = pygame.sprite.Group()
         self.screen = pygame.display.set_mode([self.WIDTH + 2 * self.window_pad, self.HEIGHT + 2 * self.window_pad])
         # todo: look into this more in detail so we can control dt
         self.clock = pygame.time.Clock()
@@ -74,7 +74,7 @@ class Simulation:
                 v_field_res=self.v_field_res,
                 window_pad=self.window_pad
             )
-            self.all_container.add(agent)
+            self.agents.add(agent)
 
         # Creating surface to show some graphs (visual fields for now)
         if self.show_vis_field:
@@ -92,15 +92,15 @@ class Simulation:
                     sys.exit()
 
             # Collecting agent coordinates for vision
-            obstacle_coords = [ag.position for ag in self.all_container.sprites()]
+            obstacle_coords = [ag.position for ag in self.agents.sprites()]
 
             # Updating all agents accordingly
-            self.all_container.update(obstacle_coords)
+            self.agents.update(obstacle_coords)
 
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)
             self.draw_walls()
-            self.all_container.draw(self.screen)
+            self.agents.draw(self.screen)
 
             if self.show_vis_field:
                 # Updating our graphs to show visual field
@@ -111,8 +111,8 @@ class Simulation:
                     show_min = (k*50)+23
                     show_max = (k*50)+25
 
-                    for j in range(self.all_container.sprites()[k].v_field_res):
-                        if self.all_container.sprites()[k].v_field[j] == 1:
+                    for j in range(self.agents.sprites()[k].v_field_res):
+                        if self.agents.sprites()[k].v_field[j] == 1:
                             stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
                         else:
                             stats_graph[j, show_base] = pygame.Color(*colors.GREEN)

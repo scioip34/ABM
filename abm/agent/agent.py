@@ -45,6 +45,7 @@ class Agent(pygame.sprite.Sprite):
         # creating visualization surface for agent as a filled circle
         self.image = pygame.Surface([radius * 2, radius * 2])
         self.image.fill(colors.BACKGROUND)
+        self.image.set_colorkey(colors.BACKGROUND)
         pygame.draw.circle(
             self.image, color, (radius, radius), radius
         )
@@ -93,6 +94,7 @@ class Agent(pygame.sprite.Sprite):
         # creating visualization surface for agent as a filled circle
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)
+        self.image.set_colorkey(colors.BACKGROUND)
         pygame.draw.circle(
             self.image, self.color, (self.radius, self.radius), self.radius
         )

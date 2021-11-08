@@ -67,6 +67,18 @@ class Simulation:
                          [self.window_pad, self.window_pad + self.HEIGHT],
                          [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
 
+    def agent_agent_collision(self, agent):
+        """collision protocol called on any agent that has been collided with another one
+        :param agent: agent that collided"""
+        # Updating all agents accordingly
+        if agent.velocity >= 0:
+            agent.velocity += 0.5
+        else:
+            agent.velocity -= 0.5
+        # agent.velocity *= -1
+        agent.orientation += np.pi / 4
+
+
     def start(self):
 
         # Creating N agents in the environment
@@ -103,6 +115,7 @@ class Simulation:
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
 
+            # Check if any 2 agents has been collided and reflect them from each other if so
             collision_group = pygame.sprite.groupcollide(
                 self.agents,
                 self.agents,
@@ -110,17 +123,10 @@ class Simulation:
                 False,
                 within_group_collision
             )
+            for agent in collision_group:
+                self.agent_agent_collision(agent)
 
-            if i > 0:
-                for agent in collision_group:
-                    # Updating all agents accordingly
-                    if agent.velocity >= 0:
-                        agent.velocity += 1
-                    else:
-                        agent.velocity -= 1
-                    agent.velocity *= -1
-
-
+            # Update agents according to current visible obstacles
             self.agents.update(obstacle_coords)
 
             # Draw environment and agents

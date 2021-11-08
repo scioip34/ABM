@@ -6,7 +6,7 @@ from abm.contrib import colors
 
 
 class Simulation:
-    def __init__(self, N, T, v_field_res=800, width=600, height=480, framerate=30):
+    def __init__(self, N, T, v_field_res=800, width=600, height=480, framerate=30, window_pad=30):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -15,12 +15,12 @@ class Simulation:
         :param width: real width of environment (not window size)
         :param height: real height of environment (not window size)
         :param framerate: framerate of simulation
+        :param window_pad: padding of the environment in simulation window in pixels
         """
         # Arena parameters
         self.WIDTH = width
         self.HEIGHT = height
-        # window padding for visualization in pixels
-        self.window_pad = 30
+        self.window_pad = window_pad
 
         # Simulation parameters
         self.N = N
@@ -66,7 +66,8 @@ class Simulation:
                 orientation=0,
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.BLUE,
-                v_field_res=self.v_field_res
+                v_field_res=self.v_field_res,
+                window_pad=self.window_pad
             )
             self.all_container.add(agent)
 
@@ -74,7 +75,7 @@ class Simulation:
         stats = pygame.Surface((self.v_field_res, 50*self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(230)
-        stats_pos = (self.window_pad, self.window_pad)
+        stats_pos = (int(self.window_pad), int(self.window_pad/2))
 
         # Main Simulation loop
         for i in range(self.T):
@@ -91,7 +92,7 @@ class Simulation:
             self.all_container.update(obstacle_coords)
 
             # Draw environment and agents
-            self.screen.fill(colors.GREY)
+            self.screen.fill(colors.BACKGROUND)
             self.draw_walls()
             self.all_container.draw(self.screen)
 

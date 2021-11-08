@@ -15,7 +15,7 @@ class Agent(pygame.sprite.Sprite):
     and to make decisions.
     """
 
-    def __init__(self, radius, position, orientation, env_size, color, v_field_res):
+    def __init__(self, radius, position, orientation, env_size, color, v_field_res, window_pad):
         """
         Initalization method of main agent class of the simulations
 
@@ -25,6 +25,7 @@ class Agent(pygame.sprite.Sprite):
         :param env_size: environment size available for agents as (width, height)
         :param color: color of the agent as (R, G, B)
         :param v_field_res: resolution of the visual field of the agent in pixels
+        :param window_pad: padding of the environment in simulation window in pixels
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -34,20 +35,18 @@ class Agent(pygame.sprite.Sprite):
         self.position = np.array(position, dtype=np.float64)
         self.velocity = 0
         self.orientation = orientation
-
-        self.WIDTH = env_size[0]  # env width
-        self.HEIGHT = env_size[1]  # env height
-        self.window_pad = 30
-        self.boundaries_x = [self.window_pad, self.window_pad + self.WIDTH]
-        self.boundaries_y = [self.window_pad, self.window_pad + self.HEIGHT]
-
         self.color = color
-        # self.sensor_range = 200
-        # self.sensor_line_resolution = 50
         self.v_field_res = v_field_res
         self.v_field = np.zeros(self.v_field_res)
 
-        # creating visualization surface for agent as a filled circle
+        # Environment related parameters
+        self.WIDTH = env_size[0]  # env width
+        self.HEIGHT = env_size[1]  # env height
+        self.window_pad = window_pad
+        self.boundaries_x = [self.window_pad, self.window_pad + self.WIDTH]
+        self.boundaries_y = [self.window_pad, self.window_pad + self.HEIGHT]
+
+        # Initial Visualization of agent
         self.image = pygame.Surface([radius * 2, radius * 2])
         self.image.fill(colors.BACKGROUND)
         self.image.set_colorkey(colors.BACKGROUND)
@@ -55,7 +54,7 @@ class Agent(pygame.sprite.Sprite):
             self.image, color, (radius, radius), radius
         )
 
-        # showing agent orientation with a line towards agent orientation
+        # Showing agent orientation with a line towards agent orientation
         pygame.draw.line(self.image, colors.BLACK, (radius, radius),
                          ((1 + np.cos(self.orientation)) * radius, (1 - np.sin(self.orientation)) * radius), 3)
         self.rect = self.image.get_rect()
@@ -64,7 +63,7 @@ class Agent(pygame.sprite.Sprite):
         """
         main update method of the agent. This method is called in every timestep to calculate the new state/position
         of the agent and visualize it in the environment
-        :param obstacles: a list of obstacle coordinates as (X, Y)
+        :param obstacles: a list of visible obstacle coordinates as (X, Y) in the environment
         """
 
         # calculating projection field of agent (vision)
@@ -74,17 +73,19 @@ class Agent(pygame.sprite.Sprite):
         vel, theta = supcalc.compute_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
                                                      self.v_field)
 
-        # updateing agent's state variables
+        # updating agent's state variables
         self.orientation += theta
-        self.prove_orientation()
+        self.prove_orientation()  # bounding orientation into 0 and 2pi
         self.velocity += vel
+
+        # updating agent's position
         self.position[0] += self.velocity * np.cos(-self.orientation)
         self.position[1] += self.velocity * np.sin(-self.orientation)
 
-        # boundary conditions
+        # boundary conditions if applicable
         self.reflect_from_walls()
 
-        # updating the oulook of the agent
+        # updating agent visualization
         self.draw_update()
 
     def draw_update(self):
@@ -113,6 +114,7 @@ class Agent(pygame.sprite.Sprite):
         boundaries of the environment, the agents position and orientation will be changed such that the agent is
          reflected from these boundaries."""
 
+        # Boundary conditions according to center of agent (simple)
         x = self.position[0] + self.radius
         y = self.position[1] + self.radius
 
@@ -154,7 +156,7 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation -= np.pi / 4
 
     def projection_field(self, obstacle_coords):
-        """Calculating visual projection field for the agent given the known obstacles in the environment"""
+        """Calculating visual projection field for the agent given the visible obstacles in the environment"""
         v_field = np.zeros(self.v_field_res)
         phis = np.linspace(-np.pi, np.pi, self.v_field_res)
 
@@ -208,7 +210,7 @@ class Agent(pygame.sprite.Sprite):
         self.v_field = v_field
 
     def prove_orientation(self):
-        """Restricting orientation angle between o and 2 pi"""
+        """Restricting orientation angle between 0 and 2 pi"""
         if self.orientation < 0:
             self.orientation = 2 * np.pi + self.orientation
         if self.orientation > np.pi * 2:

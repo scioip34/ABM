@@ -6,7 +6,8 @@ from scipy import integrate
 from abm.contrib import vswrm
 
 
-def compute_state_variables(vel_now, Phi, V_now, t_now=None, V_prev=None, t_prev=None):
+# Functions needed for VSWRM functionality
+def VSWRM_flocking_state_variables(vel_now, Phi, V_now, t_now=None, V_prev=None, t_prev=None):
     """Calculating state variables of a given agent according to the main algorithm as in
     https://advances.sciencemag.org/content/6/6/eaay0792.
         Args:
@@ -50,6 +51,9 @@ def compute_state_variables(vel_now, Phi, V_now, t_now=None, V_prev=None, t_prev
     dPhi = Phi[-1] - Phi[-2]
     FOV_rescaling_cos = 1
     FOV_rescaling_sin = 1
+
+    # print(f"alp0 : {vswrm.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi)}", )
+    # print(f'alp1 : {vswrm.ALP0 * vswrm.ALP1 * np.sum(np.cos(Phi) * G_vel_spike) * dPhi}')
 
     dvel = vswrm.GAM * (vswrm.V0 - vel_now) + \
            vswrm.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi) + \
@@ -110,3 +114,11 @@ def angle_between(v1, v2):
     if v1_u[0] * v2_u[1] - v1_u[1] * v2_u[0] < 0:
         angle = -angle
     return angle
+
+
+# Random Walk functions
+def random_walk(vel_limit=(-0.2, 0.2), theta_limit=(-0.3, 0.3)):
+    """Pooling a small orientation and absolute velocity increment from some distribution"""
+    vel = 0  # np.random.uniform(vel_limit[0], vel_limit[1])
+    theta = np.random.uniform(theta_limit[0], theta_limit[1])
+    return vel, theta

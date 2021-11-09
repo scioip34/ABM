@@ -85,8 +85,9 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = supcalc.random_walk()
         elif self.mode == "exploit":
             # exploiting resource and can not move but might be able to turn
-            vel, theta = supcalc.random_walk()
-            vel = -self.velocity # stopping the agent but can still turn around
+            # vel, theta = supcalc.random_walk()
+            # vel = -self.velocity # stopping the agent but can still turn around
+            vel, theta = (0, 0)
 
         # updating agent's state variables
         self.orientation += theta

@@ -121,12 +121,9 @@ class Simulation:
                 for ag in self.agents.sprites():
                     ag.mode = "explore"
                     ag.velocity = 1
-            elif i < 2*self.T/3:
+            else:
                 for ag in self.agents.sprites():
                     ag.mode = "flock"
-            # else:
-            #     for ag in self.agents.sprites():
-            #         ag.mode = "flock"
 
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
@@ -149,7 +146,7 @@ class Simulation:
                 self.agents,
                 False,
                 False,
-                itra.overlap
+                pygame.sprite.collide_circle #itra.overlap
             )
 
             for resc, agents in collision_group_ar.items():

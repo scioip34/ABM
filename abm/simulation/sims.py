@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 import sys
 from abm.agent.agent import Agent
+from abm.environment.rescource import Rescource
 from abm.contrib import colors
 from abm.simulation import interactions as itra
 
@@ -41,6 +42,7 @@ class Simulation:
 
         # pygame related class attributes
         self.agents = pygame.sprite.Group()
+        self.rescources = pygame.sprite.Group()
         self.screen = pygame.display.set_mode([self.WIDTH + 2 * self.window_pad, self.HEIGHT + 2 * self.window_pad])
         # todo: look into this more in detail so we can control dt
         self.clock = pygame.time.Clock()
@@ -91,6 +93,15 @@ class Simulation:
             )
             self.agents.add(agent)
 
+        # Creating rescource patches
+        for i in range(10):
+            radius = np.random.randint(40, 60)
+            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
+            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
+
+            rescource = Rescource(i, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad)
+            self.rescources.add(rescource)
+
         # Creating surface to show some graphs (visual fields for now)
         if self.show_vis_field:
             stats = pygame.Surface((self.v_field_res, 50 * self.N))
@@ -109,32 +120,58 @@ class Simulation:
             if i < self.T/3:
                 for ag in self.agents.sprites():
                     ag.mode = "explore"
+                    ag.velocity = 1
             elif i < 2*self.T/3:
                 for ag in self.agents.sprites():
-                    ag.mode = "exploit"
-            else:
-                for ag in self.agents.sprites():
                     ag.mode = "flock"
+            # else:
+            #     for ag in self.agents.sprites():
+            #         ag.mode = "flock"
 
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
 
             # Check if any 2 agents has been collided and reflect them from each other if so
-            collision_group = pygame.sprite.groupcollide(
+            collision_group_aa = pygame.sprite.groupcollide(
                 self.agents,
                 self.agents,
                 False,
                 False,
                 itra.within_group_collision
             )
-            for agent in collision_group:
+            for agent in collision_group_aa:
                 self.agent_agent_collision(agent)
 
+            # Angent-rescource interactions
+            # Check if any 2 agents has been collided and reflect them from each other if so
+            collision_group_ar = pygame.sprite.groupcollide(
+                self.rescources,
+                self.agents,
+                False,
+                False,
+                itra.overlap
+            )
+
+            for resc, agents in collision_group_ar.items():
+                rescource_units_consumed = len(agents)
+                for agent in agents:
+                    agent.collected_r += 1
+                    agent.mode = "exploit"
+                destroy_resc = resc.deplete(rescource_units_consumed)
+                if destroy_resc:
+                    print(f"Kill rescource patch: {resc.id}")
+                    resc.kill()
+
+                print(collision_group_ar)
+
+            # Update rescource patches
+            self.rescources.update()
             # Update agents according to current visible obstacles
             self.agents.update(obstacle_coords)
 
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)
+            self.rescources.draw(self.screen)
             self.draw_walls()
             self.agents.draw(self.screen)
 

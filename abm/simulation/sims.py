@@ -3,14 +3,7 @@ import numpy as np
 import sys
 from abm.agent.agent import Agent
 from abm.contrib import colors
-
-
-def within_group_collision(sprite1, sprite2):
-    """Custom colllision check that omits collisions of sprite with itself. This way we can use group collision
-    detect WITHIN a single group instead of between multiple groups"""
-    if sprite1 != sprite2:
-        return pygame.sprite.collide_circle(sprite1, sprite2)
-    return False
+from abm.simulation import interactions as itra
 
 
 class Simulation:
@@ -71,6 +64,7 @@ class Simulation:
         """collision protocol called on any agent that has been collided with another one
         :param agent: agent that collided"""
         # Updating all agents accordingly
+        agent.mode = "collide"
         if agent.velocity >= 0:
             agent.velocity += 0.5
         else:
@@ -112,6 +106,13 @@ class Simulation:
                 if event.type == pygame.QUIT:
                     sys.exit()
 
+            if i < self.T/2:
+                for ag in self.agents.sprites():
+                    ag.mode = "explore"
+            else:
+                for ag in self.agents.sprites():
+                    ag.mode = "flock"
+
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
 
@@ -121,7 +122,7 @@ class Simulation:
                 self.agents,
                 False,
                 False,
-                within_group_collision
+                itra.within_group_collision
             )
             for agent in collision_group:
                 self.agent_agent_collision(agent)

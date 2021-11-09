@@ -43,7 +43,7 @@ class Agent(pygame.sprite.Sprite):
         # Non-initializable private attributes
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
-        self.exploration_mode = "Explore"  # could be something like Explore, Flock, Exploit, etc.
+        self.mode = "explore"  # could be something like Explore, Flock, Exploit, etc.
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -61,7 +61,7 @@ class Agent(pygame.sprite.Sprite):
         )
 
         # Showing agent orientation with a line towards agent orientation
-        pygame.draw.line(self.image, colors.BLACK, (radius, radius),
+        pygame.draw.line(self.image, colors.BACKGROUND, (radius, radius),
                          ((1 + np.cos(self.orientation)) * radius, (1 - np.sin(self.orientation)) * radius), 3)
         self.rect = self.image.get_rect()
 
@@ -72,23 +72,24 @@ class Agent(pygame.sprite.Sprite):
         :param obstacles: a list of visible obstacle coordinates as (X, Y) in the environment
         """
 
-        # calculating projection field of agent (vision)
-        self.projection_field(obstacles)
+        # calculating velcoity and orientation change according behavioral mode
+        if self.mode == "flock":
+            # calculating projection field of agent (vision)
+            self.projection_field(obstacles)
+            # flocking according to VSWRM
+            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                         self.v_field)
+        elif self.mode == "explore" or self.mode == "collide":
+            # exploring with some random process
+            vel, theta = supcalc.random_walk()
 
-        # calculating velcoity and orientation change according to visual cues
-        vel, theta = supcalc.compute_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                     self.v_field)
-        # print(self.id, vel, theta)
-        # if vel > 0:
-        #     print(f'{self.id}pos')
-        # else:
-        #     print(f'{self.id}neg')
 
         if self.id>=0:
             # updating agent's state variables
             self.orientation += theta
             self.prove_orientation()  # bounding orientation into 0 and 2pi
             self.velocity += vel
+            self.prove_velocity()  # possibly bounding velocity of agent
 
             # updating agent's position
             self.position[0] += self.velocity * np.cos(-self.orientation)
@@ -104,6 +105,17 @@ class Agent(pygame.sprite.Sprite):
             self.position[1] = 200
             self.draw_update()
 
+    def change_color(self):
+        """Changing color of agent according to the behavioral mode the agent is currently in."""
+        if self.mode == "explore":
+            self.color = colors.BLUE
+        elif self.mode == "flock":
+            self.color = colors.PURPLE
+        elif self.mode == "collide":
+            self.color = colors.RED
+        elif self.mode == "exploit":
+            self.color = colors.GREEN
+
     def draw_update(self):
         """
         updating the outlook of the agent according to position and orientation
@@ -111,6 +123,9 @@ class Agent(pygame.sprite.Sprite):
         # update position
         self.rect.x = self.position[0]
         self.rect.y = self.position[1]
+
+        # cahnge agent color according to mode
+        self.change_color()
 
         # update surface according to new orientation
         # creating visualization surface for agent as a filled circle
@@ -121,7 +136,7 @@ class Agent(pygame.sprite.Sprite):
             self.image, self.color, (self.radius, self.radius), self.radius
         )
         # showing agent orientation with a line towards agent orientation
-        pygame.draw.line(self.image, colors.BLACK, (self.radius, self.radius),
+        pygame.draw.line(self.image, colors.BACKGROUND, (self.radius, self.radius),
                          ((1 + np.cos(self.orientation)) * self.radius, (1 - np.sin(self.orientation)) * self.radius),
                          3)
 
@@ -246,3 +261,13 @@ class Agent(pygame.sprite.Sprite):
             self.orientation = 2 * np.pi + self.orientation
         if self.orientation > np.pi * 2:
             self.orientation = 2 * np.pi - self.orientation
+
+    def prove_velocity(self, velocity_limit=1):
+        """Restricting the absolute velocity of the agent"""
+        vel_sign = np.sign(self.velocity)
+        if vel_sign == 0:
+            vel_sign = +1
+        if self.mode == 'explore':
+            if np.abs(self.velocity) > velocity_limit:
+                # stopping agent if too fast during exploration
+                self.velocity = 1

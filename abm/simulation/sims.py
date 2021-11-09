@@ -106,9 +106,12 @@ class Simulation:
                 if event.type == pygame.QUIT:
                     sys.exit()
 
-            if i < self.T/2:
+            if i < self.T/3:
                 for ag in self.agents.sprites():
                     ag.mode = "explore"
+            elif i < 2*self.T/3:
+                for ag in self.agents.sprites():
+                    ag.mode = "exploit"
             else:
                 for ag in self.agents.sprites():
                     ag.mode = "flock"

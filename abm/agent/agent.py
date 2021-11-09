@@ -72,7 +72,7 @@ class Agent(pygame.sprite.Sprite):
         :param obstacles: a list of visible obstacle coordinates as (X, Y) in the environment
         """
 
-        # calculating velcoity and orientation change according behavioral mode
+        # calculating velocity and orientation change according behavioral mode
         if self.mode == "flock":
             # calculating projection field of agent (vision)
             self.projection_field(obstacles)
@@ -82,28 +82,26 @@ class Agent(pygame.sprite.Sprite):
         elif self.mode == "explore" or self.mode == "collide":
             # exploring with some random process
             vel, theta = supcalc.random_walk()
+        elif self.mode == "exploit":
+            # exploiting resource and can not move but might be able to turn
+            vel, theta = supcalc.random_walk()
+            vel = -self.velocity # stopping the agent but can still turn around
 
+        # updating agent's state variables
+        self.orientation += theta
+        self.prove_orientation()  # bounding orientation into 0 and 2pi
+        self.velocity += vel
+        self.prove_velocity()  # possibly bounding velocity of agent
 
-        if self.id>=0:
-            # updating agent's state variables
-            self.orientation += theta
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-            self.velocity += vel
-            self.prove_velocity()  # possibly bounding velocity of agent
+        # updating agent's position
+        self.position[0] += self.velocity * np.cos(-self.orientation)
+        self.position[1] += self.velocity * np.sin(-self.orientation)
 
-            # updating agent's position
-            self.position[0] += self.velocity * np.cos(-self.orientation)
-            self.position[1] += self.velocity * np.sin(-self.orientation)
+        # boundary conditions if applicable
+        self.reflect_from_walls()
 
-            # boundary conditions if applicable
-            self.reflect_from_walls()
-
-            # updating agent visualization
-            self.draw_update()
-        else:
-            self.position[0] = 600
-            self.position[1] = 200
-            self.draw_update()
+        # updating agent visualization
+        self.draw_update()
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""

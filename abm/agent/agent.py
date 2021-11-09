@@ -64,6 +64,7 @@ class Agent(pygame.sprite.Sprite):
         pygame.draw.line(self.image, colors.BACKGROUND, (radius, radius),
                          ((1 + np.cos(self.orientation)) * radius, (1 - np.sin(self.orientation)) * radius), 3)
         self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
 
     def update(self, obstacles):
         """
@@ -137,6 +138,7 @@ class Agent(pygame.sprite.Sprite):
         pygame.draw.line(self.image, colors.BACKGROUND, (self.radius, self.radius),
                          ((1 + np.cos(self.orientation)) * self.radius, (1 - np.sin(self.orientation)) * self.radius),
                          3)
+        self.mask = pygame.mask.from_surface(self.image)
 
     def reflect_from_walls(self):
         """reflecting agent from environment boundaries according to a desired x, y coordinate. If this is over any

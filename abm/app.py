@@ -1,6 +1,14 @@
 from abm.simulation.sims import Simulation
 
+# loading env variables from dotenv file
+from dotenv import dotenv_values
+envconf = dotenv_values(".env")
 
 def start():
-    sim = Simulation(N=4, T=1000, v_field_res=1200, width=1000, height=600, show_vis_field=False)
+    sim = Simulation(N=int(envconf["N"]),
+                     T=int(envconf["T"]),
+                     v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),
+                     width=int(envconf["ENV_WIDTH"]),
+                     height=int(envconf["ENV_HEIGHT"]),
+                     show_vis_field=bool(int(envconf["SHOW_VISUAL_FIELDS"])))
     sim.start()

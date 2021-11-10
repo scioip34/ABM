@@ -115,27 +115,45 @@ class Simulation:
             self.rescources.add(rescource)
 
         # Creating surface to show some graphs (visual fields for now)
-        if self.show_vis_field:
-            stats = pygame.Surface((self.v_field_res, 50 * self.N))
-            stats.fill(colors.GREY)
-            stats.set_alpha(230)
-            stats_pos = (int(self.window_pad), int(self.window_pad / 2))
+        # if self.show_vis_field:
+        stats = pygame.Surface((self.v_field_res, 50 * self.N))
+        stats.fill(colors.GREY)
+        stats.set_alpha(200)
+        stats_pos = (int(self.window_pad), int(self.window_pad / 2))
+
+        turned_on_vfield = 0
 
         # Main Simulation loop
         for i in range(self.T):
+            for ag in self.agents.sprites():
+                ag.mode = "explore"
+                ag.velocity = 1
 
             # Quitting on break event
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
 
-            if i < self.T/3:
-                for ag in self.agents.sprites():
-                    ag.mode = "explore"
-                    ag.velocity = 1
-            else:
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_RETURN]:
+                show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
+                if not self.show_vis_field and show_vis_fields_on_return:
+                    self.show_vis_field = 1
+                    turned_on_vfield = 1
                 for ag in self.agents.sprites():
                     ag.mode = "flock"
+            else:
+                if self.show_vis_field and turned_on_vfield:
+                    turned_on_vfield = 0
+                    self.show_vis_field = 0
+
+            # if i < self.T/3:
+            #     for ag in self.agents.sprites():
+            #         ag.mode = "explore"
+            #         ag.velocity = 1
+            # else:
+            #     for ag in self.agents.sprites():
+            #         ag.mode = "flock"
 
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
@@ -158,7 +176,7 @@ class Simulation:
                 self.agents,
                 False,
                 False,
-                pygame.sprite.collide_circle #itra.overlap
+                pygame.sprite.collide_circle
             )
 
             for resc, agents in collision_group_ar.items():
@@ -168,7 +186,6 @@ class Simulation:
                     agent.mode = "exploit"
                 destroy_resc = resc.deplete(rescource_units_consumed)
                 if destroy_resc:
-                    print(f"Kill rescource patch: {resc.id}")
                     resc.kill()
 
 

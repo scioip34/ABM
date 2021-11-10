@@ -5,6 +5,7 @@ from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
 from abm.contrib import colors
 from abm.simulation import interactions as itra
+from math import atan2
 
 
 class Simulation:
@@ -62,17 +63,26 @@ class Simulation:
                          [self.window_pad, self.window_pad + self.HEIGHT],
                          [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
 
-    def agent_agent_collision(self, agent):
+    def agent_agent_collision(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
-        :param agent: agent that collided"""
+        :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly
-        agent.mode = "collide"
-        if agent.velocity >= 0:
-            agent.velocity += 0.5
-        else:
-            agent.velocity -= 0.5
-        # agent.velocity *= -1
-        agent.orientation += np.pi / 4
+        agent2 = agent2[0]
+        agent1.mode = agent2.mode = "collide"
+
+        x1, y1 = agent1.position
+        x2, y2 = agent2.position
+        dx = x2-x1
+        dy = y2-y1
+        # calculating relative closed angle to agent2 orientation
+        theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
+
+        if 0 < theta < np.pi:
+            agent2.orientation -= np.pi/8
+        elif np.pi < theta < 2*np.pi:
+            agent2.orientation += np.pi/8
+
+        agent2.velocity += 0.5
 
 
     def start(self):
@@ -136,8 +146,8 @@ class Simulation:
                 False,
                 itra.within_group_collision
             )
-            for agent in collision_group_aa:
-                self.agent_agent_collision(agent)
+            for agent1, agent2 in collision_group_aa.items():
+                self.agent_agent_collision(agent1, agent2)
 
             # Angent-rescource interactions
             # Check if any 2 agents has been collided and reflect them from each other if so

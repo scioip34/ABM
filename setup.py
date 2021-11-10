@@ -16,7 +16,8 @@ setup(
         'pygame',
         'numpy',
         'scipy',
-        'matplotlib'
+        'matplotlib',
+        'python-dotenv'
     ],
     extras_require={
         'test': [

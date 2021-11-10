@@ -7,6 +7,9 @@ from abm.contrib import colors
 from abm.simulation import interactions as itra
 from math import atan2
 
+# loading env variables from dotenv file
+from dotenv import dotenv_values
+envconf = dotenv_values(".env")
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
@@ -86,7 +89,6 @@ class Simulation:
 
 
     def start(self):
-
         # Creating N agents in the environment
         for i in range(self.N):
             x = np.random.randint(self.WIDTH / 3, 2 * self.WIDTH / 3 + 1)
@@ -169,7 +171,6 @@ class Simulation:
                     print(f"Kill rescource patch: {resc.id}")
                     resc.kill()
 
-                print(collision_group_ar)
 
             # Update rescource patches
             self.rescources.update()

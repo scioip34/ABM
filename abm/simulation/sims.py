@@ -147,14 +147,6 @@ class Simulation:
                     turned_on_vfield = 0
                     self.show_vis_field = 0
 
-            # if i < self.T/3:
-            #     for ag in self.agents.sprites():
-            #         ag.mode = "explore"
-            #         ag.velocity = 1
-            # else:
-            #     for ag in self.agents.sprites():
-            #         ag.mode = "flock"
-
             # Collecting agent coordinates for vision
             obstacle_coords = [ag.position for ag in self.agents.sprites()]
 

@@ -13,7 +13,8 @@ envconf = dotenv_values(".env")
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
-                 framerate=30, window_pad=30, show_vis_field=False):
+                 framerate=30, window_pad=30, show_vis_field=False,
+                 pooling_time=3, pooling_prob=0.05):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -24,6 +25,8 @@ class Simulation:
         :param framerate: framerate of simulation
         :param window_pad: padding of the environment in simulation window in pixels
         :param show_vis_field: (Bool) turn on visualization for visual field of agents
+        :param pooling_time: time units for a single pooling events
+        :param pooling probability: initial probability of switching to pooling regime for any agent
         """
         # Arena parameters
         self.WIDTH = width
@@ -40,6 +43,8 @@ class Simulation:
 
         # Agent parameters
         self.v_field_res = v_field_res
+        self.pooling_time = pooling_time
+        self.pooling_prob = pooling_prob
 
         # Initializing pygame
         pygame.init()
@@ -101,7 +106,9 @@ class Simulation:
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.BLUE,
                 v_field_res=self.v_field_res,
-                window_pad=self.window_pad
+                window_pad=self.window_pad,
+                pooling_time=self.pooling_time,
+                pooling_prob=self.pooling_prob
             )
             self.agents.add(agent)
 

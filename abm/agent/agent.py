@@ -15,7 +15,8 @@ class Agent(pygame.sprite.Sprite):
     and to make decisions.
     """
 
-    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad):
+    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
+                 pooling_prob):
         """
         Initalization method of main agent class of the simulations
 
@@ -27,6 +28,8 @@ class Agent(pygame.sprite.Sprite):
         :param color: color of the agent as (R, G, B)
         :param v_field_res: resolution of the visual field of the agent in pixels
         :param window_pad: padding of the environment in simulation window in pixels
+        :param pooling_time: time units needed to pool status of a given position in the environment
+        :param pooling_prob: initial probability to switch to pooling behavior
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -39,6 +42,8 @@ class Agent(pygame.sprite.Sprite):
         self.color = color
         self.v_field_res = v_field_res
         self.v_field = np.zeros(self.v_field_res)
+        self.pooling_time = pooling_time
+        self.pooling_prob = pooling_prob
 
         # Non-initializable private attributes
         self.velocity = 0  # agent absolute velocity

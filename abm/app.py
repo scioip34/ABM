@@ -10,5 +10,7 @@ def start():
                      v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),
                      width=int(envconf["ENV_WIDTH"]),
                      height=int(envconf["ENV_HEIGHT"]),
-                     show_vis_field=bool(int(envconf["SHOW_VISUAL_FIELDS"])))
+                     show_vis_field=bool(int(envconf["SHOW_VISUAL_FIELDS"])),
+                     pooling_time=int(envconf["POOLING_TIME"]),
+                     pooling_prob=float(envconf["POOLING_PROBABILITY"]))
     sim.start()

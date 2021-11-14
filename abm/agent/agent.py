@@ -96,6 +96,7 @@ class Agent(pygame.sprite.Sprite):
             self.velocity = 1
             vel, theta = supcalc.random_walk()
         elif self.mode == "exploit":
+            self.velocity = 0
             vel, theta = (0, 0)
         elif self.mode == "pool":
             vel, theta = (0, 0)
@@ -304,8 +305,13 @@ class Agent(pygame.sprite.Sprite):
         if self.mode == "explore":
             dec = np.random.uniform(0, 1)
             # let's switch to pooling in 10 percent of the cases
-            if dec < self.pooling_prob:
+            if dec < self.pooling_prob and self.pooling_time > 0:
                 self.mode = "pool"
+
+            # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
+            if self.pooling_time == 0 and self.env_status == 1:
+                self.mode = "exploit"
+
         else:
             # If the agent knows there is a patch it will explot it
             if self.env_status == 1:  # always keep exploiting until end of process

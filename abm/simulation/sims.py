@@ -76,7 +76,8 @@ class Simulation:
         :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly
         agent2 = agent2[0]
-        agent1.mode = agent2.mode = "collide"
+        if agent2.mode != "exploit":
+            agent2.mode = "collide"
 
         x1, y1 = agent1.position
         x2, y2 = agent2.position
@@ -175,7 +176,7 @@ class Simulation:
                 collided_agents.append(agent2)
 
             for agent in self.agents:
-                if agent not in collided_agents and agent.mode=="collide":
+                if agent not in collided_agents and agent.mode == "collide":
                     agent.mode = "explore"
 
             # AGENT RESCOURCE INTERACTION
@@ -194,33 +195,35 @@ class Simulation:
             for resc, agents in collision_group_ar.items():  # looping through patches
                 destroy_resc = 0  # if we destroy a patch it is 1
                 for agent in agents:  # looping through agents on patch
-                    if destroy_resc:  # if a previous agent on patch consumed the last unit
-                        agent.env_status = 0  # then this agent does not find a patch here anymore
-                        agent.pool_succes = 0  # restarting pooling timer if it happened during pooling
-                        agent.mode = "explore"  # and putting it back to explore
-                    if agent.mode == "pool" and agent.pool_succes:  # if an agent finifhed pooling on a rescource patch
-                        agent.pool_succes = 0  # reinit pooling variable
-                        agent.env_status = 1  # providing the status of the environment to the agent
-                    if agent.mode == "exploit":  # if an agent is already exploiting this patch
-                        destroy_resc = resc.deplete(1)  # it continues depleting the patch
-                        agent.collected_r += 1  # and increasing it's collected rescources
-                        if destroy_resc:  # if the consumed unit was the last in the patch
-                            agent.env_status = 0  # notifying agent that there is no more rescource here
-                            agent.mode = "explore"  # and putting it back to exploration
-                    agents_on_rescs.append(agent)  # collecting agents on rescource patches
+                    if agent not in collided_agents:
+                        if destroy_resc:  # if a previous agent on patch consumed the last unit
+                            agent.env_status = 0  # then this agent does not find a patch here anymore
+                            agent.pool_succes = 0  # restarting pooling timer if it happened during pooling
+                            agent.mode = "explore"  # and putting it back to explore
+                        if (agent.mode == "pool" and agent.pool_succes) or agent.pooling_time==0:  # if an agent finifhed pooling on a rescource patch
+                            agent.pool_succes = 0  # reinit pooling variable
+                            agent.env_status = 1  # providing the status of the environment to the agent
+                        if agent.mode == "exploit":  # if an agent is already exploiting this patch
+                            destroy_resc = resc.deplete(1)  # it continues depleting the patch
+                            agent.collected_r += 1  # and increasing it's collected rescources
+                            if destroy_resc:  # if the consumed unit was the last in the patch
+                                agent.env_status = 0  # notifying agent that there is no more rescource here
+                                agent.mode = "explore"  # and putting it back to exploration
+                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
                 if destroy_resc:  # if the patch is fully depleted
                     resc.kill()  # we clear it from the memory
 
             for agent in self.agents.sprites():
                 if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                    if agent.mode == "pool" and agent.pool_succes:  # if they finished pooling
-                        agent.pool_succes = 0  # reinit pooling var
-                        agent.env_status = 0  # provide the info taht there is no rescource here
-                        agent.mode = "explore"  # setting agent mode back to explore
-                    elif agent.mode=="exploit":
-                        agent.pool_succes = 0  # reinit pooling var
-                        agent.env_status = 0  # provide the info taht there is no rescource here
-                        agent.mode = "explore"  # setting agent mode back to explore
+                    if agent not in collided_agents:
+                        if (agent.mode == "pool" and agent.pool_succes) or agent.pooling_time == 0:  # if they finished pooling
+                            agent.pool_succes = 0  # reinit pooling var
+                            agent.env_status = 0  # provide the info taht there is no rescource here
+                            agent.mode = "explore"  # setting agent mode back to explore
+                        elif agent.mode=="exploit":
+                            agent.pool_succes = 0  # reinit pooling var
+                            agent.env_status = 0  # provide the info taht there is no rescource here
+                            agent.mode = "explore"  # setting agent mode back to explore
 
 
             # Update rescource patches

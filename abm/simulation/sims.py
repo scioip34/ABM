@@ -15,7 +15,8 @@ class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=30, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
-                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30):
+                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
+                 regenerate_patches=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -33,6 +34,7 @@ class Simulation:
         :param min_resc_perpatch: minimum rescaurce unit per patch
         :param max_resc_perpatch: maximum rescaurce units per patch
         :param patch_radius: radius of rescaurce patches
+        :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         """
         # Arena parameters
         self.WIDTH = width
@@ -58,6 +60,7 @@ class Simulation:
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch
+        self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
         pygame.init()
@@ -83,6 +86,18 @@ class Simulation:
         pygame.draw.line(self.screen, colors.BLACK,
                          [self.window_pad, self.window_pad + self.HEIGHT],
                          [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+
+    def kill_resource(self, resource):
+        """Killing (and regenerating) a given resource patch"""
+        if self.regenerate_resources:
+            radius = self.resc_radius
+            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
+            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
+            units = np.random.randint(self.min_resc_units, self.max_resc_units)
+            largest_i = max([resc.id for resc in self.rescources])
+            new_rescource = Rescource(largest_i+1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
+            self.rescources.add(new_rescource)
+        resource.kill()
 
     def agent_agent_collision(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
@@ -223,7 +238,7 @@ class Simulation:
                                 agent.mode = "explore"  # and putting it back to exploration
                         agents_on_rescs.append(agent)  # collecting agents on rescource patches
                 if destroy_resc:  # if the patch is fully depleted
-                    resc.kill()  # we clear it from the memory
+                    self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
 
             for agent in self.agents.sprites():
                 if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches

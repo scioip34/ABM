@@ -12,5 +12,11 @@ def start():
                      height=int(envconf["ENV_HEIGHT"]),
                      show_vis_field=bool(int(envconf["SHOW_VISUAL_FIELDS"])),
                      pooling_time=int(envconf["POOLING_TIME"]),
-                     pooling_prob=float(envconf["POOLING_PROBABILITY"]))
+                     pooling_prob=float(envconf["POOLING_PROBABILITY"]),
+                     agent_radius=int(envconf["RADIUS_AGENT"]),
+                     N_resc=int(envconf["N_RESOURCES"]),
+                     min_resc_perpatch=int(envconf["MIN_RESOURCE_PER_PATCH"]),
+                     max_resc_perpatch=int(envconf["MAX_RESOURCE_PER_PATCH"]),
+                     patch_radius=int(envconf["RADIUS_RESOURCE"])
+                     )
     sim.start()

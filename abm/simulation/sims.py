@@ -14,7 +14,8 @@ envconf = dotenv_values(".env")
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=30, window_pad=30, show_vis_field=False,
-                 pooling_time=3, pooling_prob=0.05):
+                 pooling_time=3, pooling_prob=0.05, agent_radius=10,
+                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -27,6 +28,11 @@ class Simulation:
         :param show_vis_field: (Bool) turn on visualization for visual field of agents
         :param pooling_time: time units for a single pooling events
         :param pooling probability: initial probability of switching to pooling regime for any agent
+        :param agent_radius: radius of the agents
+        :param N_resc: number of rescource patches in the environment
+        :param min_resc_perpatch: minimum rescaurce unit per patch
+        :param max_resc_perpatch: maximum rescaurce units per patch
+        :param patch_radius: radius of rescaurce patches
         """
         # Arena parameters
         self.WIDTH = width
@@ -42,9 +48,16 @@ class Simulation:
         self.show_vis_field = show_vis_field
 
         # Agent parameters
+        self.agent_radii = agent_radius
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
+
+        # Rescource parameters
+        self.N_resc = N_resc
+        self.resc_radius = patch_radius
+        self.min_resc_units = min_resc_perpatch
+        self.max_resc_units = max_resc_perpatch
 
         # Initializing pygame
         pygame.init()
@@ -93,7 +106,6 @@ class Simulation:
 
         agent2.velocity += 0.5
 
-
     def start(self):
         # Creating N agents in the environment
         for i in range(self.N):
@@ -101,7 +113,7 @@ class Simulation:
             y = np.random.randint(self.HEIGHT / 3, 2 * self.HEIGHT / 3 + 1)
             agent = Agent(
                 id=i,
-                radius=10,
+                radius=self.agent_radii,
                 position=(x, y),
                 orientation=0,
                 env_size=(self.WIDTH, self.HEIGHT),
@@ -114,12 +126,12 @@ class Simulation:
             self.agents.add(agent)
 
         # Creating rescource patches
-        for i in range(10):
-            radius = np.random.randint(40, 60)
+        for i in range(self.N_resc):
+            radius = self.resc_radius
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
-
-            rescource = Rescource(i, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad)
+            units = np.random.randint(self.min_resc_units, self.max_resc_units)
+            rescource = Rescource(i, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
             self.rescources.add(rescource)
 
         # Creating surface to show some graphs (visual fields for now)

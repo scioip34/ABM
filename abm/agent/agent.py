@@ -15,7 +15,8 @@ class Agent(pygame.sprite.Sprite):
     and to make decisions.
     """
 
-    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad):
+    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
+                 pooling_prob):
         """
         Initalization method of main agent class of the simulations
 
@@ -27,6 +28,8 @@ class Agent(pygame.sprite.Sprite):
         :param color: color of the agent as (R, G, B)
         :param v_field_res: resolution of the visual field of the agent in pixels
         :param window_pad: padding of the environment in simulation window in pixels
+        :param pooling_time: time units needed to pool status of a given position in the environment
+        :param pooling_prob: initial probability to switch to pooling behavior
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -39,11 +42,18 @@ class Agent(pygame.sprite.Sprite):
         self.color = color
         self.v_field_res = v_field_res
         self.v_field = np.zeros(self.v_field_res)
+        self.pooling_time = pooling_time
+        self.pooling_prob = pooling_prob
 
         # Non-initializable private attributes
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
-        self.mode = "explore"  # could be something like Explore, Flock, Exploit, etc.
+        self.mode = "explore"  # could be something like explore, flock, collide, exploit, pool
+        # Pooling attributes
+        self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
+                                     # dynamically)
+        self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
+        self.pool_succes = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -72,7 +82,8 @@ class Agent(pygame.sprite.Sprite):
         of the agent and visualize it in the environment
         :param obstacles: a list of visible obstacle coordinates as (X, Y) in the environment
         """
-
+        # to do: decision process comes here to know what mode the agent is in
+        self.decide_on_mode()
         # calculating velocity and orientation change according behavioral mode
         if self.mode == "flock":
             # calculating projection field of agent (vision)
@@ -82,12 +93,15 @@ class Agent(pygame.sprite.Sprite):
                                                          self.v_field)
         elif self.mode == "explore" or self.mode == "collide":
             # exploring with some random process
+            self.velocity = 1
             vel, theta = supcalc.random_walk()
         elif self.mode == "exploit":
-            # exploiting resource and can not move but might be able to turn
-            # vel, theta = supcalc.random_walk()
-            # vel = -self.velocity # stopping the agent but can still turn around
+            self.velocity = 0
             vel, theta = (0, 0)
+        elif self.mode == "pool":
+            vel, theta = (0, 0)
+            self.pool_curr_pos()
+
 
         # updating agent's state variables
         self.orientation += theta
@@ -115,6 +129,8 @@ class Agent(pygame.sprite.Sprite):
             self.color = colors.RED
         elif self.mode == "exploit":
             self.color = colors.GREEN
+        elif self.mode == "pool":
+            self.color = colors.YELLOW
 
     def draw_update(self):
         """
@@ -272,3 +288,44 @@ class Agent(pygame.sprite.Sprite):
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
                 self.velocity = 1
+
+    def pool_curr_pos(self):
+        """Pooling process of the current position. During pooling the agent does not move and spends a given time in
+        the position. At the end the agent is notified by the status of the environment in the given position"""
+
+        if self.mode == "pool":
+            if self.time_spent_pooling == self.pooling_time:
+                self.end_pooling("success")
+            else:
+                self.velocity = 0
+                self.time_spent_pooling += 1
+
+    def decide_on_mode(self):
+        """decide on behavioral mode"""
+        if self.mode == "explore":
+            dec = np.random.uniform(0, 1)
+            # let's switch to pooling in 10 percent of the cases
+            if dec < self.pooling_prob and self.pooling_time > 0:
+                self.mode = "pool"
+
+            # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
+            if self.pooling_time == 0 and self.env_status == 1:
+                self.mode = "exploit"
+
+        else:
+            # If the agent knows there is a patch it will explot it
+            if self.env_status == 1:  # always keep exploiting until end of process
+                self.mode = "exploit"
+
+
+    def end_pooling(self, pool_status_flag):
+        """
+        Ending pooling process either with interrupting pooling with no success or with notifying agent about the status
+        of the environemnt in the given position upon success
+        :param pool_status_flag: ststing how the pooling process ends, either "success" or "interrupt"
+        """
+        if pool_status_flag=="success":
+            self.pool_succes = 1
+        else:
+            self.pool_succes = 0
+        self.time_spent_pooling = 0

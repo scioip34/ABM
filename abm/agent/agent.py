@@ -171,9 +171,10 @@ class Agent(pygame.sprite.Sprite):
             self.position[0] = self.boundaries_x[0] - self.radius
 
             if np.pi / 2 <= self.orientation < np.pi:
-                self.orientation -= np.pi / 4
+                self.orientation -= np.pi / 2
             elif np.pi <= self.orientation <= 3 * np.pi / 2:
-                self.orientation += np.pi / 4
+                self.orientation += np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
 
         # Reflection from right wall
         if x > self.boundaries_x[1]:
@@ -181,27 +182,29 @@ class Agent(pygame.sprite.Sprite):
             self.position[0] = self.boundaries_x[1] - self.radius - 1
 
             if 3 * np.pi / 2 <= self.orientation < 2 * np.pi:
-                self.orientation -= np.pi / 4
+                self.orientation -= np.pi / 2
             elif 0 <= self.orientation <= np.pi / 2:
-                self.orientation += np.pi / 4
+                self.orientation += np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
 
         # Reflection from upper wall
         if y < self.boundaries_y[0]:
             self.position[1] = self.boundaries_y[0] - self.radius
 
             if np.pi / 2 <= self.orientation <= np.pi:
-                self.orientation += np.pi / 4
+                self.orientation += np.pi / 2
             elif 0 <= self.orientation < np.pi / 2:
-                self.orientation -= np.pi / 4
+                self.orientation -= np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
 
         # Reflection from lower wall
         if y > self.boundaries_y[1]:
             self.position[1] = self.boundaries_y[1] - self.radius - 1
-
             if 3 * np.pi / 2 <= self.orientation <= 2 * np.pi:
-                self.orientation += np.pi / 4
+                self.orientation += np.pi / 2
             elif np.pi <= self.orientation < 3 * np.pi / 2:
-                self.orientation -= np.pi / 4
+                self.orientation -= np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
 
     def projection_field(self, obstacle_coords):
         """Calculating visual projection field for the agent given the visible obstacles in the environment"""
@@ -277,7 +280,7 @@ class Agent(pygame.sprite.Sprite):
         if self.orientation < 0:
             self.orientation = 2 * np.pi + self.orientation
         if self.orientation > np.pi * 2:
-            self.orientation = 2 * np.pi - self.orientation
+            self.orientation = self.orientation - 2 * np.pi
 
     def prove_velocity(self, velocity_limit=1):
         """Restricting the absolute velocity of the agent"""

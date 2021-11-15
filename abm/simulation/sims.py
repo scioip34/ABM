@@ -303,8 +303,10 @@ class Simulation:
                     show_max = (k * 50) + 25
 
                     for j in range(self.agents.sprites()[k].v_field_res):
-                        if self.agents.sprites()[k].v_field[j] == 1:
+                        if self.agents.sprites()[k].soc_v_field[j] == 1:
                             stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
+                        # elif self.agents.sprites()[k].soc_v_field[j] == -1:
+                        #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
                         else:
                             stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
 

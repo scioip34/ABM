@@ -16,7 +16,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range=1):
+                 pooling_prob, consumption, vision_range=300):
         """
         Initalization method of main agent class of the simulations
 
@@ -97,10 +97,11 @@ class Agent(pygame.sprite.Sprite):
         if self.mode == "flock":
             # calculating projection field of agent (vision)
             agent_coords = [ag.position for ag in agents]
-            self.projection_field(agent_coords)
+            self.v_field = self.projection_field(agent_coords)
             # flocking according to VSWRM
-            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                         self.v_field)
+            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
+                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                                self.v_field)
         elif self.mode == "explore" or self.mode == "collide":
             # exploring with some random process
             self.velocity = 1
@@ -111,7 +112,6 @@ class Agent(pygame.sprite.Sprite):
         elif self.mode == "pool":
             vel, theta = (0, 0)
             self.pool_curr_pos()
-
 
         # updating agent's state variables
         self.orientation += theta
@@ -221,9 +221,11 @@ class Agent(pygame.sprite.Sprite):
         projection of nearby exploiting agents that are not visually excluded by other agents"""
         pass
 
-
-    def projection_field(self, obstacle_coords):
-        """Calculating visual projection field for the agent given the visible obstacles in the environment"""
+    def projection_field(self, obstacle_coords, keep_distance_info=False):
+        """Calculating visual projection field for the agent given the visible obstacles in the environment
+        :param obstacle_coords: list of coordinates of agents (with same radius) to generate projection field
+        :param keep_distance_info: if True, the amplitude of the vpf will reflect the distance of the object from the
+            agent so that exclusion can be easily generated with a single computational step."""
         # initializing visual field and relative angles
         v_field = np.zeros(self.v_field_res)
         phis = np.linspace(-np.pi, np.pi, self.v_field_res)
@@ -287,9 +289,12 @@ class Agent(pygame.sprite.Sprite):
                     v_field[0:proj_start - self.v_field_res] = 1
                     proj_start = self.v_field_res - 1
 
-                v_field[proj_start:proj_end] = 1
+                if not keep_distance_info:
+                    v_field[proj_start:proj_end] = 1
+                else:
+                    v_field[proj_start:proj_end] = 1 / distance
 
-        self.v_field = v_field
+        return v_field
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""

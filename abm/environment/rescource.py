@@ -93,10 +93,14 @@ class Rescource(pygame.sprite.Sprite):
 
     def deplete(self, rescource_units):
         """depeting the given patch with given rescource units"""
-        if self.resc_left > rescource_units:
+        if self.resc_left >= rescource_units:
             self.resc_left -= rescource_units
-            return False
-        else:
+            depleted_units = rescource_units
+        else: # can not deplete more than what is left
+            depleted_units = self.resc_left
             self.resc_left = 0
-            return True  # the rescource is fully depleted and shall be destroyed now
+        if self.resc_left > 0:
+            return depleted_units, False
+        else:
+            return depleted_units, True
 

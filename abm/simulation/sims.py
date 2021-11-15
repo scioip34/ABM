@@ -234,8 +234,8 @@ class Simulation:
                             agent.pool_succes = 0  # reinit pooling variable
                             agent.env_status = 1  # providing the status of the environment to the agent
                         if agent.mode == "exploit":  # if an agent is already exploiting this patch
-                            destroy_resc = resc.deplete(1)  # it continues depleting the patch
-                            agent.collected_r += 1  # and increasing it's collected rescources
+                            depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
+                            agent.collected_r += depl_units # and increasing it's collected rescources
                             if destroy_resc:  # if the consumed unit was the last in the patch
                                 agent.env_status = 0  # notifying agent that there is no more rescource here
                                 agent.mode = "explore"  # and putting it back to exploration

@@ -219,7 +219,19 @@ class Agent(pygame.sprite.Sprite):
     def social_projection_field(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
-        pass
+        agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
+        expl_agents = [ag for ag in agents if ag.id != self.id and ag.mode == "exploit"]
+        other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
+        expl_agents_coords = [ag.position for ag in expl_agents]
+        other_agents_coord = [ag.position for ag in other_agents]
+        soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
+        non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
+        # calculating visual exclusion
+        soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
+        soc_proj_f[soc_proj_f < 0] = 0
+        # setting back to binary v field
+        soc_proj_f[soc_proj_f > 0] = 1
+        self.soc_v_field = soc_proj_f
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
@@ -351,15 +363,13 @@ class Agent(pygame.sprite.Sprite):
             else:
                 self.mode = "explore"
 
-
-
     def end_pooling(self, pool_status_flag):
         """
         Ending pooling process either with interrupting pooling with no success or with notifying agent about the status
         of the environemnt in the given position upon success
         :param pool_status_flag: ststing how the pooling process ends, either "success" or "interrupt"
         """
-        if pool_status_flag=="success":
+        if pool_status_flag == "success":
             self.pool_success = 1
         else:
             self.pool_success = 0

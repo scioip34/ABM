@@ -211,9 +211,6 @@ class Simulation:
                     turned_on_vfield = 0
                     self.show_vis_field = 0
 
-            # Collecting agent coordinates for vision
-            obstacle_coords = [ag.position for ag in self.agents.sprites()]
-
             # AGENT AGENT INTERACTION
             # Check if any 2 agents has been collided and reflect them from each other if so
             collision_group_aa = pygame.sprite.groupcollide(
@@ -281,7 +278,7 @@ class Simulation:
             # Update rescource patches
             self.rescources.update()
             # Update agents according to current visible obstacles
-            self.agents.update(obstacle_coords)
+            self.agents.update(self.agents)
 
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)

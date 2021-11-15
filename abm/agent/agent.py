@@ -79,18 +79,22 @@ class Agent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
-    def update(self, obstacles):
+    def update(self, agents):
         """
         main update method of the agent. This method is called in every timestep to calculate the new state/position
         of the agent and visualize it in the environment
-        :param obstacles: a list of visible obstacle coordinates as (X, Y) in the environment
+        :param agents: a list of all obstacle/agents coordinates as (X, Y) in the environment. These are not necessarily
+                socially relevant, i.e. all agents.
         """
+        # calculate socially relevant projection field
+        self.social_projection_field(agents)
         # to do: decision process comes here to know what mode the agent is in
         self.decide_on_mode()
         # calculating velocity and orientation change according behavioral mode
         if self.mode == "flock":
             # calculating projection field of agent (vision)
-            self.projection_field(obstacles)
+            agent_coords = [ag.position for ag in agents]
+            self.projection_field(agent_coords)
             # flocking according to VSWRM
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
                                                          self.v_field)
@@ -208,6 +212,12 @@ class Agent(pygame.sprite.Sprite):
             elif np.pi <= self.orientation < 3 * np.pi / 2:
                 self.orientation -= np.pi / 2
             self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+    def social_projection_field(self, agents):
+        """Calculating the socially relevant visual projection field of the agent. This is calculated as the
+        projection of nearby exploiting agents that are not visually excluded by other agents"""
+        pass
+
 
     def projection_field(self, obstacle_coords):
         """Calculating visual projection field for the agent given the visible obstacles in the environment"""

@@ -259,7 +259,7 @@ class Simulation:
                             agent.env_status = -1  # then this agent does not find a patch here anymore
                             agent.pool_success = 0  # restarting pooling timer if it happened during pooling
                         # if an agent finished pooling on a resource patch
-                        if (agent.mode == "pool" and agent.pool_success) or agent.pooling_time == 0:
+                        if (agent.mode in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
                             agent.pool_success = 0  # reinit pooling variable
                             agent.env_status = 1  # providing the status of the environment to the agent
                         if agent.mode == "exploit":  # if an agent is already exploiting this patch
@@ -274,7 +274,7 @@ class Simulation:
             for agent in self.agents.sprites():
                 if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                     if agent not in collided_agents: # and are not colliding with each other currently
-                        if (agent.mode == "pool" and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                        if (agent.mode in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
                             agent.pool_success = 0  # reinit pooling var
                             agent.env_status = -1  # provide the info that there is no resource here
                         elif agent.mode == "exploit":

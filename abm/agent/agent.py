@@ -63,6 +63,12 @@ class Agent(pygame.sprite.Sprite):
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
 
+        # Relocation attributes
+        self.relocation_time = 160
+        self.time_spent_relocation = 0
+        self.reloc_refractory = 10
+        self.time_spent_reloc_refr = 0
+
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
         self.HEIGHT = env_size[1]  # env height
@@ -108,6 +114,10 @@ class Agent(pygame.sprite.Sprite):
             # exploring with some random process
             self.velocity = 1
             vel, theta = supcalc.random_walk()
+        elif self.mode == "relocate":
+            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
+                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                                self.soc_v_field)
         elif self.mode == "exploit":
             self.velocity = 0
             vel, theta = (0, 0)
@@ -135,7 +145,7 @@ class Agent(pygame.sprite.Sprite):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
         if self.mode == "explore":
             self.color = colors.BLUE
-        elif self.mode == "flock":
+        elif self.mode == "flock" or self.mode == "relocate":
             self.color = colors.PURPLE
         elif self.mode == "collide":
             self.color = colors.RED
@@ -226,14 +236,17 @@ class Agent(pygame.sprite.Sprite):
         other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
         expl_agents_coords = [ag.position for ag in expl_agents]
         other_agents_coord = [ag.position for ag in other_agents]
-        soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
-        non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
-        # calculating visual exclusion
-        soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
-        soc_proj_f[soc_proj_f < 0] = 0
-        # setting back to binary v field
-        soc_proj_f[soc_proj_f > 0] = 1
-        self.soc_v_field = soc_proj_f
+        if self.visual_exclusion:
+            soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
+            # calculating visual exclusion
+            soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
+            soc_proj_f[soc_proj_f < 0] = 0
+            # setting back to binary v field
+            soc_proj_f[soc_proj_f > 0] = 1
+            self.soc_v_field = soc_proj_f
+        else:
+            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
@@ -341,6 +354,19 @@ class Agent(pygame.sprite.Sprite):
     def decide_on_mode(self):
         """decide on behavioral mode"""
         if self.mode == "explore":
+
+            # switch to relocation
+            if np.mean(self.soc_v_field) > 0:
+                if self.time_spent_reloc_refr == self.reloc_refractory:
+                    self.mode = "relocate"
+                    self.time_spent_reloc_refr = 0
+                else:
+                    self.time_spent_reloc_refr += 1
+                    self.mode = "explore"
+            else:
+                self.time_spent_reloc_refr = 0
+                self.time_spent_relocation = 0
+
             dec = np.random.uniform(0, 1)
             # let's switch to pooling in 10 percent of the cases
             if dec < self.pooling_prob and self.pooling_time > 0:
@@ -349,7 +375,6 @@ class Agent(pygame.sprite.Sprite):
             # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
             if self.pooling_time == 0 and self.env_status == 1:
                 self.mode = "exploit"
-
         elif self.mode == "pool":
             if self.env_status == 1:  # the agent is notified that there is resource there
                 self.mode = "exploit"
@@ -358,11 +383,29 @@ class Agent(pygame.sprite.Sprite):
                 self.env_status = 0
             elif self.env_status == 0:  # the agent is not yet notified
                 pass
-
         elif self.mode == "exploit":
             if self.env_status == 1:  # always keep exploiting until the end of process
                 self.mode = "exploit"
             else:
+                self.mode = "explore"
+        elif self.mode == "relocate":
+            self.pool_success = 1
+            if np.mean(self.soc_v_field) > 0:
+                if np.mean(self.soc_v_field) < 0.1:
+                    if self.time_spent_relocation == self.relocation_time:
+                        self.mode = "explore"
+                        self.time_spent_reloc_refr = 0
+                        self.time_spent_relocation = 0
+                    else:
+                        self.time_spent_relocation += 1
+                        self.mode = "relocate"
+                else:
+                    self.mode = "explore"
+                    self.time_spent_reloc_refr = 0
+                    self.time_spent_relocation = 0
+            else:
+                self.time_spent_reloc_refr = 0
+                self.time_spent_relocation = 0
                 self.mode = "explore"
 
     def end_pooling(self, pool_status_flag):

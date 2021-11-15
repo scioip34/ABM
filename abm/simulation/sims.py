@@ -16,7 +16,7 @@ class Simulation:
                  framerate=30, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True):
+                 regenerate_patches=True, agent_consumption=1):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -35,6 +35,7 @@ class Simulation:
         :param max_resc_perpatch: maximum rescaurce units per patch
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
+        :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
         """
         # Arena parameters
         self.WIDTH = width
@@ -54,6 +55,7 @@ class Simulation:
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
+        self.agent_consumption = agent_consumption
 
         # Rescource parameters
         self.N_resc = N_resc
@@ -136,7 +138,8 @@ class Simulation:
                 v_field_res=self.v_field_res,
                 window_pad=self.window_pad,
                 pooling_time=self.pooling_time,
-                pooling_prob=self.pooling_prob
+                pooling_prob=self.pooling_prob,
+                consumption=self.agent_consumption
             )
             self.agents.add(agent)
 
@@ -224,33 +227,30 @@ class Simulation:
                 for agent in agents:  # looping through agents on patch
                     if agent not in collided_agents:
                         if destroy_resc:  # if a previous agent on patch consumed the last unit
-                            agent.env_status = 0  # then this agent does not find a patch here anymore
-                            agent.pool_succes = 0  # restarting pooling timer if it happened during pooling
-                            agent.mode = "explore"  # and putting it back to explore
-                        if (agent.mode == "pool" and agent.pool_succes) or agent.pooling_time==0:  # if an agent finifhed pooling on a rescource patch
-                            agent.pool_succes = 0  # reinit pooling variable
+                            agent.env_status = -1  # then this agent does not find a patch here anymore
+                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
+                        # if an agent finished pooling on a resource patch
+                        if (agent.mode == "pool" and agent.pool_success) or agent.pooling_time == 0:
+                            agent.pool_success = 0  # reinit pooling variable
                             agent.env_status = 1  # providing the status of the environment to the agent
                         if agent.mode == "exploit":  # if an agent is already exploiting this patch
-                            destroy_resc = resc.deplete(1)  # it continues depleting the patch
-                            agent.collected_r += 1  # and increasing it's collected rescources
+                            depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
+                            agent.collected_r += depl_units # and increasing it's collected rescources
                             if destroy_resc:  # if the consumed unit was the last in the patch
-                                agent.env_status = 0  # notifying agent that there is no more rescource here
-                                agent.mode = "explore"  # and putting it back to exploration
+                                agent.env_status = -1  # notifying agent that there is no more rescource here
                         agents_on_rescs.append(agent)  # collecting agents on rescource patches
                 if destroy_resc:  # if the patch is fully depleted
                     self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
 
             for agent in self.agents.sprites():
                 if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                    if agent not in collided_agents:
-                        if (agent.mode == "pool" and agent.pool_succes) or agent.pooling_time == 0:  # if they finished pooling
-                            agent.pool_succes = 0  # reinit pooling var
-                            agent.env_status = 0  # provide the info taht there is no rescource here
-                            agent.mode = "explore"  # setting agent mode back to explore
-                        elif agent.mode=="exploit":
-                            agent.pool_succes = 0  # reinit pooling var
-                            agent.env_status = 0  # provide the info taht there is no rescource here
-                            agent.mode = "explore"  # setting agent mode back to explore
+                    if agent not in collided_agents: # and are not colliding with each other currently
+                        if (agent.mode == "pool" and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                            agent.pool_success = 0  # reinit pooling var
+                            agent.env_status = -1  # provide the info that there is no resource here
+                        elif agent.mode == "exploit":
+                            agent.pool_success = 0  # reinit pooling var
+                            agent.env_status = -1  # provide the info taht there is no resource here
 
 
             # Update rescource patches

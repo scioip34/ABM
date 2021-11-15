@@ -318,10 +318,21 @@ class Agent(pygame.sprite.Sprite):
             if self.pooling_time == 0 and self.env_status == 1:
                 self.mode = "exploit"
 
-        else:
-            # If the agent knows there is a patch it will explot it
-            if self.env_status == 1:  # always keep exploiting until end of process
+        elif self.mode == "pool":
+            if self.env_status == 1:  # the agent is notified that there is resource there
                 self.mode = "exploit"
+            elif self.env_status == -1:  # the agent is notified that there is NO resource there
+                self.mode = "explore"
+                self.env_status = 0
+            elif self.env_status == 0:  # the agent is not yet notified
+                pass
+
+        elif self.mode == "exploit":
+            if self.env_status == 1:  # always keep exploiting until the end of process
+                self.mode = "exploit"
+            else:
+                self.mode = "explore"
+
 
 
     def end_pooling(self, pool_status_flag):
@@ -331,7 +342,7 @@ class Agent(pygame.sprite.Sprite):
         :param pool_status_flag: ststing how the pooling process ends, either "success" or "interrupt"
         """
         if pool_status_flag=="success":
-            self.pool_succes = 1
+            self.pool_success = 1
         else:
-            self.pool_succes = 0
+            self.pool_success = 0
         self.time_spent_pooling = 0

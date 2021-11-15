@@ -74,6 +74,25 @@ class Simulation:
         # todo: look into this more in detail so we can control dt
         self.clock = pygame.time.Clock()
 
+    def proove_resource(self, resource):
+        """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
+        or given resource patch distribution, etc"""
+        # Checking for collision with already existing resources
+        new_res_group = pygame.sprite.Group()
+        new_res_group.add(resource)
+        collision_group = pygame.sprite.groupcollide(
+            self.rescources,
+            new_res_group,
+            False,
+            False,
+            pygame.sprite.collide_circle
+        )
+        if len(collision_group) > 0:
+            return False
+        else:
+            return True
+
+
     def draw_walls(self):
         """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
         pygame.draw.line(self.screen, colors.BLACK,
@@ -92,14 +111,25 @@ class Simulation:
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
         if self.regenerate_resources:
+            self.add_new_resource_patch()
+        resource.kill()
+
+    def add_new_resource_patch(self):
+        """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
+        prove_resource method so that the distribution and overlap is following some predefined rules"""
+        resource_proven = 0
+        if len(self.rescources) > 0:
+            id = max([resc.id for resc in self.rescources])
+        else:
+            id = 0
+        while not resource_proven:
             radius = self.resc_radius
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
-            largest_i = max([resc.id for resc in self.rescources])
-            new_rescource = Rescource(largest_i+1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
-            self.rescources.add(new_rescource)
-        resource.kill()
+            resource = Rescource(id+1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
+            resource_proven = self.proove_resource(resource)
+        self.rescources.add(resource)
 
     def agent_agent_collision(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
@@ -145,12 +175,7 @@ class Simulation:
 
         # Creating rescource patches
         for i in range(self.N_resc):
-            radius = self.resc_radius
-            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
-            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
-            units = np.random.randint(self.min_resc_units, self.max_resc_units)
-            rescource = Rescource(i, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
-            self.rescources.add(rescource)
+            self.add_new_resource_patch()
 
         # Creating surface to show some graphs (visual fields for now)
         # if self.show_vis_field:

@@ -16,7 +16,7 @@ class Simulation:
                  framerate=30, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True):
+                 regenerate_patches=True, agent_consumption=1):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -35,6 +35,7 @@ class Simulation:
         :param max_resc_perpatch: maximum rescaurce units per patch
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
+        :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
         """
         # Arena parameters
         self.WIDTH = width
@@ -54,6 +55,7 @@ class Simulation:
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
+        self.agent_consumption = agent_consumption
 
         # Rescource parameters
         self.N_resc = N_resc
@@ -136,7 +138,8 @@ class Simulation:
                 v_field_res=self.v_field_res,
                 window_pad=self.window_pad,
                 pooling_time=self.pooling_time,
-                pooling_prob=self.pooling_prob
+                pooling_prob=self.pooling_prob,
+                consumption=self.agent_consumption
             )
             self.agents.add(agent)
 

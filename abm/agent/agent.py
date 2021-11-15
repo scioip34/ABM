@@ -16,7 +16,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
-                 pooling_prob, consumption=1):
+                 pooling_prob, consumption, vision_range=1):
         """
         Initalization method of main agent class of the simulations
 
@@ -31,6 +31,7 @@ class Agent(pygame.sprite.Sprite):
         :param pooling_time: time units needed to pool status of a given position in the environment
         :param pooling_prob: initial probability to switch to pooling behavior
         :param consumption: (resource unit/time unit) consumption efficiency of agent
+        :param vision_range: in px the range/radius in which the agent is able to see other agents
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -42,15 +43,17 @@ class Agent(pygame.sprite.Sprite):
         self.orientation = orientation
         self.color = color
         self.v_field_res = v_field_res
-        self.v_field = np.zeros(self.v_field_res)
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
         self.consumption = consumption
+        self.vision_range = vision_range
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
         self.mode = "explore"  # explore, flock, collide, exploit, pool
+        self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
+        self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes

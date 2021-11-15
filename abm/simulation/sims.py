@@ -16,7 +16,7 @@ class Simulation:
                  framerate=30, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True, agent_consumption=1):
+                 regenerate_patches=True, agent_consumption=1, vision_range=150, visual_exclusion=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -36,6 +36,9 @@ class Simulation:
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
+        :param vision_range: range (in px) of agents' vision
+        :param visual_exclusion: when true agents can visually exclude socially relevant visual cues from other agents'
+                                projection field
         """
         # Arena parameters
         self.WIDTH = width
@@ -56,6 +59,8 @@ class Simulation:
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
         self.agent_consumption = agent_consumption
+        self.vision_range = vision_range
+        self.visual_exclusion = visual_exclusion
 
         # Rescource parameters
         self.N_resc = N_resc
@@ -169,7 +174,9 @@ class Simulation:
                 window_pad=self.window_pad,
                 pooling_time=self.pooling_time,
                 pooling_prob=self.pooling_prob,
-                consumption=self.agent_consumption
+                consumption=self.agent_consumption,
+                vision_range=self.vision_range,
+                visual_exclusion=self.visual_exclusion
             )
             self.agents.add(agent)
 

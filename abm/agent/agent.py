@@ -16,7 +16,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range=300):
+                 pooling_prob, consumption, vision_range, visual_exclusion):
         """
         Initalization method of main agent class of the simulations
 
@@ -32,6 +32,7 @@ class Agent(pygame.sprite.Sprite):
         :param pooling_prob: initial probability to switch to pooling behavior
         :param consumption: (resource unit/time unit) consumption efficiency of agent
         :param vision_range: in px the range/radius in which the agent is able to see other agents
+        :param visual_exclusion: if True social cues can be visually excluded by non social cues.
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -47,6 +48,7 @@ class Agent(pygame.sprite.Sprite):
         self.pooling_prob = pooling_prob
         self.consumption = consumption
         self.vision_range = vision_range
+        self.visual_exclusion = visual_exclusion
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity

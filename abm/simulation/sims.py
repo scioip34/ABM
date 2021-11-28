@@ -215,6 +215,7 @@ class Simulation:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
+                # Moving agents with cursor if click with left MB
                 if pygame.mouse.get_pressed()[0]:
                     try:
                         for ag in self.agents:
@@ -224,8 +225,6 @@ class Simulation:
                 else:
                     for ag in self.agents:
                         ag.is_moved_with_cursor = False
-                # elif event.type == pygame.MOUSEBUTTONDOWN:
-
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_RETURN]:

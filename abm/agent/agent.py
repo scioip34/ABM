@@ -109,11 +109,13 @@ class Agent(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
 
     def move_with_mouse(self, mouse):
+        """Moving the agent with the mouse cursor"""
         if self.rect.collidepoint(mouse):
+            # setting position of agent to cursor position
             self.position[0] = mouse[0] - self.radius
             self.position[1] = mouse[1] - self.radius
             self.is_moved_with_cursor = 1
-            # updating agent visualization
+            # updating agent visualization to make it more responsive
             self.draw_update()
         else:
             self.is_moved_with_cursor = 0
@@ -168,7 +170,7 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = (0, 0)
             self.pool_curr_pos()
 
-        if not self.is_moved_with_cursor:
+        if not self.is_moved_with_cursor: # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
             self.orientation += theta
             self.prove_orientation()  # bounding orientation into 0 and 2pi

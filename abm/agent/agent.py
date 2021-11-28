@@ -238,7 +238,7 @@ class Agent(pygame.sprite.Sprite):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
-        expl_agents = [ag for ag in agents if ag.id != self.id and ag.mode == "exploit"]
+        expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
         self.relevant_agents = len(expl_agents)
         other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
         expl_agents_coords = [ag.position for ag in expl_agents]
@@ -353,7 +353,6 @@ class Agent(pygame.sprite.Sprite):
         self.soc_v_field[300:900] = 0
         # self.soc_v_field[-300:-1] = 0
         self.relocation_dec_variable += np.mean(self.soc_v_field)
-        print(self.relocation_dec_variable)
 
         if self.get_mode() == "explore":
 

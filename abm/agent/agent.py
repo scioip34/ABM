@@ -68,11 +68,15 @@ class Agent(pygame.sprite.Sprite):
         self.w = 0
         self.Eps_w = 3
         self.g_w = 0.1
+        self.B_w = 0
+        self.B_refr = 0
+
         ## u
         self.T_refr = 0.5
         self.u = 0
         self.Eps_u = 1
         self.g_u = 0.1
+        self.B_u = 0
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -102,21 +106,18 @@ class Agent(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
 
     def fire_u(self):
-        """firing stopping decision process"""
+        """firing stopping decision process if it has reached the refractory threshold"""
         if self.u > self.T_refr:
-            self.w = 0
-            self.u = 0
+            self.w = self.B_w - self.B_refr
+            self.u = self.B_u
 
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        dw = self.Eps_w * (np.mean(self.soc_v_field_far)) - self.g_w * (self.w)
-        du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u)
+        dw = self.Eps_w * (np.mean(self.soc_v_field_far)) - self.g_w * (self.w - self.B_w)
+        du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
         self.w += dw
         self.u += du
         self.fire_u()
-        if self.id == 1:
-            print(self. w, self.u)
-
 
     def update(self, agents):
         """

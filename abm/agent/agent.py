@@ -38,9 +38,7 @@ class Agent(pygame.sprite.Sprite):
         super().__init__()
 
         # Initializing agents with init parameters
-        self.T_exc = 10
-        self.w = 0
-        self.overriding_mode = None
+        self.g_w = None
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -51,6 +49,7 @@ class Agent(pygame.sprite.Sprite):
         self.pooling_prob = pooling_prob
         self.consumption = consumption
         self.vision_range = vision_range
+        self.D_near = 50  # distance threshold from which an agent's projection is in the near field projection
         self.visual_exclusion = visual_exclusion
 
         # Non-initialisable private attributes
@@ -58,22 +57,28 @@ class Agent(pygame.sprite.Sprite):
         self.collected_r = 0  # collected rescource unit collected by agent
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
-        self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
+        self.soc_v_field_near = np.zeros(self.v_field_res)  # social visual projection field (near-field)
+        self.soc_v_field_far = np.zeros(self.v_field_res)  # social visual projection field (far-field)
+        self.soc_v_field = np.zeros(self.v_field_res)
+
+        # Decision Variables
+        self.overriding_mode = None
+        ## w
+        self.T_exc = 0.8
+        self.w = 0
+        self.Eps_w = 1.8
+        self.g_w = 0.1
+        ## u
+        self.T_refr = 0.5
+        self.u = 0
+        self.Eps_u = 1
+        self.g_u = 0.1
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
                                      # dynamically)
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
-
-        # Relocation attributes
-        # self.relocation_time = 160
-        # self.time_spent_relocation = 0
-        # self.reloc_refractory = 10
-        # self.time_spent_reloc_refr = 0
-        # self.relocation_dec_boundary = 5
-        # self.relocation_dec_variable = 0
-        # self.relevant_agents = 0
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -96,6 +101,23 @@ class Agent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
+    def fire_u(self):
+        """firing stopping decision process"""
+        if self.u > self.T_refr:
+            self.w = 0
+            self.u = 0
+
+    def update_decision_processes(self):
+        """updating inner decision processes according to the current state and the visual projection field"""
+        dw = self.Eps_w * (np.mean(self.soc_v_field_far)) - self.g_w * (self.w)
+        du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u)
+        self.w += dw
+        self.u += du
+        self.fire_u()
+        if self.id == 1:
+            print(self. w, self.u)
+
+
     def update(self, agents):
         """
         main update method of the agent. This method is called in every timestep to calculate the new state/position
@@ -105,19 +127,21 @@ class Agent(pygame.sprite.Sprite):
         """
         # calculate socially relevant projection field
         self.social_projection_field(agents)
-        # to do: decision process comes here to know what mode the agent is in
+        # enforcing exploitation dynamics
+        # only forcing agent to keep exploiting patch until empty
         self.decide_on_mode()
         # calculating velocity and orientation change according behavioral mode
 
-        if self.get_mode() == "explore" or self.get_mode() == "collide":
-            # exploring with some random process
-            self.velocity = 1
+        self.update_decision_processes()
+
+        if not self.tr():
             vel, theta = supcalc.random_walk()
-        elif self.get_mode() == "relocate":
+        else:
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.soc_v_field)
-        elif self.get_mode() == "exploit":
+
+        if self.get_mode() == "exploit":
             self.velocity = 0
             vel, theta = (0, 0)
         elif self.get_mode() == "pool":
@@ -234,19 +258,27 @@ class Agent(pygame.sprite.Sprite):
         expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
         # self.relevant_agents = len(expl_agents)
         other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
-        expl_agents_coords = [ag.position for ag in expl_agents]
+
+        near_expl_agents = [ag for ag in expl_agents if supcalc.distance(self, ag) <= self.D_near]
+        far_expl_agents = [ag for ag in expl_agents if ag not in near_expl_agents]
+
+        near_expl_agents_coords = [ag.position for ag in near_expl_agents]
+        far_expl_agents_coords = [ag.position for ag in far_expl_agents]
         other_agents_coord = [ag.position for ag in other_agents]
         if self.visual_exclusion:
-            soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
-            non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
-            # calculating visual exclusion
-            soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
-            soc_proj_f[soc_proj_f < 0] = 0
-            # setting back to binary v field
-            soc_proj_f[soc_proj_f > 0] = 1
-            self.soc_v_field = soc_proj_f
+            # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            # non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
+            # # calculating visual exclusion
+            # soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
+            # soc_proj_f[soc_proj_f < 0] = 0
+            # # setting back to binary v field
+            # soc_proj_f[soc_proj_f > 0] = 1
+            # self.soc_v_field = soc_proj_f
+            raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
+            self.soc_v_field_near = self.projection_field(near_expl_agents_coords, keep_distance_info=False)
+            self.soc_v_field_far = self.projection_field(far_expl_agents_coords, keep_distance_info=False)
+            self.soc_v_field = self.soc_v_field_near + self.soc_v_field_far
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment

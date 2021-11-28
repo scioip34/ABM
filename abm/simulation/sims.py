@@ -17,7 +17,7 @@ class Simulation:
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
-                 vision_range=150, visual_exclusion=False):
+                 vision_range=150, visual_exclusion=False, show_vision_range=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -38,10 +38,12 @@ class Simulation:
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
         :param teleport_exploit: boolean to choose if we teleport agents to the middle of the res. patch during
-            exploitation
+                                exploitation
         :param vision_range: range (in px) of agents' vision
         :param visual_exclusion: when true agents can visually exclude socially relevant visual cues from other agents'
                                 projection field
+        :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
+                                and near field visual field will be drawn around the agents
         """
         # Arena parameters
         self.WIDTH = width
@@ -116,6 +118,12 @@ class Simulation:
         pygame.draw.line(self.screen, colors.BLACK,
                          [self.window_pad, self.window_pad + self.HEIGHT],
                          [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+
+    def draw_visual_fields(self):
+        """Visualizing the range of vision for agents as opaque circles around the agents"""
+        for agent in self.agents:
+            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position+agent.radius, agent.vision_range, width=1)
+            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position+agent.radius, agent.D_near, width=1)
 
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
@@ -309,6 +317,7 @@ class Simulation:
             self.rescources.draw(self.screen)
             self.draw_walls()
             self.agents.draw(self.screen)
+            self.draw_visual_fields()
 
             if self.show_vis_field:
                 # Updating our graphs to show visual field

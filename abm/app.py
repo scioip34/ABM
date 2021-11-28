@@ -22,6 +22,7 @@ def start():
                      agent_consumption=int(envconf["AGENT_CONSUMPTION"]),
                      teleport_exploit=bool(int(envconf["TELEPORT_TO_MIDDLE"])),
                      vision_range=int(envconf["VISION_RANGE"]),
-                     visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"]))
+                     visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"])),
+                     show_vision_range=bool(int(envconf["SHOW_VISION_RANGE"]))
                      )
     sim.start()

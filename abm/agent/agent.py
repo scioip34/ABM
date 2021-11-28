@@ -66,7 +66,7 @@ class Agent(pygame.sprite.Sprite):
         ## w
         self.T_exc = 0.8
         self.w = 0
-        self.Eps_w = 1.8
+        self.Eps_w = 3
         self.g_w = 0.1
         ## u
         self.T_refr = 0.5

@@ -38,6 +38,9 @@ class Agent(pygame.sprite.Sprite):
         super().__init__()
 
         # Initializing agents with init parameters
+        self.T_exc = 10
+        self.w = 0
+        self.overriding_mode = None
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -105,7 +108,7 @@ class Agent(pygame.sprite.Sprite):
         # to do: decision process comes here to know what mode the agent is in
         self.decide_on_mode()
         # calculating velocity and orientation change according behavioral mode
-        if self.mode == "flock":
+        if self.get_mode() == "flock":
             # calculating projection field of agent (vision)
             agent_coords = [ag.position for ag in agents]
             self.v_field = self.projection_field(agent_coords)
@@ -113,18 +116,18 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.v_field)
-        elif self.mode == "explore" or self.mode == "collide":
+        elif self.get_mode() == "explore" or self.get_mode() == "collide":
             # exploring with some random process
             self.velocity = 1
             vel, theta = supcalc.random_walk()
-        elif self.mode == "relocate":
+        elif self.get_mode() == "relocate":
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.soc_v_field)
-        elif self.mode == "exploit":
+        elif self.get_mode() == "exploit":
             self.velocity = 0
             vel, theta = (0, 0)
-        elif self.mode == "pool":
+        elif self.get_mode() == "pool":
             vel, theta = (0, 0)
             self.pool_curr_pos()
 
@@ -146,15 +149,15 @@ class Agent(pygame.sprite.Sprite):
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
-        if self.mode == "explore":
+        if self.get_mode() == "explore":
             self.color = colors.BLUE
-        elif self.mode == "flock" or self.mode == "relocate":
+        elif self.get_mode() == "flock" or self.get_mode() == "relocate":
             self.color = colors.PURPLE
-        elif self.mode == "collide":
+        elif self.get_mode() == "collide":
             self.color = colors.RED
-        elif self.mode == "exploit":
+        elif self.get_mode() == "exploit":
             self.color = colors.GREEN
-        elif self.mode == "pool":
+        elif self.get_mode() == "pool":
             self.color = colors.YELLOW
 
     def draw_update(self):
@@ -339,21 +342,10 @@ class Agent(pygame.sprite.Sprite):
         vel_sign = np.sign(self.velocity)
         if vel_sign == 0:
             vel_sign = +1
-        if self.mode == 'explore':
+        if self.get_mode() == 'explore':
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
                 self.velocity = 1
-
-    def pool_curr_pos(self):
-        """Pooling process of the current position. During pooling the agent does not move and spends a given time in
-        the position. At the end the agent is notified by the status of the environment in the given position"""
-
-        if self.mode == "pool":
-            if self.time_spent_pooling == self.pooling_time:
-                self.end_pooling("success")
-            else:
-                self.velocity = 0
-                self.time_spent_pooling += 1
 
     def decide_on_mode(self):
         """decide on behavioral mode"""
@@ -363,7 +355,7 @@ class Agent(pygame.sprite.Sprite):
         self.relocation_dec_variable += np.mean(self.soc_v_field)
         print(self.relocation_dec_variable)
 
-        if self.mode == "explore":
+        if self.get_mode() == "explore":
 
             # # switch to relocation
             # if np.mean(self.soc_v_field) > 0:
@@ -379,36 +371,36 @@ class Agent(pygame.sprite.Sprite):
 
             if self.relocation_dec_variable >= self.relocation_dec_boundary:
                 self.relocation_dec_variable = 0
-                self.mode = "relocate"
+                self.set_mode("relocate")
 
             dec = np.random.uniform(0, 1)
             # let's switch to pooling in 10 percent of the cases
             if dec < self.pooling_prob and self.pooling_time > 0:
-                self.mode = "pool"
+                self.set_mode("pool")
 
             # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
             if self.pooling_time == 0 and self.env_status == 1:
-                self.mode = "exploit"
+                self.set_mode("exploit")
                 # self.relocation_dec_variable = 0
 
-        elif self.mode == "pool":
+        elif self.get_mode() == "pool":
             if self.env_status == 1:  # the agent is notified that there is resource there
-                self.mode = "exploit"
+                self.set_mode("exploit")
                 self.relocation_dec_variable = 0
             elif self.env_status == -1:  # the agent is notified that there is NO resource there
-                self.mode = "explore"
+                self.set_mode("explore")
                 self.env_status = 0
             elif self.env_status == 0:  # the agent is not yet notified
                 pass
 
-        elif self.mode == "exploit":
+        elif self.get_mode() == "exploit":
             if self.env_status == 1:  # always keep exploiting until the end of process
-                self.mode = "exploit"
+                self.set_mode("exploit")
                 self.relocation_dec_variable = 0
             else:
-                self.mode = "explore"
+                self.set_mode("explore")
 
-        elif self.mode == "relocate":
+        elif self.get_mode() == "relocate":
             self.pool_success = 1
             if np.mean(self.soc_v_field) > 0:
                 if np.mean(self.soc_v_field/max(1, self.relevant_agents)) < 0.06:  # todo: intorduce timeout
@@ -419,20 +411,31 @@ class Agent(pygame.sprite.Sprite):
                     # else:
                     #     self.time_spent_relocation += 1
                     #     self.mode = "relocate"
-                    self.mode = "relocate"
+                    self.set_mode("relocate")
                     if self.relocation_dec_variable > -200:
                         self.relocation_dec_variable -= 1 #np.mean(self.soc_v_field)
                     else:
-                         self.mode = "explore"
+                         self.set_mode("explore")
                          self.relocation_dec_variable = -2 * self.relocation_dec_boundary
                 else:
-                    self.mode = "explore"
+                    self.set_mode("explore")
                     # self.time_spent_reloc_refr = 0
                     # self.time_spent_relocation = 0
             else:
                 # self.time_spent_reloc_refr = 0
                 # self.time_spent_relocation = 0
-                self.mode = "explore"
+                self.set_mode("explore")
+
+    def pool_curr_pos(self):
+        """Pooling process of the current position. During pooling the agent does not move and spends a given time in
+        the position. At the end the agent is notified by the status of the environment in the given position"""
+
+        if self.get_mode() == "pool":
+            if self.time_spent_pooling == self.pooling_time:
+                self.end_pooling("success")
+            else:
+                self.velocity = 0
+                self.time_spent_pooling += 1
 
     def end_pooling(self, pool_status_flag):
         """
@@ -445,3 +448,45 @@ class Agent(pygame.sprite.Sprite):
         else:
             self.pool_success = 0
         self.time_spent_pooling = 0
+
+    def tr(self):
+        """Excitatory threshold function that checks if decision variable w is above T_exc"""
+        if self.w > self.T_exc:
+            return True
+        else:
+            return False
+
+    def get_mode(self):
+        """returning the current mode of the agent according to it's inner decision mechanisms as a human-readable
+        string for external processes defined in the main simulation thread (such as collision that depends on the
+        state of the at and also overrides it as it counts as ana emergency)"""
+        if self.overriding_mode is None:
+            if self.tr():
+                return "relocate"
+            else:
+                return "explore"
+        else:
+            return self.overriding_mode
+
+    def set_mode(self, mode):
+        """setting the behavioral mode of the agent according to some human_readable flag. This can be:
+            -explore
+            -exploit
+            -relocate
+            -pool
+            -collide"""
+        if mode == "explore":
+            self.w = 0
+            self.overriding_mode = None
+        elif mode == "relocate":
+            self.w = self.T_exc + 0.001
+            self.overriding_mode = None
+        elif mode == "collide":
+            self.overriding_mode = "collide"
+            self.w = 0
+        elif mode == "exploit":
+            self.overriding_mode = "exploit"
+            self.w = 0
+        elif mode == "pool":
+            self.overriding_mode = "pool"
+            self.w = 0

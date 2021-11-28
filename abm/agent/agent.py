@@ -68,6 +68,9 @@ class Agent(pygame.sprite.Sprite):
         self.time_spent_relocation = 0
         self.reloc_refractory = 10
         self.time_spent_reloc_refr = 0
+        self.relocation_dec_boundary = 5
+        self.relocation_dec_variable = 0
+        self.relevant_agents = 0
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -233,6 +236,7 @@ class Agent(pygame.sprite.Sprite):
         projection of nearby exploiting agents that are not visually excluded by other agents"""
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
         expl_agents = [ag for ag in agents if ag.id != self.id and ag.mode == "exploit"]
+        self.relevant_agents = len(expl_agents)
         other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
         expl_agents_coords = [ag.position for ag in expl_agents]
         other_agents_coord = [ag.position for ag in other_agents]
@@ -353,19 +357,29 @@ class Agent(pygame.sprite.Sprite):
 
     def decide_on_mode(self):
         """decide on behavioral mode"""
+        # biasing relcoation switch
+        self.soc_v_field[300:900] = 0
+        # self.soc_v_field[-300:-1] = 0
+        self.relocation_dec_variable += np.mean(self.soc_v_field)
+        print(self.relocation_dec_variable)
+
         if self.mode == "explore":
 
-            # switch to relocation
-            if np.mean(self.soc_v_field) > 0:
-                if self.time_spent_reloc_refr == self.reloc_refractory:
-                    self.mode = "relocate"
-                    self.time_spent_reloc_refr = 0
-                else:
-                    self.time_spent_reloc_refr += 1
-                    self.mode = "explore"
-            else:
-                self.time_spent_reloc_refr = 0
-                self.time_spent_relocation = 0
+            # # switch to relocation
+            # if np.mean(self.soc_v_field) > 0:
+            #     if self.time_spent_reloc_refr == self.reloc_refractory:
+            #         self.mode = "relocate"
+            #         self.time_spent_reloc_refr = 0
+            #     else:
+            #         self.time_spent_reloc_refr += 1
+            #         self.mode = "explore"
+            # else:
+            #     self.time_spent_reloc_refr = 0
+            #     self.time_spent_relocation = 0
+
+            if self.relocation_dec_variable >= self.relocation_dec_boundary:
+                self.relocation_dec_variable = 0
+                self.mode = "relocate"
 
             dec = np.random.uniform(0, 1)
             # let's switch to pooling in 10 percent of the cases
@@ -375,37 +389,49 @@ class Agent(pygame.sprite.Sprite):
             # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
             if self.pooling_time == 0 and self.env_status == 1:
                 self.mode = "exploit"
+                # self.relocation_dec_variable = 0
+
         elif self.mode == "pool":
             if self.env_status == 1:  # the agent is notified that there is resource there
                 self.mode = "exploit"
+                self.relocation_dec_variable = 0
             elif self.env_status == -1:  # the agent is notified that there is NO resource there
                 self.mode = "explore"
                 self.env_status = 0
             elif self.env_status == 0:  # the agent is not yet notified
                 pass
+
         elif self.mode == "exploit":
             if self.env_status == 1:  # always keep exploiting until the end of process
                 self.mode = "exploit"
+                self.relocation_dec_variable = 0
             else:
                 self.mode = "explore"
+
         elif self.mode == "relocate":
             self.pool_success = 1
             if np.mean(self.soc_v_field) > 0:
-                if np.mean(self.soc_v_field) < 0.1:
-                    if self.time_spent_relocation == self.relocation_time:
-                        self.mode = "explore"
-                        self.time_spent_reloc_refr = 0
-                        self.time_spent_relocation = 0
+                if np.mean(self.soc_v_field/max(1, self.relevant_agents)) < 0.06:  # todo: intorduce timeout
+                    # if self.time_spent_relocation == self.relocation_time:
+                    #     self.mode = "explore"
+                    #     self.time_spent_reloc_refr = 0
+                    #     self.time_spent_relocation = 0
+                    # else:
+                    #     self.time_spent_relocation += 1
+                    #     self.mode = "relocate"
+                    self.mode = "relocate"
+                    if self.relocation_dec_variable > -200:
+                        self.relocation_dec_variable -= 1 #np.mean(self.soc_v_field)
                     else:
-                        self.time_spent_relocation += 1
-                        self.mode = "relocate"
+                         self.mode = "explore"
+                         self.relocation_dec_variable = -2 * self.relocation_dec_boundary
                 else:
                     self.mode = "explore"
-                    self.time_spent_reloc_refr = 0
-                    self.time_spent_relocation = 0
+                    # self.time_spent_reloc_refr = 0
+                    # self.time_spent_relocation = 0
             else:
-                self.time_spent_reloc_refr = 0
-                self.time_spent_relocation = 0
+                # self.time_spent_reloc_refr = 0
+                # self.time_spent_relocation = 0
                 self.mode = "explore"
 
     def end_pooling(self, pool_status_flag):

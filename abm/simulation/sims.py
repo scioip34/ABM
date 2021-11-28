@@ -16,7 +16,7 @@ class Simulation:
                  framerate=30, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True, agent_consumption=1):
+                 regenerate_patches=True, agent_consumption=1, vision_range=150, visual_exclusion=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -36,6 +36,9 @@ class Simulation:
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
+        :param vision_range: range (in px) of agents' vision
+        :param visual_exclusion: when true agents can visually exclude socially relevant visual cues from other agents'
+                                projection field
         """
         # Arena parameters
         self.WIDTH = width
@@ -56,6 +59,8 @@ class Simulation:
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
         self.agent_consumption = agent_consumption
+        self.vision_range = vision_range
+        self.visual_exclusion = visual_exclusion
 
         # Rescource parameters
         self.N_resc = N_resc
@@ -169,7 +174,9 @@ class Simulation:
                 window_pad=self.window_pad,
                 pooling_time=self.pooling_time,
                 pooling_prob=self.pooling_prob,
-                consumption=self.agent_consumption
+                consumption=self.agent_consumption,
+                vision_range=self.vision_range,
+                visual_exclusion=self.visual_exclusion
             )
             self.agents.add(agent)
 
@@ -210,9 +217,6 @@ class Simulation:
                 if self.show_vis_field and turned_on_vfield:
                     turned_on_vfield = 0
                     self.show_vis_field = 0
-
-            # Collecting agent coordinates for vision
-            obstacle_coords = [ag.position for ag in self.agents.sprites()]
 
             # AGENT AGENT INTERACTION
             # Check if any 2 agents has been collided and reflect them from each other if so
@@ -255,7 +259,7 @@ class Simulation:
                             agent.env_status = -1  # then this agent does not find a patch here anymore
                             agent.pool_success = 0  # restarting pooling timer if it happened during pooling
                         # if an agent finished pooling on a resource patch
-                        if (agent.mode == "pool" and agent.pool_success) or agent.pooling_time == 0:
+                        if (agent.mode in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
                             agent.pool_success = 0  # reinit pooling variable
                             agent.env_status = 1  # providing the status of the environment to the agent
                         if agent.mode == "exploit":  # if an agent is already exploiting this patch
@@ -270,7 +274,7 @@ class Simulation:
             for agent in self.agents.sprites():
                 if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                     if agent not in collided_agents: # and are not colliding with each other currently
-                        if (agent.mode == "pool" and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                        if (agent.mode in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
                             agent.pool_success = 0  # reinit pooling var
                             agent.env_status = -1  # provide the info that there is no resource here
                         elif agent.mode == "exploit":
@@ -281,7 +285,7 @@ class Simulation:
             # Update rescource patches
             self.rescources.update()
             # Update agents according to current visible obstacles
-            self.agents.update(obstacle_coords)
+            self.agents.update(self.agents)
 
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)
@@ -299,8 +303,10 @@ class Simulation:
                     show_max = (k * 50) + 25
 
                     for j in range(self.agents.sprites()[k].v_field_res):
-                        if self.agents.sprites()[k].v_field[j] == 1:
+                        if self.agents.sprites()[k].soc_v_field[j] == 1:
                             stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
+                        # elif self.agents.sprites()[k].soc_v_field[j] == -1:
+                        #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
                         else:
                             stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
 

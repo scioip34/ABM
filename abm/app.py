@@ -19,6 +19,8 @@ def start():
                      max_resc_perpatch=int(envconf["MAX_RESOURCE_PER_PATCH"]),
                      patch_radius=int(envconf["RADIUS_RESOURCE"]),
                      regenerate_patches=bool(int(envconf["REGENERATE_PATCHES"])),
-                     agent_consumption=int(envconf["AGENT_CONSUMPTION"])
+                     agent_consumption=int(envconf["AGENT_CONSUMPTION"]),
+                     vision_range=int(envconf["VISION_RANGE"]),
+                     visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"]))
                      )
     sim.start()

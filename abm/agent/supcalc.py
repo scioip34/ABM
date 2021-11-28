@@ -122,3 +122,10 @@ def random_walk(vel_limit=(-0.2, 0.2), theta_limit=(-0.3, 0.3)):
     vel = 0  # np.random.uniform(vel_limit[0], vel_limit[1])
     theta = np.random.uniform(theta_limit[0], theta_limit[1])
     return vel, theta
+
+def distance(agent1, agent2):
+    """Distance between 2 agent class agents in the environment as pixels"""
+    c1 = np.array([agent1.position[0]+agent1.radius, agent1.position[1]+agent1.radius])
+    c2 = np.array([agent2.position[0]+agent2.radius, agent2.position[1]+agent2.radius])
+    distance = np.linalg.norm(c2 - c1)
+    return distance

@@ -16,7 +16,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
-                 pooling_prob, consumption=1):
+                 pooling_prob, consumption, vision_range, visual_exclusion):
         """
         Initalization method of main agent class of the simulations
 
@@ -31,6 +31,8 @@ class Agent(pygame.sprite.Sprite):
         :param pooling_time: time units needed to pool status of a given position in the environment
         :param pooling_prob: initial probability to switch to pooling behavior
         :param consumption: (resource unit/time unit) consumption efficiency of agent
+        :param vision_range: in px the range/radius in which the agent is able to see other agents
+        :param visual_exclusion: if True social cues can be visually excluded by non social cues.
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -42,21 +44,33 @@ class Agent(pygame.sprite.Sprite):
         self.orientation = orientation
         self.color = color
         self.v_field_res = v_field_res
-        self.v_field = np.zeros(self.v_field_res)
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
         self.consumption = consumption
+        self.vision_range = vision_range
+        self.visual_exclusion = visual_exclusion
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
         self.mode = "explore"  # explore, flock, collide, exploit, pool
+        self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
+        self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
                                      # dynamically)
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
+
+        # Relocation attributes
+        self.relocation_time = 160
+        self.time_spent_relocation = 0
+        self.reloc_refractory = 10
+        self.time_spent_reloc_refr = 0
+        self.relocation_dec_boundary = 5
+        self.relocation_dec_variable = 0
+        self.relevant_agents = 0
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -79,32 +93,40 @@ class Agent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
-    def update(self, obstacles):
+    def update(self, agents):
         """
         main update method of the agent. This method is called in every timestep to calculate the new state/position
         of the agent and visualize it in the environment
-        :param obstacles: a list of visible obstacle coordinates as (X, Y) in the environment
+        :param agents: a list of all obstacle/agents coordinates as (X, Y) in the environment. These are not necessarily
+                socially relevant, i.e. all agents.
         """
+        # calculate socially relevant projection field
+        self.social_projection_field(agents)
         # to do: decision process comes here to know what mode the agent is in
         self.decide_on_mode()
         # calculating velocity and orientation change according behavioral mode
         if self.mode == "flock":
             # calculating projection field of agent (vision)
-            self.projection_field(obstacles)
+            agent_coords = [ag.position for ag in agents]
+            self.v_field = self.projection_field(agent_coords)
             # flocking according to VSWRM
-            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity, np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                         self.v_field)
+            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
+                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                                self.v_field)
         elif self.mode == "explore" or self.mode == "collide":
             # exploring with some random process
             self.velocity = 1
             vel, theta = supcalc.random_walk()
+        elif self.mode == "relocate":
+            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
+                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                                self.soc_v_field)
         elif self.mode == "exploit":
             self.velocity = 0
             vel, theta = (0, 0)
         elif self.mode == "pool":
             vel, theta = (0, 0)
             self.pool_curr_pos()
-
 
         # updating agent's state variables
         self.orientation += theta
@@ -126,7 +148,7 @@ class Agent(pygame.sprite.Sprite):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
         if self.mode == "explore":
             self.color = colors.BLUE
-        elif self.mode == "flock":
+        elif self.mode == "flock" or self.mode == "relocate":
             self.color = colors.PURPLE
         elif self.mode == "collide":
             self.color = colors.RED
@@ -209,8 +231,32 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation -= np.pi / 2
             self.prove_orientation()  # bounding orientation into 0 and 2pi
 
-    def projection_field(self, obstacle_coords):
-        """Calculating visual projection field for the agent given the visible obstacles in the environment"""
+    def social_projection_field(self, agents):
+        """Calculating the socially relevant visual projection field of the agent. This is calculated as the
+        projection of nearby exploiting agents that are not visually excluded by other agents"""
+        agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
+        expl_agents = [ag for ag in agents if ag.id != self.id and ag.mode == "exploit"]
+        self.relevant_agents = len(expl_agents)
+        other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
+        expl_agents_coords = [ag.position for ag in expl_agents]
+        other_agents_coord = [ag.position for ag in other_agents]
+        if self.visual_exclusion:
+            soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
+            # calculating visual exclusion
+            soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
+            soc_proj_f[soc_proj_f < 0] = 0
+            # setting back to binary v field
+            soc_proj_f[soc_proj_f > 0] = 1
+            self.soc_v_field = soc_proj_f
+        else:
+            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
+
+    def projection_field(self, obstacle_coords, keep_distance_info=False):
+        """Calculating visual projection field for the agent given the visible obstacles in the environment
+        :param obstacle_coords: list of coordinates of agents (with same radius) to generate projection field
+        :param keep_distance_info: if True, the amplitude of the vpf will reflect the distance of the object from the
+            agent so that exclusion can be easily generated with a single computational step."""
         # initializing visual field and relative angles
         v_field = np.zeros(self.v_field_res)
         phis = np.linspace(-np.pi, np.pi, self.v_field_res)
@@ -274,9 +320,12 @@ class Agent(pygame.sprite.Sprite):
                     v_field[0:proj_start - self.v_field_res] = 1
                     proj_start = self.v_field_res - 1
 
-                v_field[proj_start:proj_end] = 1
+                if not keep_distance_info:
+                    v_field[proj_start:proj_end] = 1
+                else:
+                    v_field[proj_start:proj_end] = 1 / distance
 
-        self.v_field = v_field
+        return v_field
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""
@@ -308,7 +357,30 @@ class Agent(pygame.sprite.Sprite):
 
     def decide_on_mode(self):
         """decide on behavioral mode"""
+        # biasing relcoation switch
+        self.soc_v_field[300:900] = 0
+        # self.soc_v_field[-300:-1] = 0
+        self.relocation_dec_variable += np.mean(self.soc_v_field)
+        print(self.relocation_dec_variable)
+
         if self.mode == "explore":
+
+            # # switch to relocation
+            # if np.mean(self.soc_v_field) > 0:
+            #     if self.time_spent_reloc_refr == self.reloc_refractory:
+            #         self.mode = "relocate"
+            #         self.time_spent_reloc_refr = 0
+            #     else:
+            #         self.time_spent_reloc_refr += 1
+            #         self.mode = "explore"
+            # else:
+            #     self.time_spent_reloc_refr = 0
+            #     self.time_spent_relocation = 0
+
+            if self.relocation_dec_variable >= self.relocation_dec_boundary:
+                self.relocation_dec_variable = 0
+                self.mode = "relocate"
+
             dec = np.random.uniform(0, 1)
             # let's switch to pooling in 10 percent of the cases
             if dec < self.pooling_prob and self.pooling_time > 0:
@@ -317,10 +389,12 @@ class Agent(pygame.sprite.Sprite):
             # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
             if self.pooling_time == 0 and self.env_status == 1:
                 self.mode = "exploit"
+                # self.relocation_dec_variable = 0
 
         elif self.mode == "pool":
             if self.env_status == 1:  # the agent is notified that there is resource there
                 self.mode = "exploit"
+                self.relocation_dec_variable = 0
             elif self.env_status == -1:  # the agent is notified that there is NO resource there
                 self.mode = "explore"
                 self.env_status = 0
@@ -330,10 +404,35 @@ class Agent(pygame.sprite.Sprite):
         elif self.mode == "exploit":
             if self.env_status == 1:  # always keep exploiting until the end of process
                 self.mode = "exploit"
+                self.relocation_dec_variable = 0
             else:
                 self.mode = "explore"
 
-
+        elif self.mode == "relocate":
+            self.pool_success = 1
+            if np.mean(self.soc_v_field) > 0:
+                if np.mean(self.soc_v_field/max(1, self.relevant_agents)) < 0.06:  # todo: intorduce timeout
+                    # if self.time_spent_relocation == self.relocation_time:
+                    #     self.mode = "explore"
+                    #     self.time_spent_reloc_refr = 0
+                    #     self.time_spent_relocation = 0
+                    # else:
+                    #     self.time_spent_relocation += 1
+                    #     self.mode = "relocate"
+                    self.mode = "relocate"
+                    if self.relocation_dec_variable > -200:
+                        self.relocation_dec_variable -= 1 #np.mean(self.soc_v_field)
+                    else:
+                         self.mode = "explore"
+                         self.relocation_dec_variable = -2 * self.relocation_dec_boundary
+                else:
+                    self.mode = "explore"
+                    # self.time_spent_reloc_refr = 0
+                    # self.time_spent_relocation = 0
+            else:
+                # self.time_spent_reloc_refr = 0
+                # self.time_spent_relocation = 0
+                self.mode = "explore"
 
     def end_pooling(self, pool_status_flag):
         """
@@ -341,7 +440,7 @@ class Agent(pygame.sprite.Sprite):
         of the environemnt in the given position upon success
         :param pool_status_flag: ststing how the pooling process ends, either "success" or "interrupt"
         """
-        if pool_status_flag=="success":
+        if pool_status_flag == "success":
             self.pool_success = 1
         else:
             self.pool_success = 0

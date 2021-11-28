@@ -126,15 +126,17 @@ class Agent(pygame.sprite.Sprite):
         :param agents: a list of all obstacle/agents coordinates as (X, Y) in the environment. These are not necessarily
                 socially relevant, i.e. all agents.
         """
-        # calculate socially relevant projection field
+        # calculate socially relevant projection field (Vsoc and Vsoc+)
         self.social_projection_field(agents)
-        # enforcing exploitation dynamics
-        # only forcing agent to keep exploiting patch until empty
-        self.decide_on_mode()
-        # calculating velocity and orientation change according behavioral mode
 
+        # update inner decision process according to visual field (dw and du)
         self.update_decision_processes()
 
+        # CALCULATING velocity and orientation change according to inner decision process (dv)
+        # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
+        # vel, theta = int(self.tr()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr())) * random_walk(...)
+        # or later when we define the individfual and social forces
+        # vel, theta = int(self.tr()) * self.F_soc(...) + (1 - int(self.tr())) * self.F_exp(...)
         if not self.tr():
             vel, theta = supcalc.random_walk()
         else:
@@ -142,6 +144,10 @@ class Agent(pygame.sprite.Sprite):
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.soc_v_field)
 
+        # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
+        # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
+        # enforcing exploitation dynamics brute force (continue exploiting until you can!)
+        self.env_override_mode()
         if self.get_mode() == "exploit":
             self.velocity = 0
             vel, theta = (0, 0)
@@ -149,7 +155,7 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = (0, 0)
             self.pool_curr_pos()
 
-        # updating agent's state variables
+        # updating agent's state variables according to calculated vel and theta
         self.orientation += theta
         self.prove_orientation()  # bounding orientation into 0 and 2pi
         self.velocity += vel
@@ -373,7 +379,7 @@ class Agent(pygame.sprite.Sprite):
                 # stopping agent if too fast during exploration
                 self.velocity = 1
 
-    def decide_on_mode(self):
+    def env_override_mode(self):
         """decide on behavioral mode that is not defined by inner decision process of the agent but is ad-hoc
         or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
         collisions. Collisions are handled from the main simulation."""

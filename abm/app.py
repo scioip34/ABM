@@ -2,7 +2,9 @@ from abm.simulation.sims import Simulation
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+
 envconf = dotenv_values(".env")
+
 
 def start():
     sim = Simulation(N=int(envconf["N"]),

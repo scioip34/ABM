@@ -345,7 +345,7 @@ class Agent(pygame.sprite.Sprite):
         or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
         collisions. Collisions are handled from the main simulation."""
 
-        if self.get_mode() == "explore":
+        if self.get_mode() == "explore" or self.get_mode() == "relocate":
 
             # todo: integrate non instanteneous pooling later
             # dec = np.random.uniform(0, 1)

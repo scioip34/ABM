@@ -49,7 +49,7 @@ class Agent(pygame.sprite.Sprite):
         self.pooling_prob = pooling_prob
         self.consumption = consumption
         self.vision_range = vision_range
-        self.D_near = 50  # distance threshold from which an agent's projection is in the near field projection
+        self.D_near = 30  # distance threshold from which an agent's projection is in the near field projection
         self.visual_exclusion = visual_exclusion
 
         # Non-initialisable private attributes

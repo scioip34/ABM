@@ -347,19 +347,21 @@ class Agent(pygame.sprite.Sprite):
 
         if self.get_mode() == "explore" or self.get_mode() == "relocate":
 
-            # todo: integrate non instanteneous pooling later
+            # todo: integrate non instanteneous pooling later (uncomment this and the one below)
             # dec = np.random.uniform(0, 1)
             # # let's switch to pooling in 10 percent of the cases
             # if dec < self.pooling_prob and self.pooling_time > 0:
             #     self.set_mode("pool")
             # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
+
             if self.pooling_time == 0:
                 if self.env_status == 1:
                     self.set_mode("exploit")
                     # self.relocation_dec_variable = 0
-            else:
+            else:  # comment for non-insta pooling
                 raise Exception("Only instanteneous pooling is supported for now!")
 
+        # #uncomment for pooling other than instanteneous
         # elif self.get_mode() == "pool":
         #     if self.env_status == 1:  # the agent is notified that there is resource there
         #         self.set_mode("exploit")

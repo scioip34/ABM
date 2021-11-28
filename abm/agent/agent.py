@@ -67,13 +67,13 @@ class Agent(pygame.sprite.Sprite):
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
 
         # Relocation attributes
-        self.relocation_time = 160
-        self.time_spent_relocation = 0
-        self.reloc_refractory = 10
-        self.time_spent_reloc_refr = 0
-        self.relocation_dec_boundary = 5
-        self.relocation_dec_variable = 0
-        self.relevant_agents = 0
+        # self.relocation_time = 160
+        # self.time_spent_relocation = 0
+        # self.reloc_refractory = 10
+        # self.time_spent_reloc_refr = 0
+        # self.relocation_dec_boundary = 5
+        # self.relocation_dec_variable = 0
+        # self.relevant_agents = 0
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -108,15 +108,8 @@ class Agent(pygame.sprite.Sprite):
         # to do: decision process comes here to know what mode the agent is in
         self.decide_on_mode()
         # calculating velocity and orientation change according behavioral mode
-        if self.get_mode() == "flock":
-            # calculating projection field of agent (vision)
-            agent_coords = [ag.position for ag in agents]
-            self.v_field = self.projection_field(agent_coords)
-            # flocking according to VSWRM
-            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
-                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                                self.v_field)
-        elif self.get_mode() == "explore" or self.get_mode() == "collide":
+
+        if self.get_mode() == "explore" or self.get_mode() == "collide":
             # exploring with some random process
             self.velocity = 1
             vel, theta = supcalc.random_walk()
@@ -239,7 +232,7 @@ class Agent(pygame.sprite.Sprite):
         projection of nearby exploiting agents that are not visually excluded by other agents"""
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
         expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
-        self.relevant_agents = len(expl_agents)
+        # self.relevant_agents = len(expl_agents)
         other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
         expl_agents_coords = [ag.position for ag in expl_agents]
         other_agents_coord = [ag.position for ag in other_agents]
@@ -348,81 +341,40 @@ class Agent(pygame.sprite.Sprite):
                 self.velocity = 1
 
     def decide_on_mode(self):
-        """decide on behavioral mode"""
-        # biasing relcoation switch
-        self.soc_v_field[300:900] = 0
-        # self.soc_v_field[-300:-1] = 0
-        self.relocation_dec_variable += np.mean(self.soc_v_field)
+        """decide on behavioral mode that is not defined by inner decision process of the agent but is ad-hoc
+        or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
+        collisions. Collisions are handled from the main simulation."""
 
         if self.get_mode() == "explore":
 
-            # # switch to relocation
-            # if np.mean(self.soc_v_field) > 0:
-            #     if self.time_spent_reloc_refr == self.reloc_refractory:
-            #         self.mode = "relocate"
-            #         self.time_spent_reloc_refr = 0
-            #     else:
-            #         self.time_spent_reloc_refr += 1
-            #         self.mode = "explore"
-            # else:
-            #     self.time_spent_reloc_refr = 0
-            #     self.time_spent_relocation = 0
-
-            if self.relocation_dec_variable >= self.relocation_dec_boundary:
-                self.relocation_dec_variable = 0
-                self.set_mode("relocate")
-
-            dec = np.random.uniform(0, 1)
-            # let's switch to pooling in 10 percent of the cases
-            if dec < self.pooling_prob and self.pooling_time > 0:
-                self.set_mode("pool")
-
+            # todo: integrate non instanteneous pooling later
+            # dec = np.random.uniform(0, 1)
+            # # let's switch to pooling in 10 percent of the cases
+            # if dec < self.pooling_prob and self.pooling_time > 0:
+            #     self.set_mode("pool")
             # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
-            if self.pooling_time == 0 and self.env_status == 1:
-                self.set_mode("exploit")
-                # self.relocation_dec_variable = 0
+            if self.pooling_time == 0:
+                if self.env_status == 1:
+                    self.set_mode("exploit")
+                    # self.relocation_dec_variable = 0
+            else:
+                raise Exception("Only instanteneous pooling is supported for now!")
 
-        elif self.get_mode() == "pool":
-            if self.env_status == 1:  # the agent is notified that there is resource there
-                self.set_mode("exploit")
-                self.relocation_dec_variable = 0
-            elif self.env_status == -1:  # the agent is notified that there is NO resource there
-                self.set_mode("explore")
-                self.env_status = 0
-            elif self.env_status == 0:  # the agent is not yet notified
-                pass
+        # elif self.get_mode() == "pool":
+        #     if self.env_status == 1:  # the agent is notified that there is resource there
+        #         self.set_mode("exploit")
+        #         self.relocation_dec_variable = 0
+        #     elif self.env_status == -1:  # the agent is notified that there is NO resource there
+        #         self.set_mode("explore")
+        #         self.env_status = 0
+        #     elif self.env_status == 0:  # the agent is not yet notified
+        #         pass
 
         elif self.get_mode() == "exploit":
-            if self.env_status == 1:  # always keep exploiting until the end of process
+            # always force agent to keep exploiting until the end of process
+            if self.env_status == 1:
                 self.set_mode("exploit")
-                self.relocation_dec_variable = 0
             else:
-                self.set_mode("explore")
-
-        elif self.get_mode() == "relocate":
-            self.pool_success = 1
-            if np.mean(self.soc_v_field) > 0:
-                if np.mean(self.soc_v_field/max(1, self.relevant_agents)) < 0.06:  # todo: intorduce timeout
-                    # if self.time_spent_relocation == self.relocation_time:
-                    #     self.mode = "explore"
-                    #     self.time_spent_reloc_refr = 0
-                    #     self.time_spent_relocation = 0
-                    # else:
-                    #     self.time_spent_relocation += 1
-                    #     self.mode = "relocate"
-                    self.set_mode("relocate")
-                    if self.relocation_dec_variable > -200:
-                        self.relocation_dec_variable -= 1 #np.mean(self.soc_v_field)
-                    else:
-                         self.set_mode("explore")
-                         self.relocation_dec_variable = -2 * self.relocation_dec_boundary
-                else:
-                    self.set_mode("explore")
-                    # self.time_spent_reloc_refr = 0
-                    # self.time_spent_relocation = 0
-            else:
-                # self.time_spent_reloc_refr = 0
-                # self.time_spent_relocation = 0
                 self.set_mode("explore")
 
     def pool_curr_pos(self):

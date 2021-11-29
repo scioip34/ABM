@@ -13,7 +13,7 @@ envconf = dotenv_values(".env")
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
-                 framerate=30, window_pad=30, show_vis_field=False,
+                 framerate=25, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
@@ -53,7 +53,9 @@ class Simulation:
         # Simulation parameters
         self.N = N
         self.T = T
-        self.framerate = framerate
+        self.t = 0
+        self.framerate_orig = framerate
+        self.framerate = self.framerate_orig
         self.is_paused = False
 
         # Visualization parameters
@@ -125,6 +127,20 @@ class Simulation:
         for agent in self.agents:
             pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position+agent.radius, agent.vision_range, width=1)
             pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position+agent.radius, agent.D_near, width=1)
+
+    def draw_framerate(self):
+        """Showing framerate, sim time and pause status on simulation windows"""
+        tab_size = self.window_pad
+        line_height = int(self.window_pad / 2)
+        font = pygame.font.Font(None, line_height)
+        status = [
+            f"FPS: {self.framerate}, t = {self.t}/{self.T}",
+        ]
+        if self.is_paused:
+            status.append("-Paused-")
+        for i, stat_i in enumerate(status):
+            text = font.render(stat_i, True, colors.BLACK)
+            self.screen.blit(text, (tab_size, i*line_height))
 
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
@@ -210,7 +226,7 @@ class Simulation:
         turned_on_vfield = 0
 
         # Main Simulation loop
-        for i in range(self.T):
+        while self.t < self.T:
 
             # Quitting on break event
             for event in pygame.event.get():
@@ -218,6 +234,16 @@ class Simulation:
                     sys.exit()
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                     self.is_paused = not self.is_paused
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                    self.framerate -= 1
+                    if self.framerate < 1:
+                        self.framerate = 1
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                    self.framerate += 1
+                    if self.framerate > 35:
+                        self.framerate = 35
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                    self.framerate = self.framerate_orig
                 # Moving agents with cursor if click with left MB
                 if pygame.mouse.get_pressed()[0]:
                     try:
@@ -320,12 +346,20 @@ class Simulation:
                 # Update agents according to current visible obstacles
                 self.agents.update(self.agents)
 
+                # move to next simulation timestep
+                self.t += 1
+            else:  # simulation is paused but we still want to see the projection field of the agents
+                for ag in self.agents:
+                    ag.social_projection_field(agents)
+
+
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)
             self.rescources.draw(self.screen)
             self.draw_walls()
             self.agents.draw(self.screen)
             self.draw_visual_fields()
+            self.draw_framerate()
 
             if self.show_vis_field:
                 # Updating our graphs to show visual field

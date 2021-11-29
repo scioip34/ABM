@@ -61,6 +61,9 @@ class Agent(pygame.sprite.Sprite):
         self.soc_v_field_far = np.zeros(self.v_field_res)  # social visual projection field (far-field)
         self.soc_v_field = np.zeros(self.v_field_res)
 
+        # Interaction
+        self.is_moved_with_cursor = 0
+
         # Decision Variables
         self.overriding_mode = None
         ## w
@@ -104,6 +107,18 @@ class Agent(pygame.sprite.Sprite):
                          ((1 + np.cos(self.orientation)) * radius, (1 - np.sin(self.orientation)) * radius), 3)
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
+
+    def move_with_mouse(self, mouse):
+        """Moving the agent with the mouse cursor"""
+        if self.rect.collidepoint(mouse):
+            # setting position of agent to cursor position
+            self.position[0] = mouse[0] - self.radius
+            self.position[1] = mouse[1] - self.radius
+            self.is_moved_with_cursor = 1
+            # updating agent visualization to make it more responsive
+            self.draw_update()
+        else:
+            self.is_moved_with_cursor = 0
 
     def fire_u(self):
         """firing stopping decision process if it has reached the refractory threshold"""
@@ -155,18 +170,19 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = (0, 0)
             self.pool_curr_pos()
 
-        # updating agent's state variables according to calculated vel and theta
-        self.orientation += theta
-        self.prove_orientation()  # bounding orientation into 0 and 2pi
-        self.velocity += vel
-        self.prove_velocity()  # possibly bounding velocity of agent
+        if not self.is_moved_with_cursor: # we freeze agents when we move them
+            # updating agent's state variables according to calculated vel and theta
+            self.orientation += theta
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+            self.velocity += vel
+            self.prove_velocity()  # possibly bounding velocity of agent
 
-        # updating agent's position
-        self.position[0] += self.velocity * np.cos(-self.orientation)
-        self.position[1] += self.velocity * np.sin(-self.orientation)
+            # updating agent's position
+            self.position[0] += self.velocity * np.cos(-self.orientation)
+            self.position[1] += self.velocity * np.sin(-self.orientation)
 
-        # boundary conditions if applicable
-        self.reflect_from_walls()
+            # boundary conditions if applicable
+            self.reflect_from_walls()
 
         # updating agent visualization
         self.draw_update()

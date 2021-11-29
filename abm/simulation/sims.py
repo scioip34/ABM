@@ -190,8 +190,8 @@ class Simulation:
         else:
             agent2.velocity = 1
 
-    def start(self):
-        # Creating N agents in the environment
+    def create_agents(self):
+        """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
             x = np.random.randint(self.WIDTH / 3, 2 * self.WIDTH / 3 + 1)
             y = np.random.randint(self.HEIGHT / 3, 2 * self.HEIGHT / 3 + 1)
@@ -212,16 +212,26 @@ class Simulation:
             )
             self.agents.add(agent)
 
-        # Creating rescource patches
+    def create_resources(self):
+        """Creating resource patches according to how the simulation class was initialized"""
         for i in range(self.N_resc):
             self.add_new_resource_patch()
 
-        # Creating surface to show some graphs (visual fields for now)
+    def start(self):
+        # Creating N agents in the environment
+        self.create_agents()
+
+        # Creating rescource patches
+        self.create_resources()
+
+        # Creating surface to show visual fields
         # if self.show_vis_field:
-        stats = pygame.Surface((self.v_field_res, 50 * self.N))
+        #stats = pygame.Surface((self.v_field_res, 50 * self.N))
+        stats = pygame.Surface((self.WIDTH, 50 * self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(200)
-        stats_pos = (int(self.window_pad), int(self.window_pad / 2))
+        stats_pos = (int(self.window_pad), int(self.window_pad))
+        print(stats_pos)
 
         turned_on_vfield = 0
 
@@ -362,6 +372,7 @@ class Simulation:
             self.draw_framerate()
 
             if self.show_vis_field:
+                stats_width = stats.get_width()
                 # Updating our graphs to show visual field
                 stats_graph = pygame.PixelArray(stats)
                 stats_graph[:, :] = pygame.Color(*colors.WHITE)
@@ -371,12 +382,14 @@ class Simulation:
                     show_max = (k * 50) + 25
 
                     for j in range(self.agents.sprites()[k].v_field_res):
+                        curr_idx = int(j * (stats_width/self.v_field_res))
+                        # print(curr_idx)
                         if self.agents.sprites()[k].soc_v_field[j] == 1:
-                            stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
+                            stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
                         # elif self.agents.sprites()[k].soc_v_field[j] == -1:
                         #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
                         else:
-                            stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
+                            stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
 
                 del stats_graph
                 stats.unlock()

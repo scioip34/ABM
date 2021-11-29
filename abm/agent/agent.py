@@ -343,7 +343,8 @@ class Agent(pygame.sprite.Sprite):
 
                 # calculating closed angle between v1 and v2
                 # (rotated with the orientation of the agent as it is relative)
-                closed_angle = supcalc.angle_between(v1, v2) + self.orientation
+                # I HAVE NO IDEA WHY IS IT SHIFTED WITH PI/4?
+                closed_angle = supcalc.angle_between(v1, v2) + self.orientation + np.pi/4
                 if closed_angle > np.pi:
                     closed_angle -= 2 * np.pi
                 if closed_angle < -np.pi:
@@ -367,16 +368,16 @@ class Agent(pygame.sprite.Sprite):
                     v_field[self.v_field_res + proj_start:self.v_field_res] = 1
                     proj_start = 0
 
-                if proj_start >= self.v_field_res:
-                    v_field[0:proj_start - self.v_field_res] = 1
-                    proj_start = self.v_field_res - 1
+                if proj_end >= self.v_field_res:
+                    v_field[0:proj_end - self.v_field_res] = 1
+                    proj_end = self.v_field_res - 1
 
                 if not keep_distance_info:
                     v_field[proj_start:proj_end] = 1
                 else:
                     v_field[proj_start:proj_end] = 1 / distance
 
-        return v_field
+        return np.roll(v_field, int(len(v_field)/2))
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""

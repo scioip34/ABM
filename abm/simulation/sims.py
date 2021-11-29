@@ -231,7 +231,6 @@ class Simulation:
         stats.fill(colors.GREY)
         stats.set_alpha(200)
         stats_pos = (int(self.window_pad), int(self.window_pad))
-        print(stats_pos)
 
         turned_on_vfield = 0
 

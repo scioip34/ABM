@@ -356,7 +356,7 @@ class Simulation:
                 self.t += 1
             else:  # simulation is paused but we still want to see the projection field of the agents
                 for ag in self.agents:
-                    ag.social_projection_field(agents)
+                    ag.social_projection_field(self.agents)
 
 
             # Draw environment and agents

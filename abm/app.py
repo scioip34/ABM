@@ -2,7 +2,9 @@ from abm.simulation.sims import Simulation
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+
 envconf = dotenv_values(".env")
+
 
 def start():
     sim = Simulation(N=int(envconf["N"]),
@@ -20,7 +22,9 @@ def start():
                      patch_radius=int(envconf["RADIUS_RESOURCE"]),
                      regenerate_patches=bool(int(envconf["REGENERATE_PATCHES"])),
                      agent_consumption=int(envconf["AGENT_CONSUMPTION"]),
+                     teleport_exploit=bool(int(envconf["TELEPORT_TO_MIDDLE"])),
                      vision_range=int(envconf["VISION_RANGE"]),
-                     visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"]))
+                     visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"])),
+                     show_vision_range=bool(int(envconf["SHOW_VISION_RANGE"]))
                      )
     sim.start()

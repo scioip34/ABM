@@ -38,6 +38,7 @@ class Agent(pygame.sprite.Sprite):
         super().__init__()
 
         # Initializing agents with init parameters
+        self.g_w = None
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -48,6 +49,7 @@ class Agent(pygame.sprite.Sprite):
         self.pooling_prob = pooling_prob
         self.consumption = consumption
         self.vision_range = vision_range
+        self.D_near = 30  # distance threshold from which an agent's projection is in the near field projection
         self.visual_exclusion = visual_exclusion
 
         # Non-initialisable private attributes
@@ -55,22 +57,35 @@ class Agent(pygame.sprite.Sprite):
         self.collected_r = 0  # collected rescource unit collected by agent
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
-        self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
+        self.soc_v_field_near = np.zeros(self.v_field_res)  # social visual projection field (near-field)
+        self.soc_v_field_far = np.zeros(self.v_field_res)  # social visual projection field (far-field)
+        self.soc_v_field = np.zeros(self.v_field_res)
+
+        # Interaction
+        self.is_moved_with_cursor = 0
+
+        # Decision Variables
+        self.overriding_mode = None
+        ## w
+        self.T_exc = 0.8
+        self.w = 0
+        self.Eps_w = 3
+        self.g_w = 0.1
+        self.B_w = 0
+        self.B_refr = 0
+
+        ## u
+        self.T_refr = 0.5
+        self.u = 0
+        self.Eps_u = 1
+        self.g_u = 0.1
+        self.B_u = 0
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
                                      # dynamically)
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
-
-        # Relocation attributes
-        self.relocation_time = 160
-        self.time_spent_relocation = 0
-        self.reloc_refractory = 10
-        self.time_spent_reloc_refr = 0
-        self.relocation_dec_boundary = 5
-        self.relocation_dec_variable = 0
-        self.relevant_agents = 0
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -93,6 +108,32 @@ class Agent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
+    def move_with_mouse(self, mouse):
+        """Moving the agent with the mouse cursor"""
+        if self.rect.collidepoint(mouse):
+            # setting position of agent to cursor position
+            self.position[0] = mouse[0] - self.radius
+            self.position[1] = mouse[1] - self.radius
+            self.is_moved_with_cursor = 1
+            # updating agent visualization to make it more responsive
+            self.draw_update()
+        else:
+            self.is_moved_with_cursor = 0
+
+    def fire_u(self):
+        """firing stopping decision process if it has reached the refractory threshold"""
+        if self.u > self.T_refr:
+            self.w = self.B_w - self.B_refr
+            self.u = self.B_u
+
+    def update_decision_processes(self):
+        """updating inner decision processes according to the current state and the visual projection field"""
+        dw = self.Eps_w * (np.mean(self.soc_v_field_far)) - self.g_w * (self.w - self.B_w)
+        du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
+        self.w += dw
+        self.u += du
+        self.fire_u()
+
     def update(self, agents):
         """
         main update method of the agent. This method is called in every timestep to calculate the new state/position
@@ -100,61 +141,63 @@ class Agent(pygame.sprite.Sprite):
         :param agents: a list of all obstacle/agents coordinates as (X, Y) in the environment. These are not necessarily
                 socially relevant, i.e. all agents.
         """
-        # calculate socially relevant projection field
+        # calculate socially relevant projection field (Vsoc and Vsoc+)
         self.social_projection_field(agents)
-        # to do: decision process comes here to know what mode the agent is in
-        self.decide_on_mode()
-        # calculating velocity and orientation change according behavioral mode
-        if self.mode == "flock":
-            # calculating projection field of agent (vision)
-            agent_coords = [ag.position for ag in agents]
-            self.v_field = self.projection_field(agent_coords)
-            # flocking according to VSWRM
-            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
-                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                                self.v_field)
-        elif self.mode == "explore" or self.mode == "collide":
-            # exploring with some random process
-            self.velocity = 1
+
+        # update inner decision process according to visual field (dw and du)
+        self.update_decision_processes()
+
+        # CALCULATING velocity and orientation change according to inner decision process (dv)
+        # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
+        # vel, theta = int(self.tr()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr())) * random_walk(...)
+        # or later when we define the individfual and social forces
+        # vel, theta = int(self.tr()) * self.F_soc(...) + (1 - int(self.tr())) * self.F_exp(...)
+        if not self.tr():
             vel, theta = supcalc.random_walk()
-        elif self.mode == "relocate":
+        else:
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.soc_v_field)
-        elif self.mode == "exploit":
+
+        # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
+        # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
+        # enforcing exploitation dynamics brute force (continue exploiting until you can!)
+        self.env_override_mode()
+        if self.get_mode() == "exploit":
             self.velocity = 0
             vel, theta = (0, 0)
-        elif self.mode == "pool":
+        elif self.get_mode() == "pool":
             vel, theta = (0, 0)
             self.pool_curr_pos()
 
-        # updating agent's state variables
-        self.orientation += theta
-        self.prove_orientation()  # bounding orientation into 0 and 2pi
-        self.velocity += vel
-        self.prove_velocity()  # possibly bounding velocity of agent
+        if not self.is_moved_with_cursor: # we freeze agents when we move them
+            # updating agent's state variables according to calculated vel and theta
+            self.orientation += theta
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+            self.velocity += vel
+            self.prove_velocity()  # possibly bounding velocity of agent
 
-        # updating agent's position
-        self.position[0] += self.velocity * np.cos(-self.orientation)
-        self.position[1] += self.velocity * np.sin(-self.orientation)
+            # updating agent's position
+            self.position[0] += self.velocity * np.cos(-self.orientation)
+            self.position[1] += self.velocity * np.sin(-self.orientation)
 
-        # boundary conditions if applicable
-        self.reflect_from_walls()
+            # boundary conditions if applicable
+            self.reflect_from_walls()
 
         # updating agent visualization
         self.draw_update()
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
-        if self.mode == "explore":
+        if self.get_mode() == "explore":
             self.color = colors.BLUE
-        elif self.mode == "flock" or self.mode == "relocate":
+        elif self.get_mode() == "flock" or self.get_mode() == "relocate":
             self.color = colors.PURPLE
-        elif self.mode == "collide":
+        elif self.get_mode() == "collide":
             self.color = colors.RED
-        elif self.mode == "exploit":
+        elif self.get_mode() == "exploit":
             self.color = colors.GREEN
-        elif self.mode == "pool":
+        elif self.get_mode() == "pool":
             self.color = colors.YELLOW
 
     def draw_update(self):
@@ -235,22 +278,30 @@ class Agent(pygame.sprite.Sprite):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
-        expl_agents = [ag for ag in agents if ag.id != self.id and ag.mode == "exploit"]
-        self.relevant_agents = len(expl_agents)
+        expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
+        # self.relevant_agents = len(expl_agents)
         other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
-        expl_agents_coords = [ag.position for ag in expl_agents]
+
+        near_expl_agents = [ag for ag in expl_agents if supcalc.distance(self, ag) <= self.D_near]
+        far_expl_agents = [ag for ag in expl_agents if ag not in near_expl_agents]
+
+        near_expl_agents_coords = [ag.position for ag in near_expl_agents]
+        far_expl_agents_coords = [ag.position for ag in far_expl_agents]
         other_agents_coord = [ag.position for ag in other_agents]
         if self.visual_exclusion:
-            soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
-            non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
-            # calculating visual exclusion
-            soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
-            soc_proj_f[soc_proj_f < 0] = 0
-            # setting back to binary v field
-            soc_proj_f[soc_proj_f > 0] = 1
-            self.soc_v_field = soc_proj_f
+            # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            # non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
+            # # calculating visual exclusion
+            # soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
+            # soc_proj_f[soc_proj_f < 0] = 0
+            # # setting back to binary v field
+            # soc_proj_f[soc_proj_f > 0] = 1
+            # self.soc_v_field = soc_proj_f
+            raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
+            self.soc_v_field_near = self.projection_field(near_expl_agents_coords, keep_distance_info=False)
+            self.soc_v_field_far = self.projection_field(far_expl_agents_coords, keep_distance_info=False)
+            self.soc_v_field = self.soc_v_field_near + self.soc_v_field_far
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
@@ -339,100 +390,60 @@ class Agent(pygame.sprite.Sprite):
         vel_sign = np.sign(self.velocity)
         if vel_sign == 0:
             vel_sign = +1
-        if self.mode == 'explore':
+        if self.get_mode() == 'explore':
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
                 self.velocity = 1
+
+    def env_override_mode(self):
+        """decide on behavioral mode that is not defined by inner decision process of the agent but is ad-hoc
+        or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
+        collisions. Collisions are handled from the main simulation."""
+
+        if self.get_mode() == "explore" or self.get_mode() == "relocate":
+
+            # todo: integrate non instanteneous pooling later (uncomment this and the one below)
+            # dec = np.random.uniform(0, 1)
+            # # let's switch to pooling in 10 percent of the cases
+            # if dec < self.pooling_prob and self.pooling_time > 0:
+            #     self.set_mode("pool")
+            # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
+
+            if self.pooling_time == 0:
+                if self.env_status == 1:
+                    self.set_mode("exploit")
+                    # self.relocation_dec_variable = 0
+            else:  # comment for non-insta pooling
+                raise Exception("Only instanteneous pooling is supported for now!")
+
+        # #uncomment for pooling other than instanteneous
+        # elif self.get_mode() == "pool":
+        #     if self.env_status == 1:  # the agent is notified that there is resource there
+        #         self.set_mode("exploit")
+        #         self.relocation_dec_variable = 0
+        #     elif self.env_status == -1:  # the agent is notified that there is NO resource there
+        #         self.set_mode("explore")
+        #         self.env_status = 0
+        #     elif self.env_status == 0:  # the agent is not yet notified
+        #         pass
+
+        elif self.get_mode() == "exploit":
+            # always force agent to keep exploiting until the end of process
+            if self.env_status == 1:
+                self.set_mode("exploit")
+            else:
+                self.set_mode("explore")
 
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in
         the position. At the end the agent is notified by the status of the environment in the given position"""
 
-        if self.mode == "pool":
+        if self.get_mode() == "pool":
             if self.time_spent_pooling == self.pooling_time:
                 self.end_pooling("success")
             else:
                 self.velocity = 0
                 self.time_spent_pooling += 1
-
-    def decide_on_mode(self):
-        """decide on behavioral mode"""
-        # biasing relcoation switch
-        self.soc_v_field[300:900] = 0
-        # self.soc_v_field[-300:-1] = 0
-        self.relocation_dec_variable += np.mean(self.soc_v_field)
-        print(self.relocation_dec_variable)
-
-        if self.mode == "explore":
-
-            # # switch to relocation
-            # if np.mean(self.soc_v_field) > 0:
-            #     if self.time_spent_reloc_refr == self.reloc_refractory:
-            #         self.mode = "relocate"
-            #         self.time_spent_reloc_refr = 0
-            #     else:
-            #         self.time_spent_reloc_refr += 1
-            #         self.mode = "explore"
-            # else:
-            #     self.time_spent_reloc_refr = 0
-            #     self.time_spent_relocation = 0
-
-            if self.relocation_dec_variable >= self.relocation_dec_boundary:
-                self.relocation_dec_variable = 0
-                self.mode = "relocate"
-
-            dec = np.random.uniform(0, 1)
-            # let's switch to pooling in 10 percent of the cases
-            if dec < self.pooling_prob and self.pooling_time > 0:
-                self.mode = "pool"
-
-            # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
-            if self.pooling_time == 0 and self.env_status == 1:
-                self.mode = "exploit"
-                # self.relocation_dec_variable = 0
-
-        elif self.mode == "pool":
-            if self.env_status == 1:  # the agent is notified that there is resource there
-                self.mode = "exploit"
-                self.relocation_dec_variable = 0
-            elif self.env_status == -1:  # the agent is notified that there is NO resource there
-                self.mode = "explore"
-                self.env_status = 0
-            elif self.env_status == 0:  # the agent is not yet notified
-                pass
-
-        elif self.mode == "exploit":
-            if self.env_status == 1:  # always keep exploiting until the end of process
-                self.mode = "exploit"
-                self.relocation_dec_variable = 0
-            else:
-                self.mode = "explore"
-
-        elif self.mode == "relocate":
-            self.pool_success = 1
-            if np.mean(self.soc_v_field) > 0:
-                if np.mean(self.soc_v_field/max(1, self.relevant_agents)) < 0.06:  # todo: intorduce timeout
-                    # if self.time_spent_relocation == self.relocation_time:
-                    #     self.mode = "explore"
-                    #     self.time_spent_reloc_refr = 0
-                    #     self.time_spent_relocation = 0
-                    # else:
-                    #     self.time_spent_relocation += 1
-                    #     self.mode = "relocate"
-                    self.mode = "relocate"
-                    if self.relocation_dec_variable > -200:
-                        self.relocation_dec_variable -= 1 #np.mean(self.soc_v_field)
-                    else:
-                         self.mode = "explore"
-                         self.relocation_dec_variable = -2 * self.relocation_dec_boundary
-                else:
-                    self.mode = "explore"
-                    # self.time_spent_reloc_refr = 0
-                    # self.time_spent_relocation = 0
-            else:
-                # self.time_spent_reloc_refr = 0
-                # self.time_spent_relocation = 0
-                self.mode = "explore"
 
     def end_pooling(self, pool_status_flag):
         """
@@ -445,3 +456,45 @@ class Agent(pygame.sprite.Sprite):
         else:
             self.pool_success = 0
         self.time_spent_pooling = 0
+
+    def tr(self):
+        """Excitatory threshold function that checks if decision variable w is above T_exc"""
+        if self.w > self.T_exc:
+            return True
+        else:
+            return False
+
+    def get_mode(self):
+        """returning the current mode of the agent according to it's inner decision mechanisms as a human-readable
+        string for external processes defined in the main simulation thread (such as collision that depends on the
+        state of the at and also overrides it as it counts as ana emergency)"""
+        if self.overriding_mode is None:
+            if self.tr():
+                return "relocate"
+            else:
+                return "explore"
+        else:
+            return self.overriding_mode
+
+    def set_mode(self, mode):
+        """setting the behavioral mode of the agent according to some human_readable flag. This can be:
+            -explore
+            -exploit
+            -relocate
+            -pool
+            -collide"""
+        if mode == "explore":
+            self.w = 0
+            self.overriding_mode = None
+        elif mode == "relocate":
+            self.w = self.T_exc + 0.001
+            self.overriding_mode = None
+        elif mode == "collide":
+            self.overriding_mode = "collide"
+            self.w = 0
+        elif mode == "exploit":
+            self.overriding_mode = "exploit"
+            self.w = 0
+        elif mode == "pool":
+            self.overriding_mode = "pool"
+            self.w = 0

@@ -119,7 +119,7 @@ def angle_between(v1, v2):
 # Random Walk functions
 def random_walk(vel_limit=(-0.2, 0.2), theta_limit=(-0.3, 0.3)):
     """Pooling a small orientation and absolute velocity increment from some distribution"""
-    vel = 0  # np.random.uniform(vel_limit[0], vel_limit[1])
+    vel = 1  # np.random.uniform(vel_limit[0], vel_limit[1])
     theta = np.random.uniform(theta_limit[0], theta_limit[1])
     return vel, theta
 

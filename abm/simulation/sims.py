@@ -16,7 +16,8 @@ class Simulation:
                  framerate=30, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True, agent_consumption=1, vision_range=150, visual_exclusion=False):
+                 regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
+                 vision_range=150, visual_exclusion=False, show_vision_range=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -36,9 +37,13 @@ class Simulation:
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
+        :param teleport_exploit: boolean to choose if we teleport agents to the middle of the res. patch during
+                                exploitation
         :param vision_range: range (in px) of agents' vision
         :param visual_exclusion: when true agents can visually exclude socially relevant visual cues from other agents'
                                 projection field
+        :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
+                                and near field visual field will be drawn around the agents
         """
         # Arena parameters
         self.WIDTH = width
@@ -59,6 +64,7 @@ class Simulation:
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
         self.agent_consumption = agent_consumption
+        self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
         self.visual_exclusion = visual_exclusion
 
@@ -113,6 +119,12 @@ class Simulation:
                          [self.window_pad, self.window_pad + self.HEIGHT],
                          [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
 
+    def draw_visual_fields(self):
+        """Visualizing the range of vision for agents as opaque circles around the agents"""
+        for agent in self.agents:
+            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position+agent.radius, agent.vision_range, width=1)
+            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position+agent.radius, agent.D_near, width=1)
+
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
         if self.regenerate_resources:
@@ -141,8 +153,8 @@ class Simulation:
         :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly
         agent2 = agent2[0]
-        if agent2.mode != "exploit":
-            agent2.mode = "collide"
+        if agent2.get_mode() != "exploit":
+            agent2.set_mode("collide")
 
         x1, y1 = agent1.position
         x2, y2 = agent2.position
@@ -156,7 +168,10 @@ class Simulation:
         elif np.pi < theta < 2*np.pi:
             agent2.orientation += np.pi/8
 
-        agent2.velocity += 0.5
+        if agent2.velocity == 1:
+            agent2.velocity += 0.5
+        else:
+            agent2.velocity = 1
 
     def start(self):
         # Creating N agents in the environment
@@ -200,20 +215,31 @@ class Simulation:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
+                # Moving agents with cursor if click with left MB
+                if pygame.mouse.get_pressed()[0]:
+                    try:
+                        for ag in self.agents:
+                            ag.move_with_mouse(event.pos)
+                    except AttributeError:
+                        pass
+                else:
+                    for ag in self.agents:
+                        ag.is_moved_with_cursor = False
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_RETURN]:
+                print('placeholder: ENTER_PRESSED')
                 show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
                 if not self.show_vis_field and show_vis_fields_on_return:
                     self.show_vis_field = 1
                     turned_on_vfield = 1
-                for ag in self.agents.sprites():
-                    if ag.mode != "exploit":
-                        ag.mode = "flock"
+                # for ag in self.agents.sprites():
+                #     if ag.mode != "exploit":
+                #         ag.mode = "flock"
             else:
                 for ag in self.agents.sprites():
-                    if ag.mode == "flock":
-                        ag.mode = "explore"
+                    if ag.get_mode() == "flock":
+                        ag.set_mode("explore")
                 if self.show_vis_field and turned_on_vfield:
                     turned_on_vfield = 0
                     self.show_vis_field = 0
@@ -231,14 +257,20 @@ class Simulation:
 
             for agent1, agent2 in collision_group_aa.items():
                 self.agent_agent_collision(agent1, agent2)
-                collided_agents.append(agent1)
-                collided_agents.append(agent2)
+                if self.teleport_exploit:
+                    if agent1.get_mode() != "exploit":
+                        collided_agents.append(agent1)
+                    if agent2[0].get_mode() != "exploit":
+                        collided_agents.append(agent2)
+                else:
+                    collided_agents.append(agent1)
+                    collided_agents.append(agent2)
 
             for agent in self.agents:
-                if agent not in collided_agents and agent.mode == "collide":
-                    agent.mode = "explore"
+                if agent not in collided_agents and agent.get_mode() == "collide":
+                    agent.set_mode("explore")
 
-            # AGENT RESCOURCE INTERACTION
+            # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
             # Check if any 2 agents has been collided and reflect them from each other if so
             collision_group_ar = pygame.sprite.groupcollide(
                 self.rescources,
@@ -259,10 +291,13 @@ class Simulation:
                             agent.env_status = -1  # then this agent does not find a patch here anymore
                             agent.pool_success = 0  # restarting pooling timer if it happened during pooling
                         # if an agent finished pooling on a resource patch
-                        if (agent.mode in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
                             agent.pool_success = 0  # reinit pooling variable
                             agent.env_status = 1  # providing the status of the environment to the agent
-                        if agent.mode == "exploit":  # if an agent is already exploiting this patch
+                            if self.teleport_exploit:
+                                # teleporting agent to the middle of the patch
+                                agent.position = resc.position + resc.radius - agent.radius
+                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
                             agent.collected_r += depl_units # and increasing it's collected rescources
                             if destroy_resc:  # if the consumed unit was the last in the patch
@@ -274,10 +309,10 @@ class Simulation:
             for agent in self.agents.sprites():
                 if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                     if agent not in collided_agents: # and are not colliding with each other currently
-                        if (agent.mode in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
                             agent.pool_success = 0  # reinit pooling var
                             agent.env_status = -1  # provide the info that there is no resource here
-                        elif agent.mode == "exploit":
+                        elif agent.get_mode() == "exploit":
                             agent.pool_success = 0  # reinit pooling var
                             agent.env_status = -1  # provide the info taht there is no resource here
 
@@ -292,6 +327,7 @@ class Simulation:
             self.rescources.draw(self.screen)
             self.draw_walls()
             self.agents.draw(self.screen)
+            self.draw_visual_fields()
 
             if self.show_vis_field:
                 # Updating our graphs to show visual field

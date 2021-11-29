@@ -158,6 +158,12 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.soc_v_field)
+            # WHY ON EARTH DO WE NEED THIS NEGATION?
+            # whatever comes out has a sign that tells if the change in direction should be left or right
+            # seemingly what comes out has a different convention than our environment?
+            # VSWRM: comes out + turn left? comes our - turn right?
+            # environment: the opposite way around
+            theta = -theta
 
         # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
         # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
@@ -178,8 +184,8 @@ class Agent(pygame.sprite.Sprite):
             self.prove_velocity()  # possibly bounding velocity of agent
 
             # updating agent's position
-            self.position[0] += self.velocity * np.cos(-self.orientation)
-            self.position[1] += self.velocity * np.sin(-self.orientation)
+            self.position[0] += self.velocity * np.cos(self.orientation)
+            self.position[1] -= self.velocity * np.sin(self.orientation)
 
             # boundary conditions if applicable
             self.reflect_from_walls()

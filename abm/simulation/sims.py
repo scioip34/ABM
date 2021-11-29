@@ -54,6 +54,7 @@ class Simulation:
         self.N = N
         self.T = T
         self.framerate = framerate
+        self.is_paused = False
 
         # Visualization parameters
         self.show_vis_field = show_vis_field
@@ -215,6 +216,8 @@ class Simulation:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    self.is_paused = not self.is_paused
                 # Moving agents with cursor if click with left MB
                 if pygame.mouse.get_pressed()[0]:
                     try:
@@ -233,94 +236,89 @@ class Simulation:
                 if not self.show_vis_field and show_vis_fields_on_return:
                     self.show_vis_field = 1
                     turned_on_vfield = 1
-                # for ag in self.agents.sprites():
-                #     if ag.mode != "exploit":
-                #         ag.mode = "flock"
             else:
-                for ag in self.agents.sprites():
-                    if ag.get_mode() == "flock":
-                        ag.set_mode("explore")
                 if self.show_vis_field and turned_on_vfield:
                     turned_on_vfield = 0
                     self.show_vis_field = 0
 
-            # AGENT AGENT INTERACTION
-            # Check if any 2 agents has been collided and reflect them from each other if so
-            collision_group_aa = pygame.sprite.groupcollide(
-                self.agents,
-                self.agents,
-                False,
-                False,
-                itra.within_group_collision
-            )
-            collided_agents = []
+            if not self.is_paused:
+                # AGENT AGENT INTERACTION
+                # Check if any 2 agents has been collided and reflect them from each other if so
+                collision_group_aa = pygame.sprite.groupcollide(
+                    self.agents,
+                    self.agents,
+                    False,
+                    False,
+                    itra.within_group_collision
+                )
+                collided_agents = []
 
-            for agent1, agent2 in collision_group_aa.items():
-                self.agent_agent_collision(agent1, agent2)
-                if self.teleport_exploit:
-                    if agent1.get_mode() != "exploit":
+                for agent1, agent2 in collision_group_aa.items():
+                    self.agent_agent_collision(agent1, agent2)
+                    if self.teleport_exploit:
+                        if agent1.get_mode() != "exploit":
+                            collided_agents.append(agent1)
+                        if agent2[0].get_mode() != "exploit":
+                            collided_agents.append(agent2)
+                    else:
                         collided_agents.append(agent1)
-                    if agent2[0].get_mode() != "exploit":
                         collided_agents.append(agent2)
-                else:
-                    collided_agents.append(agent1)
-                    collided_agents.append(agent2)
 
-            for agent in self.agents:
-                if agent not in collided_agents and agent.get_mode() == "collide":
-                    agent.set_mode("explore")
+                for agent in self.agents:
+                    if agent not in collided_agents and agent.get_mode() == "collide":
+                        agent.set_mode("explore")
 
-            # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
-            # Check if any 2 agents has been collided and reflect them from each other if so
-            collision_group_ar = pygame.sprite.groupcollide(
-                self.rescources,
-                self.agents,
-                False,
-                False,
-                pygame.sprite.collide_circle
-            )
+                # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
+                # Check if any 2 agents has been collided and reflect them from each other if so
+                collision_group_ar = pygame.sprite.groupcollide(
+                    self.rescources,
+                    self.agents,
+                    False,
+                    False,
+                    pygame.sprite.collide_circle
+                )
 
-            # collecting agents that are on rescource patch
-            agents_on_rescs = []
+                # collecting agents that are on rescource patch
+                agents_on_rescs = []
 
-            for resc, agents in collision_group_ar.items():  # looping through patches
-                destroy_resc = 0  # if we destroy a patch it is 1
-                for agent in agents:  # looping through agents on patch
-                    if agent not in collided_agents:
-                        if destroy_resc:  # if a previous agent on patch consumed the last unit
-                            agent.env_status = -1  # then this agent does not find a patch here anymore
-                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
-                        # if an agent finished pooling on a resource patch
-                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                            agent.pool_success = 0  # reinit pooling variable
-                            agent.env_status = 1  # providing the status of the environment to the agent
-                            if self.teleport_exploit:
-                                # teleporting agent to the middle of the patch
-                                agent.position = resc.position + resc.radius - agent.radius
-                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                            depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
-                            agent.collected_r += depl_units # and increasing it's collected rescources
-                            if destroy_resc:  # if the consumed unit was the last in the patch
-                                agent.env_status = -1  # notifying agent that there is no more rescource here
-                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
-                if destroy_resc:  # if the patch is fully depleted
-                    self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
+                for resc, agents in collision_group_ar.items():  # looping through patches
+                    destroy_resc = 0  # if we destroy a patch it is 1
+                    for agent in agents:  # looping through agents on patch
+                        if agent not in collided_agents:
+                            if destroy_resc:  # if a previous agent on patch consumed the last unit
+                                agent.env_status = -1  # then this agent does not find a patch here anymore
+                                agent.pool_success = 0  # restarting pooling timer if it happened during pooling
+                            # if an agent finished pooling on a resource patch
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                                agent.pool_success = 0  # reinit pooling variable
+                                agent.env_status = 1  # providing the status of the environment to the agent
+                                if self.teleport_exploit:
+                                    # teleporting agent to the middle of the patch
+                                    agent.position = resc.position + resc.radius - agent.radius
+                            if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
+                                depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
+                                agent.collected_r += depl_units # and increasing it's collected rescources
+                                if destroy_resc:  # if the consumed unit was the last in the patch
+                                    agent.env_status = -1  # notifying agent that there is no more rescource here
+                            agents_on_rescs.append(agent)  # collecting agents on rescource patches
+                    if destroy_resc:  # if the patch is fully depleted
+                        self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
 
-            for agent in self.agents.sprites():
-                if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                    if agent not in collided_agents: # and are not colliding with each other currently
-                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
-                            agent.pool_success = 0  # reinit pooling var
-                            agent.env_status = -1  # provide the info that there is no resource here
-                        elif agent.get_mode() == "exploit":
-                            agent.pool_success = 0  # reinit pooling var
-                            agent.env_status = -1  # provide the info taht there is no resource here
+                for agent in self.agents.sprites():
+                    if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
+                        if agent not in collided_agents: # and are not colliding with each other currently
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                                agent.pool_success = 0  # reinit pooling var
+                                agent.env_status = -1  # provide the info that there is no resource here
+                            elif agent.get_mode() == "exploit":
+                                agent.pool_success = 0  # reinit pooling var
+                                agent.env_status = -1  # provide the info taht there is no resource here
 
 
-            # Update rescource patches
-            self.rescources.update()
-            # Update agents according to current visible obstacles
-            self.agents.update(self.agents)
+                # Update rescource patches
+                self.rescources.update()
+                # Update agents according to current visible obstacles
+                self.agents.update(self.agents)
 
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)

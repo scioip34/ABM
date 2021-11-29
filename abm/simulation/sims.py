@@ -267,7 +267,6 @@ class Simulation:
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_RETURN]:
-                print('placeholder: ENTER_PRESSED')
                 show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
                 if not self.show_vis_field and show_vis_fields_on_return:
                     self.show_vis_field = 1

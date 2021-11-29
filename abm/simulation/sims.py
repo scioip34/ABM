@@ -225,8 +225,6 @@ class Simulation:
         self.create_resources()
 
         # Creating surface to show visual fields
-        # if self.show_vis_field:
-        #stats = pygame.Surface((self.v_field_res, 50 * self.N))
         stats = pygame.Surface((self.WIDTH, 50 * self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(200)

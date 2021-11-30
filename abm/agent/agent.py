@@ -158,6 +158,12 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                 np.linspace(-np.pi, np.pi, self.v_field_res),
                                                                 self.soc_v_field)
+            # WHY ON EARTH DO WE NEED THIS NEGATION?
+            # whatever comes out has a sign that tells if the change in direction should be left or right
+            # seemingly what comes out has a different convention than our environment?
+            # VSWRM: comes out + turn left? comes our - turn right?
+            # environment: the opposite way around
+            theta = -theta
 
         # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
         # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
@@ -178,8 +184,8 @@ class Agent(pygame.sprite.Sprite):
             self.prove_velocity()  # possibly bounding velocity of agent
 
             # updating agent's position
-            self.position[0] += self.velocity * np.cos(-self.orientation)
-            self.position[1] += self.velocity * np.sin(-self.orientation)
+            self.position[0] += self.velocity * np.cos(self.orientation)
+            self.position[1] -= self.velocity * np.sin(self.orientation)
 
             # boundary conditions if applicable
             self.reflect_from_walls()
@@ -343,7 +349,8 @@ class Agent(pygame.sprite.Sprite):
 
                 # calculating closed angle between v1 and v2
                 # (rotated with the orientation of the agent as it is relative)
-                closed_angle = supcalc.angle_between(v1, v2) + self.orientation
+                # I HAVE NO IDEA WHY IS IT SHIFTED WITH PI/4?
+                closed_angle = supcalc.angle_between(v1, v2) + self.orientation + np.pi/4
                 if closed_angle > np.pi:
                     closed_angle -= 2 * np.pi
                 if closed_angle < -np.pi:
@@ -367,16 +374,16 @@ class Agent(pygame.sprite.Sprite):
                     v_field[self.v_field_res + proj_start:self.v_field_res] = 1
                     proj_start = 0
 
-                if proj_start >= self.v_field_res:
-                    v_field[0:proj_start - self.v_field_res] = 1
-                    proj_start = self.v_field_res - 1
+                if proj_end >= self.v_field_res:
+                    v_field[0:proj_end - self.v_field_res] = 1
+                    proj_end = self.v_field_res - 1
 
                 if not keep_distance_info:
                     v_field[proj_start:proj_end] = 1
                 else:
                     v_field[proj_start:proj_end] = 1 / distance
 
-        return v_field
+        return np.roll(v_field, int(len(v_field)/2))
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""

@@ -13,7 +13,7 @@ envconf = dotenv_values(".env")
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
-                 framerate=30, window_pad=30, show_vis_field=False,
+                 framerate=25, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
@@ -53,7 +53,10 @@ class Simulation:
         # Simulation parameters
         self.N = N
         self.T = T
-        self.framerate = framerate
+        self.t = 0
+        self.framerate_orig = framerate
+        self.framerate = self.framerate_orig
+        self.is_paused = False
 
         # Visualization parameters
         self.show_vis_field = show_vis_field
@@ -125,6 +128,20 @@ class Simulation:
             pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position+agent.radius, agent.vision_range, width=1)
             pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position+agent.radius, agent.D_near, width=1)
 
+    def draw_framerate(self):
+        """Showing framerate, sim time and pause status on simulation windows"""
+        tab_size = self.window_pad
+        line_height = int(self.window_pad / 2)
+        font = pygame.font.Font(None, line_height)
+        status = [
+            f"FPS: {self.framerate}, t = {self.t}/{self.T}",
+        ]
+        if self.is_paused:
+            status.append("-Paused-")
+        for i, stat_i in enumerate(status):
+            text = font.render(stat_i, True, colors.BLACK)
+            self.screen.blit(text, (tab_size, i*line_height))
+
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
         if self.regenerate_resources:
@@ -173,8 +190,8 @@ class Simulation:
         else:
             agent2.velocity = 1
 
-    def start(self):
-        # Creating N agents in the environment
+    def create_agents(self):
+        """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
             x = np.random.randint(self.WIDTH / 3, 2 * self.WIDTH / 3 + 1)
             y = np.random.randint(self.HEIGHT / 3, 2 * self.HEIGHT / 3 + 1)
@@ -195,26 +212,45 @@ class Simulation:
             )
             self.agents.add(agent)
 
-        # Creating rescource patches
+    def create_resources(self):
+        """Creating resource patches according to how the simulation class was initialized"""
         for i in range(self.N_resc):
             self.add_new_resource_patch()
 
-        # Creating surface to show some graphs (visual fields for now)
-        # if self.show_vis_field:
-        stats = pygame.Surface((self.v_field_res, 50 * self.N))
+    def start(self):
+        # Creating N agents in the environment
+        self.create_agents()
+
+        # Creating rescource patches
+        self.create_resources()
+
+        # Creating surface to show visual fields
+        stats = pygame.Surface((self.WIDTH, 50 * self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(200)
-        stats_pos = (int(self.window_pad), int(self.window_pad / 2))
+        stats_pos = (int(self.window_pad), int(self.window_pad))
 
         turned_on_vfield = 0
 
         # Main Simulation loop
-        for i in range(self.T):
+        while self.t < self.T:
 
             # Quitting on break event
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                    self.is_paused = not self.is_paused
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                    self.framerate -= 1
+                    if self.framerate < 1:
+                        self.framerate = 1
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                    self.framerate += 1
+                    if self.framerate > 35:
+                        self.framerate = 35
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                    self.framerate = self.framerate_orig
                 # Moving agents with cursor if click with left MB
                 if pygame.mouse.get_pressed()[0]:
                     try:
@@ -228,99 +264,100 @@ class Simulation:
 
             keys = pygame.key.get_pressed()
             if keys[pygame.K_RETURN]:
-                print('placeholder: ENTER_PRESSED')
                 show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
                 if not self.show_vis_field and show_vis_fields_on_return:
                     self.show_vis_field = 1
                     turned_on_vfield = 1
-                # for ag in self.agents.sprites():
-                #     if ag.mode != "exploit":
-                #         ag.mode = "flock"
             else:
-                for ag in self.agents.sprites():
-                    if ag.get_mode() == "flock":
-                        ag.set_mode("explore")
                 if self.show_vis_field and turned_on_vfield:
                     turned_on_vfield = 0
                     self.show_vis_field = 0
 
-            # AGENT AGENT INTERACTION
-            # Check if any 2 agents has been collided and reflect them from each other if so
-            collision_group_aa = pygame.sprite.groupcollide(
-                self.agents,
-                self.agents,
-                False,
-                False,
-                itra.within_group_collision
-            )
-            collided_agents = []
+            if not self.is_paused:
+                # AGENT AGENT INTERACTION
+                # Check if any 2 agents has been collided and reflect them from each other if so
+                collision_group_aa = pygame.sprite.groupcollide(
+                    self.agents,
+                    self.agents,
+                    False,
+                    False,
+                    itra.within_group_collision
+                )
+                collided_agents = []
 
-            for agent1, agent2 in collision_group_aa.items():
-                self.agent_agent_collision(agent1, agent2)
-                if self.teleport_exploit:
-                    if agent1.get_mode() != "exploit":
+                for agent1, agent2 in collision_group_aa.items():
+                    self.agent_agent_collision(agent1, agent2)
+                    if self.teleport_exploit:
+                        if agent1.get_mode() != "exploit":
+                            collided_agents.append(agent1)
+                        if agent2[0].get_mode() != "exploit":
+                            collided_agents.append(agent2)
+                    else:
                         collided_agents.append(agent1)
-                    if agent2[0].get_mode() != "exploit":
                         collided_agents.append(agent2)
-                else:
-                    collided_agents.append(agent1)
-                    collided_agents.append(agent2)
 
-            for agent in self.agents:
-                if agent not in collided_agents and agent.get_mode() == "collide":
-                    agent.set_mode("explore")
+                for agent in self.agents:
+                    if agent not in collided_agents and agent.get_mode() == "collide":
+                        agent.set_mode("explore")
 
-            # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
-            # Check if any 2 agents has been collided and reflect them from each other if so
-            collision_group_ar = pygame.sprite.groupcollide(
-                self.rescources,
-                self.agents,
-                False,
-                False,
-                pygame.sprite.collide_circle
-            )
+                # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
+                # Check if any 2 agents has been collided and reflect them from each other if so
+                collision_group_ar = pygame.sprite.groupcollide(
+                    self.rescources,
+                    self.agents,
+                    False,
+                    False,
+                    pygame.sprite.collide_circle
+                )
 
-            # collecting agents that are on rescource patch
-            agents_on_rescs = []
+                # collecting agents that are on rescource patch
+                agents_on_rescs = []
 
-            for resc, agents in collision_group_ar.items():  # looping through patches
-                destroy_resc = 0  # if we destroy a patch it is 1
-                for agent in agents:  # looping through agents on patch
-                    if agent not in collided_agents:
-                        if destroy_resc:  # if a previous agent on patch consumed the last unit
-                            agent.env_status = -1  # then this agent does not find a patch here anymore
-                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
-                        # if an agent finished pooling on a resource patch
-                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                            agent.pool_success = 0  # reinit pooling variable
-                            agent.env_status = 1  # providing the status of the environment to the agent
-                            if self.teleport_exploit:
-                                # teleporting agent to the middle of the patch
-                                agent.position = resc.position + resc.radius - agent.radius
-                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                            depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
-                            agent.collected_r += depl_units # and increasing it's collected rescources
-                            if destroy_resc:  # if the consumed unit was the last in the patch
-                                agent.env_status = -1  # notifying agent that there is no more rescource here
-                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
-                if destroy_resc:  # if the patch is fully depleted
-                    self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
+                for resc, agents in collision_group_ar.items():  # looping through patches
+                    destroy_resc = 0  # if we destroy a patch it is 1
+                    for agent in agents:  # looping through agents on patch
+                        if agent not in collided_agents:
+                            if destroy_resc:  # if a previous agent on patch consumed the last unit
+                                agent.env_status = -1  # then this agent does not find a patch here anymore
+                                agent.pool_success = 0  # restarting pooling timer if it happened during pooling
+                            # if an agent finished pooling on a resource patch
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                                agent.pool_success = 0  # reinit pooling variable
+                                agent.env_status = 1  # providing the status of the environment to the agent
+                                if self.teleport_exploit:
+                                    # teleporting agent to the middle of the patch
+                                    agent.position = resc.position + resc.radius - agent.radius
+                            if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
+                                depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
+                                agent.collected_r += depl_units # and increasing it's collected rescources
+                                if destroy_resc:  # if the consumed unit was the last in the patch
+                                    agent.env_status = -1  # notifying agent that there is no more rescource here
+                            agents_on_rescs.append(agent)  # collecting agents on rescource patches
+                    if destroy_resc:  # if the patch is fully depleted
+                        self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
 
-            for agent in self.agents.sprites():
-                if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                    if agent not in collided_agents: # and are not colliding with each other currently
-                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
-                            agent.pool_success = 0  # reinit pooling var
-                            agent.env_status = -1  # provide the info that there is no resource here
-                        elif agent.get_mode() == "exploit":
-                            agent.pool_success = 0  # reinit pooling var
-                            agent.env_status = -1  # provide the info taht there is no resource here
+                for agent in self.agents.sprites():
+                    if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
+                        if agent not in collided_agents: # and are not colliding with each other currently
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                                agent.pool_success = 0  # reinit pooling var
+                                agent.env_status = -1  # provide the info that there is no resource here
+                            elif agent.get_mode() == "exploit":
+                                agent.pool_success = 0  # reinit pooling var
+                                agent.env_status = -1  # provide the info taht there is no resource here
 
 
-            # Update rescource patches
-            self.rescources.update()
-            # Update agents according to current visible obstacles
-            self.agents.update(self.agents)
+                # Update rescource patches
+                self.rescources.update()
+                # Update agents according to current visible obstacles
+                self.agents.update(self.agents)
+
+                # move to next simulation timestep
+                self.t += 1
+            else:  # simulation is paused but we still want to see the projection field of the agents
+                for ag in self.agents:
+                    ag.social_projection_field(self.agents)
+
 
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)
@@ -328,8 +365,10 @@ class Simulation:
             self.draw_walls()
             self.agents.draw(self.screen)
             self.draw_visual_fields()
+            self.draw_framerate()
 
             if self.show_vis_field:
+                stats_width = stats.get_width()
                 # Updating our graphs to show visual field
                 stats_graph = pygame.PixelArray(stats)
                 stats_graph[:, :] = pygame.Color(*colors.WHITE)
@@ -339,12 +378,14 @@ class Simulation:
                     show_max = (k * 50) + 25
 
                     for j in range(self.agents.sprites()[k].v_field_res):
+                        curr_idx = int(j * (stats_width/self.v_field_res))
+                        # print(curr_idx)
                         if self.agents.sprites()[k].soc_v_field[j] == 1:
-                            stats_graph[j, show_min:show_max] = pygame.Color(*colors.GREEN)
+                            stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
                         # elif self.agents.sprites()[k].soc_v_field[j] == -1:
                         #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
                         else:
-                            stats_graph[j, show_base] = pygame.Color(*colors.GREEN)
+                            stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
 
                 del stats_graph
                 stats.unlock()

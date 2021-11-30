@@ -55,8 +55,6 @@ def save_agent_data(ifclient, agents):
         fields[f"w_{agent_name}"] = float(agent.w)
         fields[f"u_{agent_name}"] = float(agent.u)
 
-    from pprint import pprint
-    pprint(fields)
     body = [
         {
             "measurement": measurement_name,
@@ -67,3 +65,46 @@ def save_agent_data(ifclient, agents):
 
     # write the measurement
     ifclient.write_points(body)
+
+
+def save_simulation_params(ifclient, sim):
+    """saving simulation parameters to IFDB"""
+
+    measurement_name = "simulation_params"
+    fields = {}
+
+    # take a timestamp for this measurement
+    time = datetime.datetime.utcnow()
+
+    # format the data as a single measurement for influx
+    fields["vision_range"] = sim.vision_range
+    fields["width"] = sim.WIDTH
+    fields["height"] = sim.HEIGHT
+    fields["window_pad"] = sim.window_pad
+    fields["N_agents"] = sim.N
+    fields["T"] = sim.T
+    fields["agent_radii"] = sim.agent_radii
+    fields["v_field_res"] = sim.v_field_res
+    fields["pooling_time"] = sim.pooling_time
+    fields["pooling_prob"] = sim.pooling_prob
+    fields["agent_consumption"] = sim.agent_consumption
+    fields["teleport_exploit"] = sim.teleport_exploit
+    fields["visual_exclusion"] = sim.visual_exclusion
+    fields["N_resc"] = sim.N_resc
+    fields["resc_radius"] = sim.resc_radius
+    fields["min_resc_units"] = sim.min_resc_units
+    fields["max_resc_units"] = sim.max_resc_units
+    fields["regenerate_resources"] = sim.regenerate_resources
+
+    body = [
+        {
+            "measurement": measurement_name,
+            "time": time,
+            "fields": fields
+        }
+    ]
+
+    # write the measurement
+    ifclient.write_points(body)
+
+

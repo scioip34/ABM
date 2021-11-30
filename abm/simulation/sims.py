@@ -94,6 +94,8 @@ class Simulation:
         self.ifdb_client .drop_database(ifdb_params.INFLUX_DB_NAME)
         self.ifdb_client .create_database(ifdb_params.INFLUX_DB_NAME)
 
+        ifdb.save_simulation_params(self.ifdb_client, self)
+
     def proove_resource(self, resource):
         """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
         or given resource patch distribution, etc"""

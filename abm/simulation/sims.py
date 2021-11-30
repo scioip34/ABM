@@ -18,7 +18,7 @@ class Simulation:
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
-                 vision_range=150, visual_exclusion=False, show_vision_range=False):
+                 vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=0):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -45,6 +45,7 @@ class Simulation:
                                 projection field
         :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
                                 and near field visual field will be drawn around the agents
+        :param use_ifdb_logging: Switch to turn IFDB save on or off
         """
         # Arena parameters
         self.WIDTH = width
@@ -90,11 +91,12 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
-        self.ifdb_client = ifdb.create_ifclient()
-        self.ifdb_client .drop_database(ifdb_params.INFLUX_DB_NAME)
-        self.ifdb_client .create_database(ifdb_params.INFLUX_DB_NAME)
-
-        ifdb.save_simulation_params(self.ifdb_client, self)
+        self.save_in_ifd = use_ifdb_logging
+        if self.save_in_ifd:
+            self.ifdb_client = ifdb.create_ifclient()
+            self.ifdb_client .drop_database(ifdb_params.INFLUX_DB_NAME)
+            self.ifdb_client .create_database(ifdb_params.INFLUX_DB_NAME)
+            ifdb.save_simulation_params(self.ifdb_client, self)
 
     def proove_resource(self, resource):
         """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
@@ -404,7 +406,8 @@ class Simulation:
             pygame.display.flip()
 
             # Monitoring
-            ifdb.save_agent_data(self.ifdb_client, self.agents)
+            if self.save_in_ifd:
+                ifdb.save_agent_data(self.ifdb_client, self.agents)
 
             # Moving time forward
             self.clock.tick(self.framerate)

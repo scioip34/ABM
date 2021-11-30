@@ -17,7 +17,9 @@ setup(
         'numpy',
         'scipy',
         'matplotlib',
-        'python-dotenv'
+        'python-dotenv',
+        'pandas',
+        'influxdb'
     ],
     extras_require={
         'test': [

@@ -3,8 +3,9 @@ import numpy as np
 import sys
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
-from abm.contrib import colors
+from abm.contrib import colors, ifdb_params
 from abm.simulation import interactions as itra
+from abm.monitoring import ifdb
 from math import atan2
 
 # loading env variables from dotenv file
@@ -87,6 +88,11 @@ class Simulation:
         self.screen = pygame.display.set_mode([self.WIDTH + 2 * self.window_pad, self.HEIGHT + 2 * self.window_pad])
         # todo: look into this more in detail so we can control dt
         self.clock = pygame.time.Clock()
+
+        # Monitoring
+        self.ifdb_client = ifdb.create_ifclient()
+        self.ifdb_client .drop_database(ifdb_params.INFLUX_DB_NAME)
+        self.ifdb_client .create_database(ifdb_params.INFLUX_DB_NAME)
 
     def proove_resource(self, resource):
         """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
@@ -394,6 +400,9 @@ class Simulation:
             if self.show_vis_field:
                 self.screen.blit(stats, stats_pos)
             pygame.display.flip()
+
+            # Monitoring
+            ifdb.save_agent_data(self.ifdb_client, self.agents)
 
             # Moving time forward
             self.clock.tick(self.framerate)

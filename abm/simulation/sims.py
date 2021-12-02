@@ -431,4 +431,6 @@ class Simulation:
             # Moving time forward
             self.clock.tick(self.framerate)
 
+        if self.save_in_ifd:
+            ifdb.save_ifdb_as_csv()
         pygame.quit()

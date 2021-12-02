@@ -2,9 +2,10 @@
 @author: mezdahun
 @description: Helper functions for InfluxDB
 """
-from influxdb import InfluxDBClient
+from influxdb import InfluxDBClient, DataFrameClient
 import abm.contrib.ifdb_params as ifdbp
 import datetime
+import csv
 
 
 def create_ifclient():
@@ -133,3 +134,18 @@ def save_simulation_params(ifclient, sim):
 
     # write the measurement
     ifclient.write_points(body)
+
+
+def save_ifdb_as_csv():
+    """Saving the whole influx database as a single csv file"""
+    # from influxdb_client import InfluxDBClient
+    ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
+                              ifdbp.INFLUX_PORT,
+                              ifdbp.INFLUX_USER,
+                              ifdbp.INFLUX_PSWD,
+                              ifdbp.INFLUX_DB_NAME)
+
+    dfs_dict = ifclient.query("select * from agent_data", chunked=True, chunk_size=100000)
+
+    ret = dfs_dict['agent_data']
+    ret.to_csv('output.csv', sep=",", encoding="utf-8")

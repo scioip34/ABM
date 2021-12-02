@@ -152,6 +152,23 @@ class Simulation:
             text = font.render(stat_i, True, colors.BLACK)
             self.screen.blit(text, (tab_size, i*line_height))
 
+    def draw_agent_stats(self, font_size=15, spacing=0):
+        """Showing agent information when paused"""
+        if self.is_paused:
+            font = pygame.font.Font(None, font_size)
+            for agent in self.agents:
+                status = [
+                    f"ID: {agent.id}",
+                    f"res.: {agent.collected_r}",
+                    f"ori.: {agent.orientation:.2f}",
+                    f"w: {agent.w:.2f}"
+                ]
+                for i, stat_i in enumerate(status):
+                    text = font.render(stat_i, True, colors.BLACK)
+                    self.screen.blit(text, (agent.position[0] + 2 * agent.radius,
+                                            agent.position[1] + 2 * agent.radius + i * (font_size + spacing)))
+
+
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
         if self.regenerate_resources:
@@ -376,6 +393,7 @@ class Simulation:
             self.agents.draw(self.screen)
             self.draw_visual_fields()
             self.draw_framerate()
+            self.draw_agent_stats()
 
             if self.show_vis_field:
                 stats_width = stats.get_width()

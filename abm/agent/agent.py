@@ -5,7 +5,7 @@ agent.py : including the main classes to create an agent. Supplementary calculat
 
 import pygame
 import numpy as np
-from abm.contrib import colors
+from abm.contrib import colors, decision_params
 from abm.agent import supcalc
 
 
@@ -49,7 +49,6 @@ class Agent(pygame.sprite.Sprite):
         self.pooling_prob = pooling_prob
         self.consumption = consumption
         self.vision_range = vision_range
-        self.D_near = 30  # distance threshold from which an agent's projection is in the near field projection
         self.visual_exclusion = visual_exclusion
 
         # Non-initialisable private attributes
@@ -67,19 +66,20 @@ class Agent(pygame.sprite.Sprite):
         # Decision Variables
         self.overriding_mode = None
         ## w
-        self.T_exc = 0.8
+        self.T_exc = decision_params.T_exc
         self.w = 0
-        self.Eps_w = 3
-        self.g_w = 0.1
-        self.B_w = 0
-        self.B_refr = 0
+        self.Eps_w = decision_params.Eps_w
+        self.g_w = decision_params.g_w
+        self.B_w = decision_params.B_w
+        self.B_refr = decision_params.B_refr
+        self.D_near = int(decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
 
         ## u
-        self.T_refr = 0.5
+        self.T_refr = decision_params.T_refr
         self.u = 0
-        self.Eps_u = 1
-        self.g_u = 0.1
-        self.B_u = 0
+        self.Eps_u = decision_params.Eps_u
+        self.g_u = decision_params.g_u
+        self.B_u = decision_params.B_u
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -128,7 +128,7 @@ class Agent(pygame.sprite.Sprite):
 
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        dw = self.Eps_w * (np.mean(self.soc_v_field_far)) - self.g_w * (self.w - self.B_w)
+        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w)
         du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
         self.w += dw
         self.u += du
@@ -491,14 +491,14 @@ class Agent(pygame.sprite.Sprite):
             -pool
             -collide"""
         if mode == "explore":
-            self.w = 0
+            # self.w = 0
             self.overriding_mode = None
         elif mode == "relocate":
             self.w = self.T_exc + 0.001
             self.overriding_mode = None
         elif mode == "collide":
             self.overriding_mode = "collide"
-            self.w = 0
+            # self.w = 0
         elif mode == "exploit":
             self.overriding_mode = "exploit"
             self.w = 0

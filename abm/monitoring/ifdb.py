@@ -54,6 +54,33 @@ def save_agent_data(ifclient, agents):
         fields[f"velocity_{agent_name}"] = float(agent.velocity)
         fields[f"w_{agent_name}"] = float(agent.w)
         fields[f"u_{agent_name}"] = float(agent.u)
+        fields[f"collectedr_{agent_name}"] = int(agent.collected_r)
+
+    body = [
+        {
+            "measurement": measurement_name,
+            "time": time,
+            "fields": fields
+        }
+    ]
+
+    # write the measurement
+    ifclient.write_points(body)
+
+
+def save_resource_data(ifclient, resources):
+    """Saving relevant resource patch data into InfluxDB intance"""
+    measurement_name = "resource_data"
+    fields = {}
+    for res in resources:
+        res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
+        # take a timestamp for this measurement
+        time = datetime.datetime.utcnow()
+
+        # format the data as a single measurement for influx
+        fields[f"posx_{res_name}"] = int(res.position[0])
+        fields[f"posy_{res_name}"] = int(res.position[1])
+        fields[f"resc_left_{res_name}"] = float(res.resc_left)
 
     body = [
         {
@@ -106,5 +133,3 @@ def save_simulation_params(ifclient, sim):
 
     # write the measurement
     ifclient.write_points(body)
-
-

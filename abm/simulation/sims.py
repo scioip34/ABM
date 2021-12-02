@@ -426,6 +426,7 @@ class Simulation:
             # Monitoring
             if self.save_in_ifd:
                 ifdb.save_agent_data(self.ifdb_client, self.agents)
+                ifdb.save_resource_data(self.ifdb_client, self.rescources)
 
             # Moving time forward
             self.clock.tick(self.framerate)

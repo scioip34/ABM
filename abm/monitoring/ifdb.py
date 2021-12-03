@@ -4,6 +4,7 @@
 """
 import datetime
 import os
+import numpy as np
 
 from influxdb import InfluxDBClient, DataFrameClient
 
@@ -58,6 +59,9 @@ def save_agent_data(ifclient, agents):
         fields[f"w_{agent_name}"] = float(agent.w)
         fields[f"u_{agent_name}"] = float(agent.u)
         fields[f"collectedr_{agent_name}"] = int(agent.collected_r)
+        # only storing visual field edges to compress data and keep real time simulations
+        fields[f"vfield_up_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}"
+        fields[f"vfield_down_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}"
 
     body = [
         {

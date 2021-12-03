@@ -25,6 +25,8 @@ def start():
                      teleport_exploit=bool(int(envconf["TELEPORT_TO_MIDDLE"])),
                      vision_range=int(envconf["VISION_RANGE"]),
                      visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"])),
-                     show_vision_range=bool(int(envconf["SHOW_VISION_RANGE"]))
+                     show_vision_range=bool(int(envconf["SHOW_VISION_RANGE"])),
+                     use_ifdb_logging=bool(int(envconf["USE_IFDB_LOGGING"])),
+                     save_csv_files=bool(int(envconf["SAVE_CSV_FILES"]))
                      )
     sim.start()

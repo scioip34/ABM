@@ -10,7 +10,9 @@ from math import atan2
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+
 envconf = dotenv_values(".env")
+
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
@@ -18,7 +20,8 @@ class Simulation:
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
-                 vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=0):
+                 vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=False,
+                 save_csv_files=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -46,6 +49,7 @@ class Simulation:
         :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
                                 and near field visual field will be drawn around the agents
         :param use_ifdb_logging: Switch to turn IFDB save on or off
+        :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
         """
         # Arena parameters
         self.WIDTH = width
@@ -62,6 +66,7 @@ class Simulation:
 
         # Visualization parameters
         self.show_vis_field = show_vis_field
+        self.show_vision_range = show_vision_range
 
         # Agent parameters
         self.agent_radii = agent_radius
@@ -92,10 +97,11 @@ class Simulation:
 
         # Monitoring
         self.save_in_ifd = use_ifdb_logging
+        self.save_csv_files = save_csv_files
         if self.save_in_ifd:
             self.ifdb_client = ifdb.create_ifclient()
-            self.ifdb_client .drop_database(ifdb_params.INFLUX_DB_NAME)
-            self.ifdb_client .create_database(ifdb_params.INFLUX_DB_NAME)
+            self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
+            self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
             ifdb.save_simulation_params(self.ifdb_client, self)
 
     def proove_resource(self, resource):

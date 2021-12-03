@@ -122,7 +122,6 @@ class Simulation:
         else:
             return True
 
-
     def draw_walls(self):
         """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
         pygame.draw.line(self.screen, colors.BLACK,
@@ -141,8 +140,9 @@ class Simulation:
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""
         for agent in self.agents:
-            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position+agent.radius, agent.vision_range, width=1)
-            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position+agent.radius, agent.D_near, width=1)
+            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
+                               width=1)
+            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
 
     def draw_framerate(self):
         """Showing framerate, sim time and pause status on simulation windows"""
@@ -156,7 +156,7 @@ class Simulation:
             status.append("-Paused-")
         for i, stat_i in enumerate(status):
             text = font.render(stat_i, True, colors.BLACK)
-            self.screen.blit(text, (tab_size, i*line_height))
+            self.screen.blit(text, (tab_size, i * line_height))
 
     def draw_agent_stats(self, font_size=15, spacing=0):
         """Showing agent information when paused"""
@@ -173,7 +173,6 @@ class Simulation:
                     text = font.render(stat_i, True, colors.BLACK)
                     self.screen.blit(text, (agent.position[0] + 2 * agent.radius,
                                             agent.position[1] + 2 * agent.radius + i * (font_size + spacing)))
-
 
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
@@ -194,7 +193,7 @@ class Simulation:
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
-            resource = Rescource(id+1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
+            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
             resource_proven = self.proove_resource(resource)
         self.rescources.add(resource)
 
@@ -208,15 +207,15 @@ class Simulation:
 
         x1, y1 = agent1.position
         x2, y2 = agent2.position
-        dx = x2-x1
-        dy = y2-y1
+        dx = x2 - x1
+        dy = y2 - y1
         # calculating relative closed angle to agent2 orientation
         theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
 
         if 0 < theta < np.pi:
-            agent2.orientation -= np.pi/8
-        elif np.pi < theta < 2*np.pi:
-            agent2.orientation += np.pi/8
+            agent2.orientation -= np.pi / 8
+        elif np.pi < theta < 2 * np.pi:
+            agent2.orientation += np.pi / 8
 
         if agent2.velocity == 1:
             agent2.velocity += 0.5
@@ -260,7 +259,7 @@ class Simulation:
         # Creating surface to show visual fields
         stats = pygame.Surface((self.WIDTH, 50 * self.N))
         stats.fill(colors.GREY)
-        stats.set_alpha(200)
+        stats.set_alpha(150)
         stats_pos = (int(self.window_pad), int(self.window_pad))
 
         turned_on_vfield = 0
@@ -354,31 +353,33 @@ class Simulation:
                                 agent.env_status = -1  # then this agent does not find a patch here anymore
                                 agent.pool_success = 0  # restarting pooling timer if it happened during pooling
                             # if an agent finished pooling on a resource patch
-                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                            if (agent.get_mode() in ["pool",
+                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
                                 agent.pool_success = 0  # reinit pooling variable
                                 agent.env_status = 1  # providing the status of the environment to the agent
                                 if self.teleport_exploit:
                                     # teleporting agent to the middle of the patch
                                     agent.position = resc.position + resc.radius - agent.radius
                             if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                                depl_units, destroy_resc = resc.deplete(agent.consumption)  # it continues depleting the patch
-                                agent.collected_r += depl_units # and increasing it's collected rescources
+                                depl_units, destroy_resc = resc.deplete(
+                                    agent.consumption)  # it continues depleting the patch
+                                agent.collected_r += depl_units  # and increasing it's collected rescources
                                 if destroy_resc:  # if the consumed unit was the last in the patch
                                     agent.env_status = -1  # notifying agent that there is no more rescource here
                             agents_on_rescs.append(agent)  # collecting agents on rescource patches
                     if destroy_resc:  # if the patch is fully depleted
-                        self.kill_resource(resc) # we clear it from the memory and regenrate it somewhere if needed
+                        self.kill_resource(resc)  # we clear it from the memory and regenrate it somewhere if needed
 
                 for agent in self.agents.sprites():
                     if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                        if agent not in collided_agents: # and are not colliding with each other currently
-                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                        if agent not in collided_agents:  # and are not colliding with each other currently
+                            if (agent.get_mode() in ["pool",
+                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
                                 agent.pool_success = 0  # reinit pooling var
                                 agent.env_status = -1  # provide the info that there is no resource here
                             elif agent.get_mode() == "exploit":
                                 agent.pool_success = 0  # reinit pooling var
                                 agent.env_status = -1  # provide the info taht there is no resource here
-
 
                 # Update rescource patches
                 self.rescources.update()
@@ -391,13 +392,13 @@ class Simulation:
                 for ag in self.agents:
                     ag.social_projection_field(self.agents)
 
-
             # Draw environment and agents
             self.screen.fill(colors.BACKGROUND)
             self.rescources.draw(self.screen)
             self.draw_walls()
             self.agents.draw(self.screen)
-            self.draw_visual_fields()
+            if self.show_vision_range:
+                self.draw_visual_fields()
             self.draw_framerate()
             self.draw_agent_stats()
 
@@ -412,7 +413,7 @@ class Simulation:
                     show_max = (k * 50) + 25
 
                     for j in range(self.agents.sprites()[k].v_field_res):
-                        curr_idx = int(j * (stats_width/self.v_field_res))
+                        curr_idx = int(j * (stats_width / self.v_field_res))
                         # print(curr_idx)
                         if self.agents.sprites()[k].soc_v_field[j] == 1:
                             stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
@@ -427,6 +428,13 @@ class Simulation:
             # Drawing
             if self.show_vis_field:
                 self.screen.blit(stats, stats_pos)
+                for agi, ag in enumerate(self.agents):
+                    line_height = 15
+                    font = pygame.font.Font(None, line_height)
+                    status = f"agent {ag.id}"
+                    text = font.render(status, True, colors.BLACK)
+                    self.screen.blit(text, (int(self.window_pad) / 2, self.window_pad + agi * 50))
+
             pygame.display.flip()
 
             # Monitoring
@@ -437,6 +445,11 @@ class Simulation:
             # Moving time forward
             self.clock.tick(self.framerate)
 
-        if self.save_in_ifd:
-            ifdb.save_ifdb_as_csv()
+        if self.save_csv_files:
+            if self.save_in_ifd:
+                ifdb.save_ifdb_as_csv()
+            else:
+                raise Exception("Tried to save simulation data as csv file due to env configuration, "
+                                "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"
+                                " or turn off CSV saving feature.")
         pygame.quit()

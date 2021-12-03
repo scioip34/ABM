@@ -2,10 +2,12 @@
 @author: mezdahun
 @description: Helper functions for InfluxDB
 """
-from influxdb import InfluxDBClient, DataFrameClient
-import abm.contrib.ifdb_params as ifdbp
 import datetime
-import csv
+import os
+
+from influxdb import InfluxDBClient, DataFrameClient
+
+import abm.contrib.ifdb_params as ifdbp
 
 
 def create_ifclient():
@@ -145,7 +147,15 @@ def save_ifdb_as_csv():
                               ifdbp.INFLUX_PSWD,
                               ifdbp.INFLUX_DB_NAME)
 
-    dfs_dict = ifclient.query("select * from agent_data", chunked=True, chunk_size=100000)
+    # create base folder in data
+    root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+    save_timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    save_dir = os.path.join(root_abm_dir, ifdbp.SAVE_DIR, save_timestamp)
+    os.makedirs(save_dir, exist_ok=True)
 
-    ret = dfs_dict['agent_data']
-    ret.to_csv('output.csv', sep=",", encoding="utf-8")
+    measurement_names = ["agent_data", "simulation_params", "resource_data"]
+    for mes_name in measurement_names:
+        data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=100000)
+        ret = data_dict[mes_name]
+        save_file_path = os.path.join(save_dir, f'{mes_name}.csv')
+        ret.to_csv(save_file_path, sep=",", encoding="utf-8")

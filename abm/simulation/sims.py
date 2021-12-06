@@ -346,14 +346,24 @@ class Simulation:
 
                 for agent1, agent2 in collision_group_aa.items():
                     self.agent_agent_collision(agent1, agent2)
-                    if self.teleport_exploit:
-                        if agent1.get_mode() != "exploit":
-                            collided_agents.append(agent1)
-                        if agent2[0].get_mode() != "exploit":
-                            collided_agents.append(agent2)
+                    if not isinstance(agent2, list):
+                        agents2 = [agent2]
                     else:
-                        collided_agents.append(agent1)
-                        collided_agents.append(agent2)
+                        agents2 = agent2
+                    for agent2 in agents2:
+                        if self.teleport_exploit:
+                            if agent1.get_mode() != "exploit":
+                                collided_agents.append(agent1)
+                            if agent2.get_mode() != "exploit":
+                                collided_agents.append(agent2)
+                        else:
+                            if not self.ghost_mode:
+                                collided_agents.append(agent1)
+                                collided_agents.append(agent2)
+                            else:
+                                if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                    collided_agents.append(agent1)
+                                    collided_agents.append(agent2)
 
                 for agent in self.agents:
                     if agent not in collided_agents and agent.get_mode() == "collide":

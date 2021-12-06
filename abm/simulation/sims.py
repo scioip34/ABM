@@ -210,26 +210,44 @@ class Simulation:
         """collision protocol called on any agent that has been collided with another one
         :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly
-        agent2 = agent2[0]
-        if agent2.get_mode() != "exploit":
-            agent2.set_mode("collide")
-
-        x1, y1 = agent1.position
-        x2, y2 = agent2.position
-        dx = x2 - x1
-        dy = y2 - y1
-        # calculating relative closed angle to agent2 orientation
-        theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
-
-        if 0 < theta < np.pi:
-            agent2.orientation -= np.pi / 8
-        elif np.pi < theta < 2 * np.pi:
-            agent2.orientation += np.pi / 8
-
-        if agent2.velocity == 1:
-            agent2.velocity += 0.5
+        if not isinstance(agent2, list):
+            agents2 = [agent2]
         else:
-            agent2.velocity = 1
+            agents2 = agent2
+
+        for i, agent2 in enumerate(agents2):
+            do_collision = True
+            # if the ghost mode is turned on and any of the 2 colliding agents is exploiting, the
+            # collision protocol will not be carried out so that agents can overlap with each other in this case
+            if self.ghost_mode:
+                if agent2.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                    do_collision = True
+                else:
+                    do_collision = False
+
+            if do_collision:
+                if agent2.get_mode() != "exploit":
+                    agent2.set_mode("collide")
+
+                x1, y1 = agent1.position
+                x2, y2 = agent2.position
+                dx = x2 - x1
+                dy = y2 - y1
+                # calculating relative closed angle to agent2 orientation
+                theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
+
+                if 0 < theta < np.pi:
+                    agent2.orientation -= np.pi / 8
+                elif np.pi < theta < 2 * np.pi:
+                    agent2.orientation += np.pi / 8
+
+                if agent2.velocity == 1:
+                    agent2.velocity += 0.5
+                else:
+                    agent2.velocity = 1
+
+            else: #ghost mdoe is on
+                pass
 
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""

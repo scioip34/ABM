@@ -117,7 +117,14 @@ class Simulation:
             False,
             pygame.sprite.collide_circle
         )
-        if len(collision_group) > 0:
+        collision_group_a = pygame.sprite.groupcollide(
+            self.agents,
+            new_res_group,
+            False,
+            False,
+            pygame.sprite.collide_circle
+        )
+        if len(collision_group) > 0 or len(collision_group_a):
             return False
         else:
             return True

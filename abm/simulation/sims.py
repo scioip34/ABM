@@ -276,6 +276,16 @@ class Simulation:
         for i in range(self.N_resc):
             self.add_new_resource_patch()
 
+    def bias_agent_towards_res_center(self, agent, resc, relative_speed=0.02):
+        """Turning the agent towards the center of a resource patch with some relative speed"""
+        x1, y1 = agent.position + agent.radius
+        x2, y2 = resc.center
+        dx = x2 - x1
+        dy = y2 - y1
+        # calculating relative closed angle to agent2 orientation
+        cl_ang = (atan2(dy, dx) + agent.orientation) % (np.pi * 2)
+        agent.orientation += (cl_ang - np.pi) * relative_speed
+
     def start(self):
         # Creating N agents in the environment
         self.create_agents()
@@ -384,26 +394,27 @@ class Simulation:
 
                 for resc, agents in collision_group_ar.items():  # looping through patches
                     destroy_resc = 0  # if we destroy a patch it is 1
-                    for agent in agents:  # looping through agents on patch
-                        if agent not in collided_agents:
-                            if destroy_resc:  # if a previous agent on patch consumed the last unit
-                                agent.env_status = -1  # then this agent does not find a patch here anymore
-                                agent.pool_success = 0  # restarting pooling timer if it happened during pooling
-                            # if an agent finished pooling on a resource patch
-                            if (agent.get_mode() in ["pool",
-                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                                agent.pool_success = 0  # reinit pooling variable
-                                agent.env_status = 1  # providing the status of the environment to the agent
-                                if self.teleport_exploit:
-                                    # teleporting agent to the middle of the patch
-                                    agent.position = resc.position + resc.radius - agent.radius
-                            if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                                depl_units, destroy_resc = resc.deplete(
-                                    agent.consumption)  # it continues depleting the patch
-                                agent.collected_r += depl_units  # and increasing it's collected rescources
-                                if destroy_resc:  # if the consumed unit was the last in the patch
-                                    agent.env_status = -1  # notifying agent that there is no more rescource here
-                            agents_on_rescs.append(agent)  # collecting agents on rescource patches
+                    for agent in agents:  # looping through all agents on patches
+                        self.bias_agent_towards_res_center(agent, resc)
+                        # if agent not in collided_agents:
+                        if destroy_resc:  # if a previous agent on patch consumed the last unit
+                            agent.env_status = -1  # then this agent does not find a patch here anymore
+                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
+                        # if an agent finished pooling on a resource patch
+                        if (agent.get_mode() in ["pool",
+                                                 "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                            agent.pool_success = 0  # reinit pooling variable
+                            agent.env_status = 1  # providing the status of the environment to the agent
+                            if self.teleport_exploit:
+                                # teleporting agent to the middle of the patch
+                                agent.position = resc.position + resc.radius - agent.radius
+                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
+                            depl_units, destroy_resc = resc.deplete(
+                                agent.consumption)  # it continues depleting the patch
+                            agent.collected_r += depl_units  # and increasing it's collected rescources
+                            if destroy_resc:  # if the consumed unit was the last in the patch
+                                agent.env_status = -1  # notifying agent that there is no more rescource here
+                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
                     if destroy_resc:  # if the patch is fully depleted
                         self.kill_resource(resc)  # we clear it from the memory and regenrate it somewhere if needed
 

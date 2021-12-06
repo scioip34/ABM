@@ -170,7 +170,7 @@ class Agent(pygame.sprite.Sprite):
         # enforcing exploitation dynamics brute force (continue exploiting until you can!)
         self.env_override_mode()
         if self.get_mode() == "exploit":
-            self.velocity = 0
+            self.velocity -= self.velocity * 0.04
             vel, theta = (0, 0)
         elif self.get_mode() == "pool":
             vel, theta = (0, 0)

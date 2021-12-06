@@ -21,7 +21,7 @@ class Simulation:
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=False,
-                 save_csv_files=False):
+                 save_csv_files=False, ghost_mode=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -50,6 +50,7 @@ class Simulation:
                                 and near field visual field will be drawn around the agents
         :param use_ifdb_logging: Switch to turn IFDB save on or off
         :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
+        :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
         """
         # Arena parameters
         self.WIDTH = width
@@ -77,6 +78,7 @@ class Simulation:
         self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
         self.visual_exclusion = visual_exclusion
+        self.ghost_mode = ghost_mode
 
         # Rescource parameters
         self.N_resc = N_resc

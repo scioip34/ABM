@@ -22,6 +22,7 @@ def start():
                      patch_radius=int(envconf["RADIUS_RESOURCE"]),
                      regenerate_patches=bool(int(envconf["REGENERATE_PATCHES"])),
                      agent_consumption=int(envconf["AGENT_CONSUMPTION"]),
+                     ghost_mode=bool(int(envconf["GHOST_WHILE_EXPLOIT"])),
                      teleport_exploit=bool(int(envconf["TELEPORT_TO_MIDDLE"])),
                      vision_range=int(envconf["VISION_RANGE"]),
                      visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"])),

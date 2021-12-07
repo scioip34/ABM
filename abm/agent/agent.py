@@ -68,7 +68,7 @@ class Agent(pygame.sprite.Sprite):
         # Decision Variables
         self.overriding_mode = None
         ## w
-        self.T_exc = decision_params.T_exc
+        self.T_w = decision_params.T_w
         self.w = 0
         self.Eps_w = decision_params.Eps_w
         self.g_w = decision_params.g_w
@@ -78,7 +78,7 @@ class Agent(pygame.sprite.Sprite):
             decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
 
         ## u
-        self.T_refr = decision_params.T_refr
+        self.T_u = decision_params.T_u
         self.u = 0
         self.Eps_u = decision_params.Eps_u
         self.g_u = decision_params.g_u
@@ -125,7 +125,7 @@ class Agent(pygame.sprite.Sprite):
 
     def fire_u(self):
         """firing stopping decision process if it has reached the refractory threshold"""
-        if self.u > self.T_refr:
+        if self.u > self.T_u:
             self.w = self.B_w - self.B_refr
             self.u = self.B_u
 
@@ -475,8 +475,15 @@ class Agent(pygame.sprite.Sprite):
         self.time_spent_pooling = 0
 
     def tr(self):
-        """Excitatory threshold function that checks if decision variable w is above T_exc"""
-        if self.w > self.T_exc:
+        """Relocation threshold function that checks if decision variable w is above T_w"""
+        if self.w > self.T_w:
+            return True
+        else:
+            return False
+
+    def tr_u(self):
+        """Exploitation threshold function that checks if decision variable u is above T_w"""
+        if self.u > self.T_w:
             return True
         else:
             return False
@@ -504,7 +511,7 @@ class Agent(pygame.sprite.Sprite):
             # self.w = 0
             self.overriding_mode = None
         elif mode == "relocate":
-            self.w = self.T_exc + 0.001
+            self.w = self.T_w + 0.001
             self.overriding_mode = None
         elif mode == "collide":
             self.overriding_mode = "collide"

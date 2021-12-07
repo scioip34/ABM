@@ -14,14 +14,20 @@ from dotenv import dotenv_values
 envconf = dotenv_values(".env")
 
 
+def notify_agent(agent, status):
+    """Notifying agent about the status of the environment in a given position"""
+    agent.env_status = status
+    agent.pool_success = 0  # restarting pooling timer when notified
+
+
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=25, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
-                 vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=False,
-                 save_csv_files=False, ghost_mode=True):
+                 vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
+                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -44,6 +50,8 @@ class Simulation:
         :param teleport_exploit: boolean to choose if we teleport agents to the middle of the res. patch during
                                 exploitation
         :param vision_range: range (in px) of agents' vision
+        :param agent_fov (float): the field of view of the agent as percentage. e.g. if 0.5, the the field of view is
+                                between -pi/2 and pi/2
         :param visual_exclusion: when true agents can visually exclude socially relevant visual cues from other agents'
                                 projection field
         :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
@@ -77,6 +85,7 @@ class Simulation:
         self.agent_consumption = agent_consumption
         self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
+        self.agent_fov = (-agent_fov * np.pi, agent_fov * np.pi)
         self.visual_exclusion = visual_exclusion
         self.ghost_mode = ghost_mode
 
@@ -149,9 +158,29 @@ class Simulation:
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""
         for agent in self.agents:
+            # Show visual range
             pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
-                               width=1)
+                                width=1)
             pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
+
+            # Show limits of FOV
+            if self.agent_fov[1] < np.pi:
+                angles = [agent.orientation+agent.FOV[0], agent.orientation+agent.FOV[1]]
+                for angle in angles:
+                    start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
+                    end_pos = [start_pos[0] + (np.cos(angle)) * 3*agent.radius,
+                               start_pos[1] + ( - np.sin(angle)) * 3*agent.radius]
+                    if end_pos[0] < 0:
+                        end_pos[0] = 0
+                    if end_pos[1] < 0:
+                        end_pos[1] = 0
+                    if end_pos[0] > self.WIDTH:
+                        end_pos[0] = self.WIDTH - 1
+                    if end_pos[1] > self.HEIGHT:
+                        end_pos[1] = self.HEIGHT - 1
+                    pygame.draw.line(self.screen, colors.LIGHT_BLUE,
+                                     start_pos,
+                                     end_pos, 1)
 
     def draw_framerate(self):
         """Showing framerate, sim time and pause status on simulation windows"""
@@ -226,6 +255,7 @@ class Simulation:
                     do_collision = False
 
             if do_collision:
+                # overriding any mode with collision
                 if agent2.get_mode() != "exploit":
                     agent2.set_mode("collide")
 
@@ -236,6 +266,7 @@ class Simulation:
                 # calculating relative closed angle to agent2 orientation
                 theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
 
+                # deciding on turning angle
                 if 0 < theta < np.pi:
                     agent2.orientation -= np.pi / 8
                 elif np.pi < theta < 2 * np.pi:
@@ -246,7 +277,7 @@ class Simulation:
                 else:
                     agent2.velocity = 1
 
-            else: #ghost mdoe is on
+            else:  # ghost mode is on, we do nothing on collision
                 pass
 
     def create_agents(self):
@@ -262,6 +293,7 @@ class Simulation:
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.BLUE,
                 v_field_res=self.v_field_res,
+                FOV=self.agent_fov,
                 window_pad=self.window_pad,
                 pooling_time=self.pooling_time,
                 pooling_prob=self.pooling_prob,
@@ -286,64 +318,136 @@ class Simulation:
         cl_ang = (atan2(dy, dx) + agent.orientation) % (np.pi * 2)
         agent.orientation += (cl_ang - np.pi) * relative_speed
 
-    def start(self):
-        # Creating N agents in the environment
-        self.create_agents()
-
-        # Creating rescource patches
-        self.create_resources()
-
-        # Creating surface to show visual fields
+    def create_vis_field_graph(self):
+        """Creating visualization graph for visual fields of the agents"""
         stats = pygame.Surface((self.WIDTH, 50 * self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(150)
         stats_pos = (int(self.window_pad), int(self.window_pad))
+        return stats, stats_pos
 
+    def interact_with_event(self, event):
+        """Carry out functionality according to user's interaction"""
+        # Exit if requested
+        if event.type == pygame.QUIT:
+            sys.exit()
+
+        # Pause on Space
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            self.is_paused = not self.is_paused
+
+        # Speed up on s and down on f. reset default framerate with d
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+            self.framerate -= 1
+            if self.framerate < 1:
+                self.framerate = 1
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+            self.framerate += 1
+            if self.framerate > 35:
+                self.framerate = 35
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+            self.framerate = self.framerate_orig
+
+        # Continuous mouse events (move with cursor)
+        if pygame.mouse.get_pressed()[0]:
+            try:
+                for ag in self.agents:
+                    ag.move_with_mouse(event.pos)
+            except AttributeError:
+                pass
+        else:
+            for ag in self.agents:
+                ag.is_moved_with_cursor = False
+
+    def decide_on_vis_field_visibility(self, turned_on_vfield):
+        """Deciding f the visual field needs to be shown or not"""
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_RETURN]:
+            show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
+            if not self.show_vis_field and show_vis_fields_on_return:
+                self.show_vis_field = 1
+                turned_on_vfield = 1
+        else:
+            if self.show_vis_field and turned_on_vfield:
+                turned_on_vfield = 0
+                self.show_vis_field = 0
+        return turned_on_vfield
+
+    def show_visual_fields(self, stats, stats_pos):
+        """Showing visual fields of the agnets on a specific graph"""
+        stats_width = stats.get_width()
+        # Updating our graphs to show visual field
+        stats_graph = pygame.PixelArray(stats)
+        stats_graph[:, :] = pygame.Color(*colors.WHITE)
+        for k in range(self.N):
+            show_base = k * 50
+            show_min = (k * 50) + 23
+            show_max = (k * 50) + 25
+
+            for j in range(self.agents.sprites()[k].v_field_res):
+                curr_idx = int(j * (stats_width / self.v_field_res))
+                if self.agents.sprites()[k].soc_v_field[j] == 1:
+                    stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
+                # elif self.agents.sprites()[k].soc_v_field[j] == -1:
+                #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
+                else:
+                    stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
+
+        del stats_graph
+        stats.unlock()
+
+        # Drawing
+        self.screen.blit(stats, stats_pos)
+        for agi, ag in enumerate(self.agents):
+            line_height = 15
+            font = pygame.font.Font(None, line_height)
+            status = f"agent {ag.id}"
+            text = font.render(status, True, colors.BLACK)
+            self.screen.blit(text, (int(self.window_pad) / 2, self.window_pad + agi * 50))
+
+    def draw_frame(self, stats, stats_pos):
+        """Drawing environment, agents and every other visualization in each timestep"""
+        self.screen.fill(colors.BACKGROUND)
+        self.rescources.draw(self.screen)
+        self.draw_walls()
+        self.agents.draw(self.screen)
+        if self.show_vision_range:
+            self.draw_visual_fields()
+        self.draw_framerate()
+        self.draw_agent_stats()
+
+        if self.show_vis_field:
+            # showing visual fields of the agents
+            self.show_visual_fields(stats, stats_pos)
+
+        pygame.display.flip()
+
+    def start(self):
+        # Creating N agents in the environment
+        self.create_agents()
+
+        # Creating resource patches
+        self.create_resources()
+
+        # Creating surface to show visual fields
+        stats, stats_pos = self.create_vis_field_graph()
+
+        # local var to decide when to show visual fields
         turned_on_vfield = 0
 
-        # Main Simulation loop
+        # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 
-            # Quitting on break event
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.is_paused = not self.is_paused
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-                    self.framerate -= 1
-                    if self.framerate < 1:
-                        self.framerate = 1
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-                    self.framerate += 1
-                    if self.framerate > 35:
-                        self.framerate = 35
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-                    self.framerate = self.framerate_orig
-                # Moving agents with cursor if click with left MB
-                if pygame.mouse.get_pressed()[0]:
-                    try:
-                        for ag in self.agents:
-                            ag.move_with_mouse(event.pos)
-                    except AttributeError:
-                        pass
-                else:
-                    for ag in self.agents:
-                        ag.is_moved_with_cursor = False
+                # Carry out interaction according to user activity
+                self.interact_with_event(event)
 
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_RETURN]:
-                show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
-                if not self.show_vis_field and show_vis_fields_on_return:
-                    self.show_vis_field = 1
-                    turned_on_vfield = 1
-            else:
-                if self.show_vis_field and turned_on_vfield:
-                    turned_on_vfield = 0
-                    self.show_vis_field = 0
+            # deciding if vis field needs to be shown in this timestep
+            turned_on_vfield = self.decide_on_vis_field_visibility(turned_on_vfield)
 
             if not self.is_paused:
-                # AGENT AGENT INTERACTION
+
+                # ------ AGENT-AGENT INTERACTION ------
                 # Check if any 2 agents has been collided and reflect them from each other if so
                 collision_group_aa = pygame.sprite.groupcollide(
                     self.agents,
@@ -353,7 +457,8 @@ class Simulation:
                     itra.within_group_collision
                 )
                 collided_agents = []
-
+                # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
+                # such as ghost mode, or teleportation)
                 for agent1, agent2 in collision_group_aa.items():
                     self.agent_agent_collision(agent1, agent2)
                     if not isinstance(agent2, list):
@@ -375,11 +480,12 @@ class Simulation:
                                     collided_agents.append(agent1)
                                     collided_agents.append(agent2)
 
+                # Turn off collision mode when over
                 for agent in self.agents:
                     if agent not in collided_agents and agent.get_mode() == "collide":
                         agent.set_mode("explore")
 
-                # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
+                # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
                 # Check if any 2 agents has been collided and reflect them from each other if so
                 collision_group_ar = pygame.sprite.groupcollide(
                     self.rescources,
@@ -389,103 +495,75 @@ class Simulation:
                     pygame.sprite.collide_circle
                 )
 
-                # collecting agents that are on rescource patch
+                # collecting agents that are on resource patch
                 agents_on_rescs = []
 
+                # Notifying agents about resource if pooling is successful + exploitation dynamics
                 for resc, agents in collision_group_ar.items():  # looping through patches
                     destroy_resc = 0  # if we destroy a patch it is 1
                     for agent in agents:  # looping through all agents on patches
+                        # Turn agent towards patch center
                         self.bias_agent_towards_res_center(agent, resc)
-                        # if agent not in collided_agents:
-                        if destroy_resc:  # if a previous agent on patch consumed the last unit
-                            agent.env_status = -1  # then this agent does not find a patch here anymore
-                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
-                        # if an agent finished pooling on a resource patch
-                        if (agent.get_mode() in ["pool",
-                                                 "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                            agent.pool_success = 0  # reinit pooling variable
-                            agent.env_status = 1  # providing the status of the environment to the agent
-                            if self.teleport_exploit:
-                                # teleporting agent to the middle of the patch
-                                agent.position = resc.position + resc.radius - agent.radius
-                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                            depl_units, destroy_resc = resc.deplete(
-                                agent.consumption)  # it continues depleting the patch
-                            agent.collected_r += depl_units  # and increasing it's collected rescources
-                            if destroy_resc:  # if the consumed unit was the last in the patch
-                                agent.env_status = -1  # notifying agent that there is no more rescource here
-                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
-                    if destroy_resc:  # if the patch is fully depleted
-                        self.kill_resource(resc)  # we clear it from the memory and regenrate it somewhere if needed
 
+                        # One of previous agents on patch consumed the last unit
+                        if destroy_resc:
+                            notify_agent(agent, -1)
+
+                        # Agent finished pooling on a resource patch
+                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
+                                or agent.pooling_time == 0:
+                            # Notify about the patch
+                            notify_agent(agent, 1)
+                            # Teleport agent to the middle of the patch if needed
+                            if self.teleport_exploit:
+                                agent.position = resc.position + resc.radius - agent.radius
+
+                        # Agent was already exploiting this patch
+                        if agent.get_mode() == "exploit":
+                            # continue depleting the patch
+                            depl_units, destroy_resc = resc.deplete(agent.consumption)
+                            agent.collected_r += depl_units  # and increasing it's collected rescources
+                            if destroy_resc:  # consumed unit was the last in the patch
+                                notify_agent(agent, -1)
+
+                        # Collect all agents on resource patches
+                        agents_on_rescs.append(agent)
+
+                    # Patch is fully depleted
+                    if destroy_resc:
+                        # we clear it from the memory and regenerate it somewhere else if needed
+                        self.kill_resource(resc)
+
+                # Notifying agents that there is no resource patch in current position (they are not on patch)
                 for agent in self.agents.sprites():
                     if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                         if agent not in collided_agents:  # and are not colliding with each other currently
+                            # if they finished pooling
                             if (agent.get_mode() in ["pool",
-                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
-                                agent.pool_success = 0  # reinit pooling var
-                                agent.env_status = -1  # provide the info that there is no resource here
+                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                                notify_agent(agent, -1)
                             elif agent.get_mode() == "exploit":
-                                agent.pool_success = 0  # reinit pooling var
-                                agent.env_status = -1  # provide the info taht there is no resource here
+                                notify_agent(agent, -1)
 
-                # Update rescource patches
+                # Update resource patches
                 self.rescources.update()
+
                 # Update agents according to current visible obstacles
                 self.agents.update(self.agents)
 
                 # move to next simulation timestep
                 self.t += 1
-            else:  # simulation is paused but we still want to see the projection field of the agents
+
+            # Simulation is paused
+            else:
+                # Still calculating visual fields
                 for ag in self.agents:
                     ag.social_projection_field(self.agents)
 
             # Draw environment and agents
-            self.screen.fill(colors.BACKGROUND)
-            self.rescources.draw(self.screen)
-            self.draw_walls()
-            self.agents.draw(self.screen)
-            if self.show_vision_range:
-                self.draw_visual_fields()
-            self.draw_framerate()
-            self.draw_agent_stats()
+            self.draw_frame(stats, stats_pos)
 
-            if self.show_vis_field:
-                stats_width = stats.get_width()
-                # Updating our graphs to show visual field
-                stats_graph = pygame.PixelArray(stats)
-                stats_graph[:, :] = pygame.Color(*colors.WHITE)
-                for k in range(self.N):
-                    show_base = k * 50
-                    show_min = (k * 50) + 23
-                    show_max = (k * 50) + 25
-
-                    for j in range(self.agents.sprites()[k].v_field_res):
-                        curr_idx = int(j * (stats_width / self.v_field_res))
-                        # print(curr_idx)
-                        if self.agents.sprites()[k].soc_v_field[j] == 1:
-                            stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
-                        # elif self.agents.sprites()[k].soc_v_field[j] == -1:
-                        #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
-                        else:
-                            stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
-
-                del stats_graph
-                stats.unlock()
-
-            # Drawing
-            if self.show_vis_field:
-                self.screen.blit(stats, stats_pos)
-                for agi, ag in enumerate(self.agents):
-                    line_height = 15
-                    font = pygame.font.Font(None, line_height)
-                    status = f"agent {ag.id}"
-                    text = font.render(status, True, colors.BLACK)
-                    self.screen.blit(text, (int(self.window_pad) / 2, self.window_pad + agi * 50))
-
-            pygame.display.flip()
-
-            # Monitoring
+            # Monitoring with IFDB
             if self.save_in_ifd:
                 ifdb.save_agent_data(self.ifdb_client, self.agents)
                 ifdb.save_resource_data(self.ifdb_client, self.rescources)
@@ -493,6 +571,7 @@ class Simulation:
             # Moving time forward
             self.clock.tick(self.framerate)
 
+        # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
                 ifdb.save_ifdb_as_csv()

@@ -15,7 +15,7 @@ class Agent(pygame.sprite.Sprite):
     and to make decisions.
     """
 
-    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, window_pad, pooling_time,
+    def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, FOV, window_pad, pooling_time,
                  pooling_prob, consumption, vision_range, visual_exclusion):
         """
         Initalization method of main agent class of the simulations
@@ -27,6 +27,7 @@ class Agent(pygame.sprite.Sprite):
         :param env_size: environment size available for agents as (width, height)
         :param color: color of the agent as (R, G, B)
         :param v_field_res: resolution of the visual field of the agent in pixels
+        :param FOV: visual field as a tuple of min max visible angles e.g. (-np.pi, np.pi)
         :param window_pad: padding of the environment in simulation window in pixels
         :param pooling_time: time units needed to pool status of a given position in the environment
         :param pooling_prob: initial probability to switch to pooling behavior
@@ -50,6 +51,7 @@ class Agent(pygame.sprite.Sprite):
         self.consumption = consumption
         self.vision_range = vision_range
         self.visual_exclusion = visual_exclusion
+        self.FOV = FOV
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity
@@ -151,7 +153,7 @@ class Agent(pygame.sprite.Sprite):
         # CALCULATING velocity and orientation change according to inner decision process (dv)
         # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
         # vel, theta = int(self.tr()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr())) * random_walk(...)
-        # or later when we define the individfual and social forces
+        # or later when we define the individual and social forces
         # vel, theta = int(self.tr()) * self.F_soc(...) + (1 - int(self.tr())) * self.F_exp(...)
         if not self.tr():
             vel, theta = supcalc.random_walk()
@@ -215,7 +217,7 @@ class Agent(pygame.sprite.Sprite):
         self.rect.x = self.position[0]
         self.rect.y = self.position[1]
 
-        # cahnge agent color according to mode
+        # change agent color according to mode
         self.change_color()
 
         # update surface according to new orientation
@@ -295,6 +297,7 @@ class Agent(pygame.sprite.Sprite):
         near_expl_agents_coords = [ag.position for ag in near_expl_agents]
         far_expl_agents_coords = [ag.position for ag in far_expl_agents]
         other_agents_coord = [ag.position for ag in other_agents]
+
         if self.visual_exclusion:
             # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
             # non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
@@ -385,7 +388,12 @@ class Agent(pygame.sprite.Sprite):
                 else:
                     v_field[proj_start:proj_end] = 1 / distance
 
-        return np.roll(v_field, int(len(v_field) / 2))
+        # post_processing and limiting FOV
+        v_field_post = np.roll(v_field, int(len(v_field) / 2))
+        v_field_post[phis < self.FOV[0]] = 0
+        v_field_post[phis > self.FOV[1]] = 0
+
+        return v_field_post
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""
@@ -421,7 +429,7 @@ class Agent(pygame.sprite.Sprite):
             if self.pooling_time == 0:
                 if self.env_status == 1:
                     self.set_mode("exploit")
-                    # self.relocation_dec_variable = 0
+
             else:  # comment for non-insta pooling
                 raise Exception("Only instanteneous pooling is supported for now!")
 
@@ -436,8 +444,8 @@ class Agent(pygame.sprite.Sprite):
         #     elif self.env_status == 0:  # the agent is not yet notified
         #         pass
 
+        # always force agent to keep exploiting until the end of process
         elif self.get_mode() == "exploit":
-            # always force agent to keep exploiting until the end of process
             if self.env_status == 1:
                 self.set_mode("exploit")
             else:

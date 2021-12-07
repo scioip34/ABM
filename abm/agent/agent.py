@@ -308,6 +308,7 @@ class Agent(pygame.sprite.Sprite):
             self.soc_v_field_near = self.projection_field(near_expl_agents_coords, keep_distance_info=False)
             self.soc_v_field_far = self.projection_field(far_expl_agents_coords, keep_distance_info=False)
             self.soc_v_field = self.soc_v_field_near + self.soc_v_field_far
+            self.soc_v_field[self.soc_v_field!=0] = 1
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment

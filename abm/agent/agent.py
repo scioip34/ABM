@@ -72,7 +72,8 @@ class Agent(pygame.sprite.Sprite):
         self.g_w = decision_params.g_w
         self.B_w = decision_params.B_w
         self.B_refr = decision_params.B_refr
-        self.D_near = int(decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
+        self.D_near = int(
+            decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
 
         ## u
         self.T_refr = decision_params.T_refr
@@ -83,7 +84,7 @@ class Agent(pygame.sprite.Sprite):
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
-                                     # dynamically)
+        # dynamically)
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
 
@@ -176,7 +177,7 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = (0, 0)
             self.pool_curr_pos()
 
-        if not self.is_moved_with_cursor: # we freeze agents when we move them
+        if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
             self.orientation += theta
             self.prove_orientation()  # bounding orientation into 0 and 2pi
@@ -308,7 +309,7 @@ class Agent(pygame.sprite.Sprite):
             self.soc_v_field_near = self.projection_field(near_expl_agents_coords, keep_distance_info=False)
             self.soc_v_field_far = self.projection_field(far_expl_agents_coords, keep_distance_info=False)
             self.soc_v_field = self.soc_v_field_near + self.soc_v_field_far
-            self.soc_v_field[self.soc_v_field!=0] = 1
+            self.soc_v_field[self.soc_v_field != 0] = 1
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
@@ -351,7 +352,7 @@ class Agent(pygame.sprite.Sprite):
                 # calculating closed angle between v1 and v2
                 # (rotated with the orientation of the agent as it is relative)
                 # I HAVE NO IDEA WHY IS IT SHIFTED WITH PI/4?
-                closed_angle = supcalc.angle_between(v1, v2) + self.orientation + np.pi/4
+                closed_angle = supcalc.angle_between(v1, v2) + self.orientation + np.pi / 4
                 if closed_angle > np.pi:
                     closed_angle -= 2 * np.pi
                 if closed_angle < -np.pi:
@@ -384,7 +385,7 @@ class Agent(pygame.sprite.Sprite):
                 else:
                     v_field[proj_start:proj_end] = 1 / distance
 
-        return np.roll(v_field, int(len(v_field)/2))
+        return np.roll(v_field, int(len(v_field) / 2))
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""

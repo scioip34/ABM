@@ -21,7 +21,7 @@ class Simulation:
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=False,
-                 save_csv_files=False):
+                 save_csv_files=False, ghost_mode=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -50,6 +50,7 @@ class Simulation:
                                 and near field visual field will be drawn around the agents
         :param use_ifdb_logging: Switch to turn IFDB save on or off
         :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
+        :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
         """
         # Arena parameters
         self.WIDTH = width
@@ -77,6 +78,7 @@ class Simulation:
         self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
         self.visual_exclusion = visual_exclusion
+        self.ghost_mode = ghost_mode
 
         # Rescource parameters
         self.N_resc = N_resc
@@ -117,7 +119,14 @@ class Simulation:
             False,
             pygame.sprite.collide_circle
         )
-        if len(collision_group) > 0:
+        collision_group_a = pygame.sprite.groupcollide(
+            self.agents,
+            new_res_group,
+            False,
+            False,
+            pygame.sprite.collide_circle
+        )
+        if len(collision_group) > 0 or len(collision_group_a):
             return False
         else:
             return True
@@ -201,26 +210,44 @@ class Simulation:
         """collision protocol called on any agent that has been collided with another one
         :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly
-        agent2 = agent2[0]
-        if agent2.get_mode() != "exploit":
-            agent2.set_mode("collide")
-
-        x1, y1 = agent1.position
-        x2, y2 = agent2.position
-        dx = x2 - x1
-        dy = y2 - y1
-        # calculating relative closed angle to agent2 orientation
-        theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
-
-        if 0 < theta < np.pi:
-            agent2.orientation -= np.pi / 8
-        elif np.pi < theta < 2 * np.pi:
-            agent2.orientation += np.pi / 8
-
-        if agent2.velocity == 1:
-            agent2.velocity += 0.5
+        if not isinstance(agent2, list):
+            agents2 = [agent2]
         else:
-            agent2.velocity = 1
+            agents2 = agent2
+
+        for i, agent2 in enumerate(agents2):
+            do_collision = True
+            # if the ghost mode is turned on and any of the 2 colliding agents is exploiting, the
+            # collision protocol will not be carried out so that agents can overlap with each other in this case
+            if self.ghost_mode:
+                if agent2.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                    do_collision = True
+                else:
+                    do_collision = False
+
+            if do_collision:
+                if agent2.get_mode() != "exploit":
+                    agent2.set_mode("collide")
+
+                x1, y1 = agent1.position
+                x2, y2 = agent2.position
+                dx = x2 - x1
+                dy = y2 - y1
+                # calculating relative closed angle to agent2 orientation
+                theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
+
+                if 0 < theta < np.pi:
+                    agent2.orientation -= np.pi / 8
+                elif np.pi < theta < 2 * np.pi:
+                    agent2.orientation += np.pi / 8
+
+                if agent2.velocity == 1:
+                    agent2.velocity += 0.5
+                else:
+                    agent2.velocity = 1
+
+            else: #ghost mdoe is on
+                pass
 
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
@@ -248,6 +275,16 @@ class Simulation:
         """Creating resource patches according to how the simulation class was initialized"""
         for i in range(self.N_resc):
             self.add_new_resource_patch()
+
+    def bias_agent_towards_res_center(self, agent, resc, relative_speed=0.02):
+        """Turning the agent towards the center of a resource patch with some relative speed"""
+        x1, y1 = agent.position + agent.radius
+        x2, y2 = resc.center
+        dx = x2 - x1
+        dy = y2 - y1
+        # calculating relative closed angle to agent2 orientation
+        cl_ang = (atan2(dy, dx) + agent.orientation) % (np.pi * 2)
+        agent.orientation += (cl_ang - np.pi) * relative_speed
 
     def start(self):
         # Creating N agents in the environment
@@ -319,14 +356,24 @@ class Simulation:
 
                 for agent1, agent2 in collision_group_aa.items():
                     self.agent_agent_collision(agent1, agent2)
-                    if self.teleport_exploit:
-                        if agent1.get_mode() != "exploit":
-                            collided_agents.append(agent1)
-                        if agent2[0].get_mode() != "exploit":
-                            collided_agents.append(agent2)
+                    if not isinstance(agent2, list):
+                        agents2 = [agent2]
                     else:
-                        collided_agents.append(agent1)
-                        collided_agents.append(agent2)
+                        agents2 = agent2
+                    for agent2 in agents2:
+                        if self.teleport_exploit:
+                            if agent1.get_mode() != "exploit":
+                                collided_agents.append(agent1)
+                            if agent2.get_mode() != "exploit":
+                                collided_agents.append(agent2)
+                        else:
+                            if not self.ghost_mode:
+                                collided_agents.append(agent1)
+                                collided_agents.append(agent2)
+                            else:
+                                if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                    collided_agents.append(agent1)
+                                    collided_agents.append(agent2)
 
                 for agent in self.agents:
                     if agent not in collided_agents and agent.get_mode() == "collide":
@@ -347,26 +394,27 @@ class Simulation:
 
                 for resc, agents in collision_group_ar.items():  # looping through patches
                     destroy_resc = 0  # if we destroy a patch it is 1
-                    for agent in agents:  # looping through agents on patch
-                        if agent not in collided_agents:
-                            if destroy_resc:  # if a previous agent on patch consumed the last unit
-                                agent.env_status = -1  # then this agent does not find a patch here anymore
-                                agent.pool_success = 0  # restarting pooling timer if it happened during pooling
-                            # if an agent finished pooling on a resource patch
-                            if (agent.get_mode() in ["pool",
-                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                                agent.pool_success = 0  # reinit pooling variable
-                                agent.env_status = 1  # providing the status of the environment to the agent
-                                if self.teleport_exploit:
-                                    # teleporting agent to the middle of the patch
-                                    agent.position = resc.position + resc.radius - agent.radius
-                            if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                                depl_units, destroy_resc = resc.deplete(
-                                    agent.consumption)  # it continues depleting the patch
-                                agent.collected_r += depl_units  # and increasing it's collected rescources
-                                if destroy_resc:  # if the consumed unit was the last in the patch
-                                    agent.env_status = -1  # notifying agent that there is no more rescource here
-                            agents_on_rescs.append(agent)  # collecting agents on rescource patches
+                    for agent in agents:  # looping through all agents on patches
+                        self.bias_agent_towards_res_center(agent, resc)
+                        # if agent not in collided_agents:
+                        if destroy_resc:  # if a previous agent on patch consumed the last unit
+                            agent.env_status = -1  # then this agent does not find a patch here anymore
+                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
+                        # if an agent finished pooling on a resource patch
+                        if (agent.get_mode() in ["pool",
+                                                 "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                            agent.pool_success = 0  # reinit pooling variable
+                            agent.env_status = 1  # providing the status of the environment to the agent
+                            if self.teleport_exploit:
+                                # teleporting agent to the middle of the patch
+                                agent.position = resc.position + resc.radius - agent.radius
+                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
+                            depl_units, destroy_resc = resc.deplete(
+                                agent.consumption)  # it continues depleting the patch
+                            agent.collected_r += depl_units  # and increasing it's collected rescources
+                            if destroy_resc:  # if the consumed unit was the last in the patch
+                                agent.env_status = -1  # notifying agent that there is no more rescource here
+                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
                     if destroy_resc:  # if the patch is fully depleted
                         self.kill_resource(resc)  # we clear it from the memory and regenrate it somewhere if needed
 

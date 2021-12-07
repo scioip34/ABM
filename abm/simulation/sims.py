@@ -158,31 +158,29 @@ class Simulation:
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""
         for agent in self.agents:
-            # rect = pygame.draw.rect(self.screen, colors.BACKGROUND, [agent.position[0]-agent.radius,
-            #                                                          agent.position[1]-agent.radius,
-            #                                                          4*agent.radius, 4*agent.radius], 1)
-            rect = pygame.draw.circle(self.screen, colors.BACKGROUND, agent.position + agent.radius, agent.vision_range,
+            # Show visual range
+            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
                                 width=1)
-            pygame.draw.arc(self.screen, colors.LIGHT_BLUE, rect, agent.orientation + agent.FOV[0],
-                            agent.orientation + agent.FOV[1], width=10)
+            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
 
-            angles = [agent.orientation+agent.FOV[0], agent.orientation+agent.FOV[1]]
-            for angle in angles:
-                start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
-                end_pos = [start_pos[0] + (np.cos(angle)) * agent.vision_range,
-                 start_pos[1] + ( - np.sin(angle)) * agent.vision_range]
-                if end_pos[0] < 0:
-                    end_pos[0] = 0
-                if end_pos[1] < 0:
-                    end_pos[1] = 0
-                if end_pos[0] > self.WIDTH:
-                    end_pos[0] = self.WIDTH - 1
-                if end_pos[1] > self.HEIGHT:
-                    end_pos[1] = self.HEIGHT - 1
-                pygame.draw.line(self.screen, colors.LIGHT_BLUE,
-                                 start_pos,
-                                 end_pos, 3)
-            # pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
+            # Show limits of FOV
+            if self.agent_fov[1] < np.pi:
+                angles = [agent.orientation+agent.FOV[0], agent.orientation+agent.FOV[1]]
+                for angle in angles:
+                    start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
+                    end_pos = [start_pos[0] + (np.cos(angle)) * 3*agent.radius,
+                               start_pos[1] + ( - np.sin(angle)) * 3*agent.radius]
+                    if end_pos[0] < 0:
+                        end_pos[0] = 0
+                    if end_pos[1] < 0:
+                        end_pos[1] = 0
+                    if end_pos[0] > self.WIDTH:
+                        end_pos[0] = self.WIDTH - 1
+                    if end_pos[1] > self.HEIGHT:
+                        end_pos[1] = self.HEIGHT - 1
+                    pygame.draw.line(self.screen, colors.LIGHT_BLUE,
+                                     start_pos,
+                                     end_pos, 1)
 
     def draw_framerate(self):
         """Showing framerate, sim time and pause status on simulation windows"""

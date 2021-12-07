@@ -390,6 +390,8 @@ class Simulation:
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
 
+        pygame.display.flip()
+
     def start(self):
         # Creating N agents in the environment
         self.create_agents()
@@ -447,7 +449,7 @@ class Simulation:
                                     collided_agents.append(agent1)
                                     collided_agents.append(agent2)
 
-                # Turn off collision mode
+                # Turn off collision mode when over
                 for agent in self.agents:
                     if agent not in collided_agents and agent.get_mode() == "collide":
                         agent.set_mode("explore")
@@ -465,6 +467,7 @@ class Simulation:
                 # collecting agents that are on rescource patch
                 agents_on_rescs = []
 
+                # Notifying agents about resource if pooling is successful + exploitation dynamics
                 for resc, agents in collision_group_ar.items():  # looping through patches
                     destroy_resc = 0  # if we destroy a patch it is 1
                     for agent in agents:  # looping through all agents on patches
@@ -491,32 +494,34 @@ class Simulation:
                     if destroy_resc:  # if the patch is fully depleted
                         self.kill_resource(resc)  # we clear it from the memory and regenrate it somewhere if needed
 
+                # Notifying agents that there is no resource patch in current position
                 for agent in self.agents.sprites():
                     if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                         if agent not in collided_agents:  # and are not colliding with each other currently
+                            # if they finished pooling
                             if (agent.get_mode() in ["pool",
-                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:  # if they finished pooling
+                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
                                 agent.pool_success = 0  # reinit pooling var
                                 agent.env_status = -1  # provide the info that there is no resource here
                             elif agent.get_mode() == "exploit":
                                 agent.pool_success = 0  # reinit pooling var
-                                agent.env_status = -1  # provide the info taht there is no resource here
+                                agent.env_status = -1  # provide the info that there is no resource here
 
                 # Update rescource patches
                 self.rescources.update()
+
                 # Update agents according to current visible obstacles
                 self.agents.update(self.agents)
 
                 # move to next simulation timestep
                 self.t += 1
-            else:  # simulation is paused but we still want to see the projection field of the agents
+
+            else:  # simulation is paused, but we still want to see the projection field of the agents
                 for ag in self.agents:
                     ag.social_projection_field(self.agents)
 
             # Draw environment and agents
             self.draw_frame(stats, stats_pos)
-
-            pygame.display.flip()
 
             # Monitoring with IFDB
             if self.save_in_ifd:

@@ -26,8 +26,8 @@ class Simulation:
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
                  regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
-                 vision_range=150, visual_exclusion=False, show_vision_range=False, use_ifdb_logging=False,
-                 save_csv_files=False, ghost_mode=True):
+                 vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
+                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -50,6 +50,8 @@ class Simulation:
         :param teleport_exploit: boolean to choose if we teleport agents to the middle of the res. patch during
                                 exploitation
         :param vision_range: range (in px) of agents' vision
+        :param agent_fov (float): the field of view of the agent as percentage. e.g. if 0.5, the the field of view is
+                                between -pi/2 and pi/2
         :param visual_exclusion: when true agents can visually exclude socially relevant visual cues from other agents'
                                 projection field
         :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
@@ -83,6 +85,7 @@ class Simulation:
         self.agent_consumption = agent_consumption
         self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
+        self.agent_fov = (-agent_fov * np.pi, agent_fov * np.pi)
         self.visual_exclusion = visual_exclusion
         self.ghost_mode = ghost_mode
 
@@ -155,9 +158,31 @@ class Simulation:
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""
         for agent in self.agents:
-            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
-                               width=1)
-            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
+            # rect = pygame.draw.rect(self.screen, colors.BACKGROUND, [agent.position[0]-agent.radius,
+            #                                                          agent.position[1]-agent.radius,
+            #                                                          4*agent.radius, 4*agent.radius], 1)
+            rect = pygame.draw.circle(self.screen, colors.BACKGROUND, agent.position + agent.radius, agent.vision_range,
+                                width=1)
+            pygame.draw.arc(self.screen, colors.LIGHT_BLUE, rect, agent.orientation + agent.FOV[0],
+                            agent.orientation + agent.FOV[1], width=10)
+
+            angles = [agent.orientation+agent.FOV[0], agent.orientation+agent.FOV[1]]
+            for angle in angles:
+                start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
+                end_pos = [start_pos[0] + (np.cos(angle)) * agent.vision_range,
+                 start_pos[1] + ( - np.sin(angle)) * agent.vision_range]
+                if end_pos[0] < 0:
+                    end_pos[0] = 0
+                if end_pos[1] < 0:
+                    end_pos[1] = 0
+                if end_pos[0] > self.WIDTH:
+                    end_pos[0] = self.WIDTH - 1
+                if end_pos[1] > self.HEIGHT:
+                    end_pos[1] = self.HEIGHT - 1
+                pygame.draw.line(self.screen, colors.LIGHT_BLUE,
+                                 start_pos,
+                                 end_pos, 3)
+            # pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
 
     def draw_framerate(self):
         """Showing framerate, sim time and pause status on simulation windows"""
@@ -270,6 +295,7 @@ class Simulation:
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.BLUE,
                 v_field_res=self.v_field_res,
+                FOV=self.agent_fov,
                 window_pad=self.window_pad,
                 pooling_time=self.pooling_time,
                 pooling_prob=self.pooling_prob,

@@ -10,6 +10,7 @@ def start():
     sim = Simulation(N=int(envconf["N"]),
                      T=int(envconf["T"]),
                      v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),
+                     agent_fov=float(envconf['AGENT_FOV']),
                      width=int(envconf["ENV_WIDTH"]),
                      height=int(envconf["ENV_HEIGHT"]),
                      show_vis_field=bool(int(envconf["SHOW_VISUAL_FIELDS"])),

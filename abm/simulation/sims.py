@@ -226,6 +226,7 @@ class Simulation:
                     do_collision = False
 
             if do_collision:
+                # overriding any mode with collision
                 if agent2.get_mode() != "exploit":
                     agent2.set_mode("collide")
 
@@ -236,6 +237,7 @@ class Simulation:
                 # calculating relative closed angle to agent2 orientation
                 theta = (atan2(dy, dx) + agent2.orientation) % (np.pi * 2)
 
+                # deciding on turning angle
                 if 0 < theta < np.pi:
                     agent2.orientation -= np.pi / 8
                 elif np.pi < theta < 2 * np.pi:
@@ -246,7 +248,7 @@ class Simulation:
                 else:
                     agent2.velocity = 1
 
-            else: #ghost mdoe is on
+            else:  # ghost mode is on, we do nothing on collision
                 pass
 
     def create_agents(self):
@@ -286,61 +288,130 @@ class Simulation:
         cl_ang = (atan2(dy, dx) + agent.orientation) % (np.pi * 2)
         agent.orientation += (cl_ang - np.pi) * relative_speed
 
-    def start(self):
-        # Creating N agents in the environment
-        self.create_agents()
-
-        # Creating rescource patches
-        self.create_resources()
-
-        # Creating surface to show visual fields
+    def create_vis_field_graph(self):
+        """Creating visualization graph for visual fields of the agents"""
         stats = pygame.Surface((self.WIDTH, 50 * self.N))
         stats.fill(colors.GREY)
         stats.set_alpha(150)
         stats_pos = (int(self.window_pad), int(self.window_pad))
+        return stats, stats_pos
 
+    def interact_with_event(self, event):
+        """Carry out functionality according to user's interaction"""
+        # Exit if requested
+        if event.type == pygame.QUIT:
+            sys.exit()
+
+        # Pause on Space
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+            self.is_paused = not self.is_paused
+
+        # Speed up on s and down on f. reset default framerate with d
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+            self.framerate -= 1
+            if self.framerate < 1:
+                self.framerate = 1
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+            self.framerate += 1
+            if self.framerate > 35:
+                self.framerate = 35
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+            self.framerate = self.framerate_orig
+
+        # Continuous mouse events (move with cursor)
+        if pygame.mouse.get_pressed()[0]:
+            try:
+                for ag in self.agents:
+                    ag.move_with_mouse(event.pos)
+            except AttributeError:
+                pass
+        else:
+            for ag in self.agents:
+                ag.is_moved_with_cursor = False
+
+    def decide_on_vis_field_visibility(self, turned_on_vfield):
+        """Deciding f the visual field needs to be shown or not"""
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_RETURN]:
+            show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
+            if not self.show_vis_field and show_vis_fields_on_return:
+                self.show_vis_field = 1
+                turned_on_vfield = 1
+        else:
+            if self.show_vis_field and turned_on_vfield:
+                turned_on_vfield = 0
+                self.show_vis_field = 0
+        return turned_on_vfield
+
+    def show_visual_fields(self, stats, stats_pos):
+        """Showing visual fields of the agnets on a specific graph"""
+        stats_width = stats.get_width()
+        # Updating our graphs to show visual field
+        stats_graph = pygame.PixelArray(stats)
+        stats_graph[:, :] = pygame.Color(*colors.WHITE)
+        for k in range(self.N):
+            show_base = k * 50
+            show_min = (k * 50) + 23
+            show_max = (k * 50) + 25
+
+            for j in range(self.agents.sprites()[k].v_field_res):
+                curr_idx = int(j * (stats_width / self.v_field_res))
+                if self.agents.sprites()[k].soc_v_field[j] == 1:
+                    stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
+                # elif self.agents.sprites()[k].soc_v_field[j] == -1:
+                #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
+                else:
+                    stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
+
+        del stats_graph
+        stats.unlock()
+
+        # Drawing
+        self.screen.blit(stats, stats_pos)
+        for agi, ag in enumerate(self.agents):
+            line_height = 15
+            font = pygame.font.Font(None, line_height)
+            status = f"agent {ag.id}"
+            text = font.render(status, True, colors.BLACK)
+            self.screen.blit(text, (int(self.window_pad) / 2, self.window_pad + agi * 50))
+
+    def draw_frame(self, stats, stats_pos):
+        """Drawing environment, agents and every other visualization in each timestep"""
+        self.screen.fill(colors.BACKGROUND)
+        self.rescources.draw(self.screen)
+        self.draw_walls()
+        self.agents.draw(self.screen)
+        if self.show_vision_range:
+            self.draw_visual_fields()
+        self.draw_framerate()
+        self.draw_agent_stats()
+
+        if self.show_vis_field:
+            # showing visual fields of the agents
+            self.show_visual_fields(stats, stats_pos)
+
+    def start(self):
+        # Creating N agents in the environment
+        self.create_agents()
+
+        # Creating resource patches
+        self.create_resources()
+
+        # Creating surface to show visual fields
+        stats, stats_pos = self.create_vis_field_graph()
+
+        # local var to decide when to show visual fields
         turned_on_vfield = 0
 
-        # Main Simulation loop
+        # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 
-            # Quitting on break event
             for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                    self.is_paused = not self.is_paused
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-                    self.framerate -= 1
-                    if self.framerate < 1:
-                        self.framerate = 1
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-                    self.framerate += 1
-                    if self.framerate > 35:
-                        self.framerate = 35
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-                    self.framerate = self.framerate_orig
-                # Moving agents with cursor if click with left MB
-                if pygame.mouse.get_pressed()[0]:
-                    try:
-                        for ag in self.agents:
-                            ag.move_with_mouse(event.pos)
-                    except AttributeError:
-                        pass
-                else:
-                    for ag in self.agents:
-                        ag.is_moved_with_cursor = False
+                # Carry out interaction according to user activity
+                self.interact_with_event(event)
 
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_RETURN]:
-                show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
-                if not self.show_vis_field and show_vis_fields_on_return:
-                    self.show_vis_field = 1
-                    turned_on_vfield = 1
-            else:
-                if self.show_vis_field and turned_on_vfield:
-                    turned_on_vfield = 0
-                    self.show_vis_field = 0
+            # deciding if vis field needs to be shown in this timestep
+            turned_on_vfield = self.decide_on_vis_field_visibility(turned_on_vfield)
 
             if not self.is_paused:
                 # AGENT AGENT INTERACTION
@@ -353,7 +424,8 @@ class Simulation:
                     itra.within_group_collision
                 )
                 collided_agents = []
-
+                # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
+                # such as ghost mode, or teleportation)
                 for agent1, agent2 in collision_group_aa.items():
                     self.agent_agent_collision(agent1, agent2)
                     if not isinstance(agent2, list):
@@ -375,6 +447,7 @@ class Simulation:
                                     collided_agents.append(agent1)
                                     collided_agents.append(agent2)
 
+                # Turn off collision mode
                 for agent in self.agents:
                     if agent not in collided_agents and agent.get_mode() == "collide":
                         agent.set_mode("explore")
@@ -441,51 +514,11 @@ class Simulation:
                     ag.social_projection_field(self.agents)
 
             # Draw environment and agents
-            self.screen.fill(colors.BACKGROUND)
-            self.rescources.draw(self.screen)
-            self.draw_walls()
-            self.agents.draw(self.screen)
-            if self.show_vision_range:
-                self.draw_visual_fields()
-            self.draw_framerate()
-            self.draw_agent_stats()
-
-            if self.show_vis_field:
-                stats_width = stats.get_width()
-                # Updating our graphs to show visual field
-                stats_graph = pygame.PixelArray(stats)
-                stats_graph[:, :] = pygame.Color(*colors.WHITE)
-                for k in range(self.N):
-                    show_base = k * 50
-                    show_min = (k * 50) + 23
-                    show_max = (k * 50) + 25
-
-                    for j in range(self.agents.sprites()[k].v_field_res):
-                        curr_idx = int(j * (stats_width / self.v_field_res))
-                        # print(curr_idx)
-                        if self.agents.sprites()[k].soc_v_field[j] == 1:
-                            stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
-                        # elif self.agents.sprites()[k].soc_v_field[j] == -1:
-                        #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
-                        else:
-                            stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
-
-                del stats_graph
-                stats.unlock()
-
-            # Drawing
-            if self.show_vis_field:
-                self.screen.blit(stats, stats_pos)
-                for agi, ag in enumerate(self.agents):
-                    line_height = 15
-                    font = pygame.font.Font(None, line_height)
-                    status = f"agent {ag.id}"
-                    text = font.render(status, True, colors.BLACK)
-                    self.screen.blit(text, (int(self.window_pad) / 2, self.window_pad + agi * 50))
+            self.draw_frame(stats, stats_pos)
 
             pygame.display.flip()
 
-            # Monitoring
+            # Monitoring with IFDB
             if self.save_in_ifd:
                 ifdb.save_agent_data(self.ifdb_client, self.agents)
                 ifdb.save_resource_data(self.ifdb_client, self.rescources)
@@ -493,6 +526,7 @@ class Simulation:
             # Moving time forward
             self.clock.tick(self.framerate)
 
+        # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
                 ifdb.save_ifdb_as_csv()

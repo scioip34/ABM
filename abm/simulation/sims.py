@@ -14,6 +14,12 @@ from dotenv import dotenv_values
 envconf = dotenv_values(".env")
 
 
+def notify_agent(agent, status):
+    """Notifying agent about the status of the environment in a given position"""
+    agent.env_status = status
+    agent.pool_success = 0  # restarting pooling timer when notified
+
+
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=25, window_pad=30, show_vis_field=False,
@@ -416,7 +422,8 @@ class Simulation:
             turned_on_vfield = self.decide_on_vis_field_visibility(turned_on_vfield)
 
             if not self.is_paused:
-                # AGENT AGENT INTERACTION
+
+                # ------ AGENT-AGENT INTERACTION ------
                 # Check if any 2 agents has been collided and reflect them from each other if so
                 collision_group_aa = pygame.sprite.groupcollide(
                     self.agents,
@@ -454,7 +461,7 @@ class Simulation:
                     if agent not in collided_agents and agent.get_mode() == "collide":
                         agent.set_mode("explore")
 
-                # AGENT RESCOURCE INTERACTION (can not be separated from main thread for some reason)
+                # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
                 # Check if any 2 agents has been collided and reflect them from each other if so
                 collision_group_ar = pygame.sprite.groupcollide(
                     self.rescources,
@@ -464,50 +471,57 @@ class Simulation:
                     pygame.sprite.collide_circle
                 )
 
-                # collecting agents that are on rescource patch
+                # collecting agents that are on resource patch
                 agents_on_rescs = []
 
                 # Notifying agents about resource if pooling is successful + exploitation dynamics
                 for resc, agents in collision_group_ar.items():  # looping through patches
                     destroy_resc = 0  # if we destroy a patch it is 1
                     for agent in agents:  # looping through all agents on patches
+                        # Turn agent towards patch center
                         self.bias_agent_towards_res_center(agent, resc)
-                        # if agent not in collided_agents:
-                        if destroy_resc:  # if a previous agent on patch consumed the last unit
-                            agent.env_status = -1  # then this agent does not find a patch here anymore
-                            agent.pool_success = 0  # restarting pooling timer if it happened during pooling
-                        # if an agent finished pooling on a resource patch
-                        if (agent.get_mode() in ["pool",
-                                                 "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                            agent.pool_success = 0  # reinit pooling variable
-                            agent.env_status = 1  # providing the status of the environment to the agent
-                            if self.teleport_exploit:
-                                # teleporting agent to the middle of the patch
-                                agent.position = resc.position + resc.radius - agent.radius
-                        if agent.get_mode() == "exploit":  # if an agent is already exploiting this patch
-                            depl_units, destroy_resc = resc.deplete(
-                                agent.consumption)  # it continues depleting the patch
-                            agent.collected_r += depl_units  # and increasing it's collected rescources
-                            if destroy_resc:  # if the consumed unit was the last in the patch
-                                agent.env_status = -1  # notifying agent that there is no more rescource here
-                        agents_on_rescs.append(agent)  # collecting agents on rescource patches
-                    if destroy_resc:  # if the patch is fully depleted
-                        self.kill_resource(resc)  # we clear it from the memory and regenrate it somewhere if needed
 
-                # Notifying agents that there is no resource patch in current position
+                        # One of previous agents on patch consumed the last unit
+                        if destroy_resc:
+                            notify_agent(agent, -1)
+
+                        # Agent finished pooling on a resource patch
+                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
+                                or agent.pooling_time == 0:
+                            # Notify about the patch
+                            notify_agent(agent, 1)
+                            # Teleport agent to the middle of the patch if needed
+                            if self.teleport_exploit:
+                                agent.position = resc.position + resc.radius - agent.radius
+
+                        # Agent was already exploiting this patch
+                        if agent.get_mode() == "exploit":
+                            # continue depleting the patch
+                            depl_units, destroy_resc = resc.deplete(agent.consumption)
+                            agent.collected_r += depl_units  # and increasing it's collected rescources
+                            if destroy_resc:  # consumed unit was the last in the patch
+                                notify_agent(agent, -1)
+
+                        # Collect all agents on resource patches
+                        agents_on_rescs.append(agent)
+
+                    # Patch is fully depleted
+                    if destroy_resc:
+                        # we clear it from the memory and regenerate it somewhere else if needed
+                        self.kill_resource(resc)
+
+                # Notifying agents that there is no resource patch in current position (they are not on patch)
                 for agent in self.agents.sprites():
                     if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                         if agent not in collided_agents:  # and are not colliding with each other currently
                             # if they finished pooling
                             if (agent.get_mode() in ["pool",
                                                      "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                                agent.pool_success = 0  # reinit pooling var
-                                agent.env_status = -1  # provide the info that there is no resource here
+                                notify_agent(agent, -1)
                             elif agent.get_mode() == "exploit":
-                                agent.pool_success = 0  # reinit pooling var
-                                agent.env_status = -1  # provide the info that there is no resource here
+                                notify_agent(agent, -1)
 
-                # Update rescource patches
+                # Update resource patches
                 self.rescources.update()
 
                 # Update agents according to current visible obstacles
@@ -516,7 +530,9 @@ class Simulation:
                 # move to next simulation timestep
                 self.t += 1
 
-            else:  # simulation is paused, but we still want to see the projection field of the agents
+            # Simulation is paused
+            else:
+                # Still calculating visual fields
                 for ag in self.agents:
                     ag.social_projection_field(self.agents)
 

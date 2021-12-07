@@ -132,7 +132,7 @@ class Agent(pygame.sprite.Sprite):
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
         dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w)
-        du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
+        du = self.Eps_u * (int(self.tr_w()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
         self.w += dw
         self.u += du
         self.fire_u()
@@ -152,10 +152,10 @@ class Agent(pygame.sprite.Sprite):
 
         # CALCULATING velocity and orientation change according to inner decision process (dv)
         # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
-        # vel, theta = int(self.tr()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr())) * random_walk(...)
+        # vel, theta = int(self.tr_w()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr_w())) * random_walk(...)
         # or later when we define the individual and social forces
-        # vel, theta = int(self.tr()) * self.F_soc(...) + (1 - int(self.tr())) * self.F_exp(...)
-        if not self.tr():
+        # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
+        if not self.tr_w():
             vel, theta = supcalc.random_walk()
         else:
             vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
@@ -474,7 +474,7 @@ class Agent(pygame.sprite.Sprite):
             self.pool_success = 0
         self.time_spent_pooling = 0
 
-    def tr(self):
+    def tr_w(self):
         """Relocation threshold function that checks if decision variable w is above T_w"""
         if self.w > self.T_w:
             return True
@@ -493,7 +493,7 @@ class Agent(pygame.sprite.Sprite):
         string for external processes defined in the main simulation thread (such as collision that depends on the
         state of the at and also overrides it as it counts as ana emergency)"""
         if self.overriding_mode is None:
-            if self.tr():
+            if self.tr_w():
                 return "relocate"
             else:
                 return "explore"

@@ -73,7 +73,6 @@ class Agent(pygame.sprite.Sprite):
         self.Eps_w = decision_params.Eps_w
         self.g_w = decision_params.g_w
         self.B_w = decision_params.B_w
-        self.B_refr = decision_params.B_refr
         self.D_near = int(
             decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
         self.w_max = decision_params.w_max
@@ -136,16 +135,12 @@ class Agent(pygame.sprite.Sprite):
         else:
             self.is_moved_with_cursor = 0
 
-    def fire_u(self):
-        """firing stopping decision process if it has reached the refractory threshold"""
-        if self.u > self.T_u:
-            self.w = self.B_w - self.B_refr
-            self.u = self.B_u
-
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w) - self.tr_u() * self.S_uw
-        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - self.tr_w() * self.S_wu
+        w_p = self.w if self.w > 0 else 0
+        u_p = self.u if self.u > 0 else 0
+        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w) - u_p * self.S_uw # self.tr_u() * self.S_uw
+        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu #self.tr_w() * self.S_wu
         self.w += dw
         self.u += du
         if self.w > self.w_max:
@@ -178,29 +173,42 @@ class Agent(pygame.sprite.Sprite):
         # vel, theta = int(self.tr_w()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr_w())) * random_walk(...)
         # or later when we define the individual and social forces
         # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
-        if not self.tr_w():
-            vel, theta = supcalc.random_walk()
+        if not self.get_mode()=="collide":
+            if not self.tr_w() and not self.tr_u():
+                vel, theta = supcalc.random_walk()
+                self.set_mode("explore")
+            elif self.tr_w() and self.tr_u():
+                print("Both decision processes up")
+                self.set_mode("exploit")
+                vel, theta = (-self.velocity * 0.04, 0)
+            elif self.tr_w() and not self.tr_u():
+                vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
+                                                                    np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                                    self.soc_v_field)
+                # WHY ON EARTH DO WE NEED THIS NEGATION?
+                # whatever comes out has a sign that tells if the change in direction should be left or right
+                # seemingly what comes out has a different convention than our environment?
+                # VSWRM: comes out + turn left? comes our - turn right?
+                # environment: the opposite way around
+                theta = -theta
+                self.set_mode("relocate")
+            elif self.tr_u() and not self.tr_w():
+                self.set_mode("exploit")
+                vel, theta = (-self.velocity * 0.04, 0)
         else:
-            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
-                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                                self.soc_v_field)
-            # WHY ON EARTH DO WE NEED THIS NEGATION?
-            # whatever comes out has a sign that tells if the change in direction should be left or right
-            # seemingly what comes out has a different convention than our environment?
-            # VSWRM: comes out + turn left? comes our - turn right?
-            # environment: the opposite way around
-            theta = -theta
+            vel, theta = (0, 0)
+
 
         # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
         # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
         # enforcing exploitation dynamics brute force (continue exploiting until you can!)
-        self.env_override_mode()
-        if self.get_mode() == "exploit":
-            self.velocity -= self.velocity * 0.04
-            vel, theta = (0, 0)
-        elif self.get_mode() == "pool":
-            vel, theta = (0, 0)
-            self.pool_curr_pos()
+        #self.env_override_mode()
+        # if self.get_mode() == "exploit":
+        #     self.velocity -= self.velocity * 0.04
+        #     vel, theta = (0, 0)
+        # elif self.get_mode() == "pool":
+        #     vel, theta = (0, 0)
+        #     self.pool_curr_pos()
 
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
@@ -475,7 +483,8 @@ class Agent(pygame.sprite.Sprite):
         #         self.set_mode("explore")
         if self.tr_u():
             self.set_mode("exploit")
-
+        elif self.tr_w():
+            self.set_mode("relocate")
         if not self.tr_w() and not self.tr_u():
             self.set_mode("explore")
 
@@ -539,14 +548,14 @@ class Agent(pygame.sprite.Sprite):
             # self.w = 0
             self.overriding_mode = None
         elif mode == "relocate":
-            self.w = self.T_w + 0.001
+            #self.w = self.T_w + 0.001
             self.overriding_mode = None
         elif mode == "collide":
             self.overriding_mode = "collide"
             # self.w = 0
         elif mode == "exploit":
             self.overriding_mode = "exploit"
-            self.w = 0
+            #self.w = 0
         elif mode == "pool":
             self.overriding_mode = "pool"
-            self.w = 0
+            #self.w = 0

@@ -39,7 +39,6 @@ class Agent(pygame.sprite.Sprite):
         super().__init__()
 
         # Initializing agents with init parameters
-        self.g_w = None
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -68,6 +67,7 @@ class Agent(pygame.sprite.Sprite):
         # Decision Variables
         self.overriding_mode = None
         ## w
+        self.S_wu = decision_params.S_wu
         self.T_w = decision_params.T_w
         self.w = 0
         self.Eps_w = decision_params.Eps_w
@@ -76,13 +76,17 @@ class Agent(pygame.sprite.Sprite):
         self.B_refr = decision_params.B_refr
         self.D_near = int(
             decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
+        self.w_max = decision_params.w_max
 
         ## u
+        self.I_priv = 0
+        self.S_uw = decision_params.S_uw
         self.T_u = decision_params.T_u
         self.u = 0
         self.Eps_u = decision_params.Eps_u
         self.g_u = decision_params.g_u
         self.B_u = decision_params.B_u
+        self.u_max = decision_params.u_max
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -111,6 +115,15 @@ class Agent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
+    def calc_I_priv(self):
+        """returning I_priv according to the environment status. Note that this is not necessarily the same as
+        later on I_priv also includes the reward amount in the last n timesteps"""
+        if self.env_status > 0:
+            self.I_priv = 1
+        # either uninformed or informed that there is no reward
+        else:
+            self.I_priv = 0
+
     def move_with_mouse(self, mouse):
         """Moving the agent with the mouse cursor"""
         if self.rect.collidepoint(mouse):
@@ -131,11 +144,18 @@ class Agent(pygame.sprite.Sprite):
 
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w)
-        du = self.Eps_u * (int(self.tr_w()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
+        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w) - self.tr_u() * self.S_uw
+        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - self.tr_w() * self.S_wu
         self.w += dw
         self.u += du
-        self.fire_u()
+        if self.w > self.w_max:
+            self.w = self.w_max
+        if self.w < -self.w_max:
+            self.w = -self.w_max
+        if self.u > self.u_max:
+            self.u = self.u_max
+        if self.u < -self.u_max:
+            self.u = -self.u_max
 
     def update(self, agents):
         """
@@ -147,7 +167,10 @@ class Agent(pygame.sprite.Sprite):
         # calculate socially relevant projection field (Vsoc and Vsoc+)
         self.social_projection_field(agents)
 
-        # update inner decision process according to visual field (dw and du)
+        # calculate private information
+        self.calc_I_priv()
+
+        # update inner decision process according to visual field and private info
         self.update_decision_processes()
 
         # CALCULATING velocity and orientation change according to inner decision process (dv)
@@ -417,39 +440,44 @@ class Agent(pygame.sprite.Sprite):
         or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
         collisions. Collisions are handled from the main simulation."""
 
-        if self.get_mode() == "explore" or self.get_mode() == "relocate":
-
-            # todo: integrate non instanteneous pooling later (uncomment this and the one below)
-            # dec = np.random.uniform(0, 1)
-            # # let's switch to pooling in 10 percent of the cases
-            # if dec < self.pooling_prob and self.pooling_time > 0:
-            #     self.set_mode("pool")
-            # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
-
-            if self.pooling_time == 0:
-                if self.env_status == 1:
-                    self.set_mode("exploit")
-
-            else:  # comment for non-insta pooling
-                raise Exception("Only instanteneous pooling is supported for now!")
-
-        # #uncomment for pooling other than instanteneous
-        # elif self.get_mode() == "pool":
-        #     if self.env_status == 1:  # the agent is notified that there is resource there
+        # if self.get_mode() == "explore" or self.get_mode() == "relocate":
+        #
+        #     # todo: integrate non instanteneous pooling later (uncomment this and the one below)
+        #     # dec = np.random.uniform(0, 1)
+        #     # # let's switch to pooling in 10 percent of the cases
+        #     # if dec < self.pooling_prob and self.pooling_time > 0:
+        #     #     self.set_mode("pool")
+        #     # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
+        #
+        #     if self.pooling_time == 0:
+        #         if self.env_status == 1:
+        #             self.set_mode("exploit")
+        #
+        #     else:  # comment for non-insta pooling
+        #         raise Exception("Only instanteneous pooling is supported for now!")
+        #
+        # # #uncomment for pooling other than instanteneous
+        # # elif self.get_mode() == "pool":
+        # #     if self.env_status == 1:  # the agent is notified that there is resource there
+        # #         self.set_mode("exploit")
+        # #         self.relocation_dec_variable = 0
+        # #     elif self.env_status == -1:  # the agent is notified that there is NO resource there
+        # #         self.set_mode("explore")
+        # #         self.env_status = 0
+        # #     elif self.env_status == 0:  # the agent is not yet notified
+        # #         pass
+        #
+        # # always force agent to keep exploiting until the end of process
+        # elif self.get_mode() == "exploit":
+        #     if self.env_status == 1:
         #         self.set_mode("exploit")
-        #         self.relocation_dec_variable = 0
-        #     elif self.env_status == -1:  # the agent is notified that there is NO resource there
+        #     else:
         #         self.set_mode("explore")
-        #         self.env_status = 0
-        #     elif self.env_status == 0:  # the agent is not yet notified
-        #         pass
+        if self.tr_u():
+            self.set_mode("exploit")
 
-        # always force agent to keep exploiting until the end of process
-        elif self.get_mode() == "exploit":
-            if self.env_status == 1:
-                self.set_mode("exploit")
-            else:
-                self.set_mode("explore")
+        if not self.tr_w() and not self.tr_u():
+            self.set_mode("explore")
 
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in

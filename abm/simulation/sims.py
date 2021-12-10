@@ -161,7 +161,6 @@ class Simulation:
             # Show visual range
             pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
                                 width=1)
-            pygame.draw.circle(self.screen, colors.LIGHT_RED, agent.position + agent.radius, agent.D_near, width=1)
 
             # Show limits of FOV
             if self.agent_fov[1] < np.pi:
@@ -170,14 +169,6 @@ class Simulation:
                     start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
                     end_pos = [start_pos[0] + (np.cos(angle)) * 3*agent.radius,
                                start_pos[1] + ( - np.sin(angle)) * 3*agent.radius]
-                    if end_pos[0] < 0:
-                        end_pos[0] = 0
-                    if end_pos[1] < 0:
-                        end_pos[1] = 0
-                    if end_pos[0] > self.WIDTH:
-                        end_pos[0] = self.WIDTH - 1
-                    if end_pos[1] > self.HEIGHT:
-                        end_pos[1] = self.HEIGHT - 1
                     pygame.draw.line(self.screen, colors.LIGHT_BLUE,
                                      start_pos,
                                      end_pos, 1)

@@ -39,7 +39,6 @@ class Agent(pygame.sprite.Sprite):
         super().__init__()
 
         # Initializing agents with init parameters
-        self.g_w = None
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -58,8 +57,6 @@ class Agent(pygame.sprite.Sprite):
         self.collected_r = 0  # collected rescource unit collected by agent
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
-        self.soc_v_field_near = np.zeros(self.v_field_res)  # social visual projection field (near-field)
-        self.soc_v_field_far = np.zeros(self.v_field_res)  # social visual projection field (far-field)
         self.soc_v_field = np.zeros(self.v_field_res)
 
         # Interaction
@@ -68,21 +65,23 @@ class Agent(pygame.sprite.Sprite):
         # Decision Variables
         self.overriding_mode = None
         ## w
-        self.T_exc = decision_params.T_exc
+        self.S_wu = decision_params.S_wu
+        self.T_w = decision_params.T_w
         self.w = 0
         self.Eps_w = decision_params.Eps_w
         self.g_w = decision_params.g_w
         self.B_w = decision_params.B_w
-        self.B_refr = decision_params.B_refr
-        self.D_near = int(
-            decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
+        self.w_max = decision_params.w_max
 
         ## u
-        self.T_refr = decision_params.T_refr
+        self.I_priv = 0
+        self.S_uw = decision_params.S_uw
+        self.T_u = decision_params.T_u
         self.u = 0
         self.Eps_u = decision_params.Eps_u
         self.g_u = decision_params.g_u
         self.B_u = decision_params.B_u
+        self.u_max = decision_params.u_max
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -111,6 +110,15 @@ class Agent(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
 
+    def calc_I_priv(self):
+        """returning I_priv according to the environment status. Note that this is not necessarily the same as
+        later on I_priv also includes the reward amount in the last n timesteps"""
+        if self.env_status > 0:
+            self.I_priv = 1
+        # either uninformed or informed that there is no reward
+        else:
+            self.I_priv = 0
+
     def move_with_mouse(self, mouse):
         """Moving the agent with the mouse cursor"""
         if self.rect.collidepoint(mouse):
@@ -123,19 +131,23 @@ class Agent(pygame.sprite.Sprite):
         else:
             self.is_moved_with_cursor = 0
 
-    def fire_u(self):
-        """firing stopping decision process if it has reached the refractory threshold"""
-        if self.u > self.T_refr:
-            self.w = self.B_w - self.B_refr
-            self.u = self.B_u
-
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w)
-        du = self.Eps_u * (int(self.tr()) * np.mean(self.soc_v_field_near)) - self.g_u * (self.u - self.B_u)
+        w_p = self.w if self.w > 0 else 0
+        u_p = self.u if self.u > 0 else 0
+        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (
+                    self.w - self.B_w) - u_p * self.S_uw  # self.tr_u() * self.S_uw
+        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu  # self.tr_w() * self.S_wu
         self.w += dw
         self.u += du
-        self.fire_u()
+        if self.w > self.w_max:
+            self.w = self.w_max
+        if self.w < -self.w_max:
+            self.w = -self.w_max
+        if self.u > self.u_max:
+            self.u = self.u_max
+        if self.u < -self.u_max:
+            self.u = -self.u_max
 
     def update(self, agents):
         """
@@ -145,39 +157,46 @@ class Agent(pygame.sprite.Sprite):
                 socially relevant, i.e. all agents.
         """
         # calculate socially relevant projection field (Vsoc and Vsoc+)
-        self.social_projection_field(agents)
+        self.calc_social_V_proj(agents)
 
-        # update inner decision process according to visual field (dw and du)
+        # calculate private information
+        self.calc_I_priv()
+
+        # update inner decision process according to visual field and private info
         self.update_decision_processes()
 
         # CALCULATING velocity and orientation change according to inner decision process (dv)
         # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
-        # vel, theta = int(self.tr()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr())) * random_walk(...)
+        # vel, theta = int(self.tr_w()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr_w())) * random_walk(...)
         # or later when we define the individual and social forces
-        # vel, theta = int(self.tr()) * self.F_soc(...) + (1 - int(self.tr())) * self.F_exp(...)
-        if not self.tr():
-            vel, theta = supcalc.random_walk()
+        # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
+        if not self.get_mode() == "collide":
+            if not self.tr_w() and not self.tr_u():
+                vel, theta = supcalc.random_walk()
+                self.set_mode("explore")
+            elif self.tr_w() and self.tr_u():
+                self.set_mode("exploit")
+                vel, theta = (-self.velocity * 0.08, 0)
+            elif self.tr_w() and not self.tr_u():
+                vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
+                                                                    np.linspace(-np.pi, np.pi, self.v_field_res),
+                                                                    self.soc_v_field)
+                # WHY ON EARTH DO WE NEED THIS NEGATION?
+                # whatever comes out has a sign that tells if the change in direction should be left or right
+                # seemingly what comes out has a different convention than our environment?
+                # VSWRM: comes out + turn left? comes our - turn right?
+                # environment: the opposite way around
+                theta = -theta
+                self.set_mode("relocate")
+            elif self.tr_u() and not self.tr_w():
+                self.set_mode("exploit")
+                vel, theta = (-self.velocity * 0.04, 0)
         else:
-            vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
-                                                                np.linspace(-np.pi, np.pi, self.v_field_res),
-                                                                self.soc_v_field)
-            # WHY ON EARTH DO WE NEED THIS NEGATION?
-            # whatever comes out has a sign that tells if the change in direction should be left or right
-            # seemingly what comes out has a different convention than our environment?
-            # VSWRM: comes out + turn left? comes our - turn right?
-            # environment: the opposite way around
-            theta = -theta
-
-        # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
-        # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
-        # enforcing exploitation dynamics brute force (continue exploiting until you can!)
-        self.env_override_mode()
-        if self.get_mode() == "exploit":
-            self.velocity -= self.velocity * 0.04
+            # COLLISION AVOIDANCE IS ACTIVE, let that guide us
+            # As we don't have proximity sensor interface as with e.g. real robots we will let
+            # the environment to enforce us into a collision maneuver from the simulation environment
+            # so we don't change the current velocity from here.
             vel, theta = (0, 0)
-        elif self.get_mode() == "pool":
-            vel, theta = (0, 0)
-            self.pool_curr_pos()
 
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
@@ -283,20 +302,15 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation -= np.pi / 2
             self.prove_orientation()  # bounding orientation into 0 and 2pi
 
-    def social_projection_field(self, agents):
+    def calc_social_V_proj(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
+        # visible agents (exluding self)
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
+        # those of them that are exploiting
         expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
-        # self.relevant_agents = len(expl_agents)
-        other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
-
-        near_expl_agents = [ag for ag in expl_agents if supcalc.distance(self, ag) <= self.D_near]
-        far_expl_agents = [ag for ag in expl_agents if ag not in near_expl_agents]
-
-        near_expl_agents_coords = [ag.position for ag in near_expl_agents]
-        far_expl_agents_coords = [ag.position for ag in far_expl_agents]
-        other_agents_coord = [ag.position for ag in other_agents]
+        # extracting their coordinates
+        expl_agents_coords = [ag.position for ag in expl_agents]
 
         if self.visual_exclusion:
             # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
@@ -309,9 +323,7 @@ class Agent(pygame.sprite.Sprite):
             # self.soc_v_field = soc_proj_f
             raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field_near = self.projection_field(near_expl_agents_coords, keep_distance_info=False)
-            self.soc_v_field_far = self.projection_field(far_expl_agents_coords, keep_distance_info=False)
-            self.soc_v_field = self.soc_v_field_near + self.soc_v_field_far
+            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
             self.soc_v_field[self.soc_v_field != 0] = 1
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
@@ -412,45 +424,6 @@ class Agent(pygame.sprite.Sprite):
                 # stopping agent if too fast during exploration
                 self.velocity = 1
 
-    def env_override_mode(self):
-        """decide on behavioral mode that is not defined by inner decision process of the agent but is ad-hoc
-        or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
-        collisions. Collisions are handled from the main simulation."""
-
-        if self.get_mode() == "explore" or self.get_mode() == "relocate":
-
-            # todo: integrate non instanteneous pooling later (uncomment this and the one below)
-            # dec = np.random.uniform(0, 1)
-            # # let's switch to pooling in 10 percent of the cases
-            # if dec < self.pooling_prob and self.pooling_time > 0:
-            #     self.set_mode("pool")
-            # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
-
-            if self.pooling_time == 0:
-                if self.env_status == 1:
-                    self.set_mode("exploit")
-
-            else:  # comment for non-insta pooling
-                raise Exception("Only instanteneous pooling is supported for now!")
-
-        # #uncomment for pooling other than instanteneous
-        # elif self.get_mode() == "pool":
-        #     if self.env_status == 1:  # the agent is notified that there is resource there
-        #         self.set_mode("exploit")
-        #         self.relocation_dec_variable = 0
-        #     elif self.env_status == -1:  # the agent is notified that there is NO resource there
-        #         self.set_mode("explore")
-        #         self.env_status = 0
-        #     elif self.env_status == 0:  # the agent is not yet notified
-        #         pass
-
-        # always force agent to keep exploiting until the end of process
-        elif self.get_mode() == "exploit":
-            if self.env_status == 1:
-                self.set_mode("exploit")
-            else:
-                self.set_mode("explore")
-
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in
         the position. At the end the agent is notified by the status of the environment in the given position"""
@@ -474,9 +447,16 @@ class Agent(pygame.sprite.Sprite):
             self.pool_success = 0
         self.time_spent_pooling = 0
 
-    def tr(self):
-        """Excitatory threshold function that checks if decision variable w is above T_exc"""
-        if self.w > self.T_exc:
+    def tr_w(self):
+        """Relocation threshold function that checks if decision variable w is above T_w"""
+        if self.w > self.T_w:
+            return True
+        else:
+            return False
+
+    def tr_u(self):
+        """Exploitation threshold function that checks if decision variable u is above T_w"""
+        if self.u > self.T_w:
             return True
         else:
             return False
@@ -486,7 +466,7 @@ class Agent(pygame.sprite.Sprite):
         string for external processes defined in the main simulation thread (such as collision that depends on the
         state of the at and also overrides it as it counts as ana emergency)"""
         if self.overriding_mode is None:
-            if self.tr():
+            if self.tr_w():
                 return "relocate"
             else:
                 return "explore"
@@ -504,14 +484,14 @@ class Agent(pygame.sprite.Sprite):
             # self.w = 0
             self.overriding_mode = None
         elif mode == "relocate":
-            self.w = self.T_exc + 0.001
+            # self.w = self.T_w + 0.001
             self.overriding_mode = None
         elif mode == "collide":
             self.overriding_mode = "collide"
             # self.w = 0
         elif mode == "exploit":
             self.overriding_mode = "exploit"
-            self.w = 0
+            # self.w = 0
         elif mode == "pool":
             self.overriding_mode = "pool"
-            self.w = 0
+            # self.w = 0

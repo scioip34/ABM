@@ -1,6 +1,3 @@
-### Sectioning visual field
-D_near_proc = 0.1
-
 #### W #####
 # Excitatory threshold above which a relocation is initiated
 T_w = 1

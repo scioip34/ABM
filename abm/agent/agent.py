@@ -57,8 +57,6 @@ class Agent(pygame.sprite.Sprite):
         self.collected_r = 0  # collected rescource unit collected by agent
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
-        self.soc_v_field_near = np.zeros(self.v_field_res)  # social visual projection field (near-field)
-        self.soc_v_field_far = np.zeros(self.v_field_res)  # social visual projection field (far-field)
         self.soc_v_field = np.zeros(self.v_field_res)
 
         # Interaction
@@ -73,8 +71,6 @@ class Agent(pygame.sprite.Sprite):
         self.Eps_w = decision_params.Eps_w
         self.g_w = decision_params.g_w
         self.B_w = decision_params.B_w
-        self.D_near = int(
-            decision_params.D_near_proc * self.vision_range)  # distance threshold from which an agent's projection is in the near field projection
         self.w_max = decision_params.w_max
 
         ## u
@@ -139,8 +135,9 @@ class Agent(pygame.sprite.Sprite):
         """updating inner decision processes according to the current state and the visual projection field"""
         w_p = self.w if self.w > 0 else 0
         u_p = self.u if self.u > 0 else 0
-        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (self.w - self.B_w) - u_p * self.S_uw # self.tr_u() * self.S_uw
-        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu #self.tr_w() * self.S_wu
+        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (
+                    self.w - self.B_w) - u_p * self.S_uw  # self.tr_u() * self.S_uw
+        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu  # self.tr_w() * self.S_wu
         self.w += dw
         self.u += du
         if self.w > self.w_max:
@@ -173,7 +170,7 @@ class Agent(pygame.sprite.Sprite):
         # vel, theta = int(self.tr_w()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr_w())) * random_walk(...)
         # or later when we define the individual and social forces
         # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
-        if not self.get_mode()=="collide":
+        if not self.get_mode() == "collide":
             if not self.tr_w() and not self.tr_u():
                 vel, theta = supcalc.random_walk()
                 self.set_mode("explore")
@@ -198,11 +195,10 @@ class Agent(pygame.sprite.Sprite):
         else:
             vel, theta = (0, 0)
 
-
         # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
         # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
         # enforcing exploitation dynamics brute force (continue exploiting until you can!)
-        #self.env_override_mode()
+        # self.env_override_mode()
         # if self.get_mode() == "exploit":
         #     self.velocity -= self.velocity * 0.04
         #     vel, theta = (0, 0)
@@ -317,17 +313,12 @@ class Agent(pygame.sprite.Sprite):
     def social_projection_field(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
+        # visible agents (exluding self)
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
+        # those of them that are exploiting
         expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
-        # self.relevant_agents = len(expl_agents)
-        other_agents = [ag for ag in agents if ag not in expl_agents and ag.id != self.id]
-
-        near_expl_agents = [ag for ag in expl_agents if supcalc.distance(self, ag) <= self.D_near]
-        far_expl_agents = [ag for ag in expl_agents if ag not in near_expl_agents]
-
-        near_expl_agents_coords = [ag.position for ag in near_expl_agents]
-        far_expl_agents_coords = [ag.position for ag in far_expl_agents]
-        other_agents_coord = [ag.position for ag in other_agents]
+        # extracting their coordinates
+        expl_agents_coords = [ag.position for ag in expl_agents]
 
         if self.visual_exclusion:
             # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
@@ -340,9 +331,7 @@ class Agent(pygame.sprite.Sprite):
             # self.soc_v_field = soc_proj_f
             raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field_near = self.projection_field(near_expl_agents_coords, keep_distance_info=False)
-            self.soc_v_field_far = self.projection_field(far_expl_agents_coords, keep_distance_info=False)
-            self.soc_v_field = self.soc_v_field_near + self.soc_v_field_far
+            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
             self.soc_v_field[self.soc_v_field != 0] = 1
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
@@ -548,14 +537,14 @@ class Agent(pygame.sprite.Sprite):
             # self.w = 0
             self.overriding_mode = None
         elif mode == "relocate":
-            #self.w = self.T_w + 0.001
+            # self.w = self.T_w + 0.001
             self.overriding_mode = None
         elif mode == "collide":
             self.overriding_mode = "collide"
             # self.w = 0
         elif mode == "exploit":
             self.overriding_mode = "exploit"
-            #self.w = 0
+            # self.w = 0
         elif mode == "pool":
             self.overriding_mode = "pool"
-            #self.w = 0
+            # self.w = 0

@@ -20,6 +20,8 @@ def start():
                      N_resc=int(envconf["N_RESOURCES"]),
                      min_resc_perpatch=int(envconf["MIN_RESOURCE_PER_PATCH"]),
                      max_resc_perpatch=int(envconf["MAX_RESOURCE_PER_PATCH"]),
+                     min_resc_quality=float(envconf["MIN_RESOURCE_QUALITY"]),
+                     max_resc_quality=float(envconf["MAX_RESOURCE_QUALITY"]),
                      patch_radius=int(envconf["RADIUS_RESOURCE"]),
                      regenerate_patches=bool(int(envconf["REGENERATE_PATCHES"])),
                      agent_consumption=int(envconf["AGENT_CONSUMPTION"]),

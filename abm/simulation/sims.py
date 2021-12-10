@@ -25,8 +25,8 @@ class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=25, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
-                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
+                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
+                 patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, save_csv_files=False, ghost_mode=True):
         """
@@ -45,6 +45,10 @@ class Simulation:
         :param N_resc: number of rescource patches in the environment
         :param min_resc_perpatch: minimum rescaurce unit per patch
         :param max_resc_perpatch: maximum rescaurce units per patch
+        :param min_resc_quality: minimum resource quality in unit/timesteps that is allowed for each agent on a patch 
+            to exploit from the patch
+        : param max_resc_quality: maximum resource quality in unit/timesteps that is allowed for each agent on a patch
+            to exploit from the patch
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
@@ -95,6 +99,8 @@ class Simulation:
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch
+        self.min_resc_quality = min_resc_quality
+        self.max_resc_quality = max_resc_quality
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
@@ -223,7 +229,9 @@ class Simulation:
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
-            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
+            quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
+            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
+                                 quality)
             resource_proven = self.proove_resource(resource)
         self.rescources.add(resource)
 

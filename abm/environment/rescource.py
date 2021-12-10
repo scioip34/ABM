@@ -11,7 +11,7 @@ class Rescource(pygame.sprite.Sprite):
         the rescource and change the patch size/appearance accordingly
         """
 
-    def __init__(self, id, radius, position, env_size, color, window_pad, resc_units=None):
+    def __init__(self, id, radius, position, env_size, color, window_pad, resc_units=None, quality=1):
         """
         Initalization method of main agent class of the simulations
 
@@ -23,6 +23,7 @@ class Rescource(pygame.sprite.Sprite):
         :param window_pad: padding of the environment in simulation window in pixels
         :param resc_units: rescource units hidden in the given patch. If not initialized the number of units is equal to
                             the radius of the patch
+        :param quality: quality of the patch in possibly exploitable units per timestep (per agent)
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -41,7 +42,7 @@ class Rescource(pygame.sprite.Sprite):
         self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
         self.color = color
         self.resc_left_color = (color[0]-20, color[1]-20, color[2]-20)
-        self.unit_per_timestep = 0.05
+        self.unit_per_timestep = quality
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -88,7 +89,7 @@ class Rescource(pygame.sprite.Sprite):
         self.rect.centery = self.center[1]
         self.mask = pygame.mask.from_surface(self.image)
         font = pygame.font.Font(None, 18)
-        text = font.render(f"{self.resc_left}", True, colors.BLACK)
+        text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
         self.image.blit(text, (0, 0))
         text_rect = text.get_rect(center=self.rect.center)
 

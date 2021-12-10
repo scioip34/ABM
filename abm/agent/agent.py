@@ -55,6 +55,7 @@ class Agent(pygame.sprite.Sprite):
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
+        self.collected_r_before = 0 # collected resource in the previous timestep to monitor patch quality
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
         self.soc_v_field = np.zeros(self.v_field_res)
@@ -64,6 +65,7 @@ class Agent(pygame.sprite.Sprite):
 
         # Decision Variables
         self.overriding_mode = None
+
         ## w
         self.S_wu = decision_params.S_wu
         self.T_w = decision_params.T_w
@@ -86,6 +88,7 @@ class Agent(pygame.sprite.Sprite):
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
         # dynamically)
+        self.env_status_before = 0
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
 
@@ -113,11 +116,24 @@ class Agent(pygame.sprite.Sprite):
     def calc_I_priv(self):
         """returning I_priv according to the environment status. Note that this is not necessarily the same as
         later on I_priv also includes the reward amount in the last n timesteps"""
-        if self.env_status > 0:
-            self.I_priv = 1
-        # either uninformed or informed that there is no reward
+        # Large part of private info is the exploration of a new patch
+        new_patch_found = self.env_status - self.env_status_before
+        if new_patch_found > 0:
+            print("new_patch_found", self.id)
+            new_patch_found = 1
         else:
-            self.I_priv = 0
+            new_patch_found = 0
+
+        # other part is coming from uncovered resource units
+        collected_unit = self.collected_r - self.collected_r_before
+
+        print("new")
+        print(self.collected_r_before)
+        print(self.collected_r)
+        # calculating private info by weighting these
+        self.I_priv = 3*new_patch_found + collected_unit
+        print(self.I_priv)
+
 
     def move_with_mouse(self, mouse):
         """Moving the agent with the mouse cursor"""
@@ -214,6 +230,7 @@ class Agent(pygame.sprite.Sprite):
 
         # updating agent visualization
         self.draw_update()
+        self.collected_r_before = self.collected_r
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""

@@ -41,6 +41,7 @@ class Rescource(pygame.sprite.Sprite):
         self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
         self.color = color
         self.resc_left_color = (color[0]-20, color[1]-20, color[2]-20)
+        self.unit_per_timestep = 0.05
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -93,6 +94,10 @@ class Rescource(pygame.sprite.Sprite):
 
     def deplete(self, rescource_units):
         """depeting the given patch with given rescource units"""
+        # Not allowing faster depletion than what the patch can provide (per agent)
+        if rescource_units > self.unit_per_timestep:
+            rescource_units = self.unit_per_timestep
+
         if self.resc_left >= rescource_units:
             self.resc_left -= rescource_units
             depleted_units = rescource_units

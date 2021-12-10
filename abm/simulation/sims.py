@@ -16,6 +16,7 @@ envconf = dotenv_values(".env")
 
 def notify_agent(agent, status):
     """Notifying agent about the status of the environment in a given position"""
+    agent.env_status_before = agent.env_status
     agent.env_status = status
     agent.pool_success = 0  # restarting pooling timer when notified
 
@@ -513,6 +514,7 @@ class Simulation:
                         if agent.get_mode() == "exploit":
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
+                            agent.collected_r_before = agent.collected_r # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
                             if destroy_resc:  # consumed unit was the last in the patch
                                 notify_agent(agent, -1)
@@ -549,7 +551,7 @@ class Simulation:
             else:
                 # Still calculating visual fields
                 for ag in self.agents:
-                    ag.social_projection_field(self.agents)
+                    ag.calc_social_V_proj(self.agents)
 
             # Draw environment and agents
             self.draw_frame(stats, stats_pos)

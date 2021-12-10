@@ -157,7 +157,7 @@ class Agent(pygame.sprite.Sprite):
                 socially relevant, i.e. all agents.
         """
         # calculate socially relevant projection field (Vsoc and Vsoc+)
-        self.social_projection_field(agents)
+        self.calc_social_V_proj(agents)
 
         # calculate private information
         self.calc_I_priv()
@@ -175,9 +175,8 @@ class Agent(pygame.sprite.Sprite):
                 vel, theta = supcalc.random_walk()
                 self.set_mode("explore")
             elif self.tr_w() and self.tr_u():
-                print("Both decision processes up")
                 self.set_mode("exploit")
-                vel, theta = (-self.velocity * 0.04, 0)
+                vel, theta = (-self.velocity * 0.08, 0)
             elif self.tr_w() and not self.tr_u():
                 vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                                                                     np.linspace(-np.pi, np.pi, self.v_field_res),
@@ -193,18 +192,11 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("exploit")
                 vel, theta = (-self.velocity * 0.04, 0)
         else:
+            # COLLISION AVOIDANCE IS ACTIVE, let that guide us
+            # As we don't have proximity sensor interface as with e.g. real robots we will let
+            # the environment to enforce us into a collision maneuver from the simulation environment
+            # so we don't change the current velocity from here.
             vel, theta = (0, 0)
-
-        # OVERRIDING velocity if the environment forces the agent to do so (e.g. exploitation dynamics and pooling)
-        # this will be changed to a smoother exploitation and pooling in the future based on inner decisions as well
-        # enforcing exploitation dynamics brute force (continue exploiting until you can!)
-        # self.env_override_mode()
-        # if self.get_mode() == "exploit":
-        #     self.velocity -= self.velocity * 0.04
-        #     vel, theta = (0, 0)
-        # elif self.get_mode() == "pool":
-        #     vel, theta = (0, 0)
-        #     self.pool_curr_pos()
 
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
@@ -310,7 +302,7 @@ class Agent(pygame.sprite.Sprite):
                 self.orientation -= np.pi / 2
             self.prove_orientation()  # bounding orientation into 0 and 2pi
 
-    def social_projection_field(self, agents):
+    def calc_social_V_proj(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
         # visible agents (exluding self)
@@ -431,51 +423,6 @@ class Agent(pygame.sprite.Sprite):
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
                 self.velocity = 1
-
-    def env_override_mode(self):
-        """decide on behavioral mode that is not defined by inner decision process of the agent but is ad-hoc
-        or overriden by other events. Currently these are pooling, forcing agent to exploit until the end, and
-        collisions. Collisions are handled from the main simulation."""
-
-        # if self.get_mode() == "explore" or self.get_mode() == "relocate":
-        #
-        #     # todo: integrate non instanteneous pooling later (uncomment this and the one below)
-        #     # dec = np.random.uniform(0, 1)
-        #     # # let's switch to pooling in 10 percent of the cases
-        #     # if dec < self.pooling_prob and self.pooling_time > 0:
-        #     #     self.set_mode("pool")
-        #     # instantenous pooling if requested (skip pooling and switch to behavior according to env status)
-        #
-        #     if self.pooling_time == 0:
-        #         if self.env_status == 1:
-        #             self.set_mode("exploit")
-        #
-        #     else:  # comment for non-insta pooling
-        #         raise Exception("Only instanteneous pooling is supported for now!")
-        #
-        # # #uncomment for pooling other than instanteneous
-        # # elif self.get_mode() == "pool":
-        # #     if self.env_status == 1:  # the agent is notified that there is resource there
-        # #         self.set_mode("exploit")
-        # #         self.relocation_dec_variable = 0
-        # #     elif self.env_status == -1:  # the agent is notified that there is NO resource there
-        # #         self.set_mode("explore")
-        # #         self.env_status = 0
-        # #     elif self.env_status == 0:  # the agent is not yet notified
-        # #         pass
-        #
-        # # always force agent to keep exploiting until the end of process
-        # elif self.get_mode() == "exploit":
-        #     if self.env_status == 1:
-        #         self.set_mode("exploit")
-        #     else:
-        #         self.set_mode("explore")
-        if self.tr_u():
-            self.set_mode("exploit")
-        elif self.tr_w():
-            self.set_mode("relocate")
-        if not self.tr_w() and not self.tr_u():
-            self.set_mode("explore")
 
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in

@@ -135,12 +135,16 @@ class Agent(pygame.sprite.Sprite):
         print(self.I_priv)
 
 
-    def move_with_mouse(self, mouse):
-        """Moving the agent with the mouse cursor"""
+    def move_with_mouse(self, mouse, left_state, right_state):
+        """Moving the agent with the mouse cursor, and rotating"""
         if self.rect.collidepoint(mouse):
             # setting position of agent to cursor position
             self.position[0] = mouse[0] - self.radius
             self.position[1] = mouse[1] - self.radius
+            if left_state:
+                self.orientation+=0.1
+            if right_state:
+                self.orientation-=0.1
             self.is_moved_with_cursor = 1
             # updating agent visualization to make it more responsive
             self.draw_update()

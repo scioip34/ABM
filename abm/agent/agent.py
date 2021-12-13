@@ -16,7 +16,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, FOV, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range, visual_exclusion):
+                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True):
         """
         Initalization method of main agent class of the simulations
 
@@ -34,11 +34,13 @@ class Agent(pygame.sprite.Sprite):
         :param consumption: (resource unit/time unit) consumption efficiency of agent
         :param vision_range: in px the range/radius in which the agent is able to see other agents
         :param visual_exclusion: if True social cues can be visually excluded by non social cues.
+        :param patchwise_exclusion: exclude agents from visual field if exploiting the same patch
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
 
         # Initializing agents with init parameters
+        self.exclude_agents_same_patch = patchwise_exclusion
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -56,6 +58,7 @@ class Agent(pygame.sprite.Sprite):
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
         self.collected_r_before = 0 # collected resource in the previous timestep to monitor patch quality
+        self.exploited_patch_id = -1
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
         self.soc_v_field = np.zeros(self.v_field_res)
@@ -119,7 +122,6 @@ class Agent(pygame.sprite.Sprite):
         # Large part of private info is the exploration of a new patch
         new_patch_found = self.env_status - self.env_status_before
         if new_patch_found > 0:
-            print("new_patch_found", self.id)
             new_patch_found = 1
         else:
             new_patch_found = 0
@@ -127,13 +129,8 @@ class Agent(pygame.sprite.Sprite):
         # other part is coming from uncovered resource units
         collected_unit = self.collected_r - self.collected_r_before
 
-        print("new")
-        print(self.collected_r_before)
-        print(self.collected_r)
         # calculating private info by weighting these
         self.I_priv = 3*new_patch_found + collected_unit
-        print(self.I_priv)
-
 
     def move_with_mouse(self, mouse, left_state, right_state):
         """Moving the agent with the mouse cursor, and rotating"""
@@ -329,7 +326,10 @@ class Agent(pygame.sprite.Sprite):
         # visible agents (exluding self)
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
         # those of them that are exploiting
-        expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
+        expl_agents = [ag for ag in agents if ag.id != self.id
+                       and ag.get_mode() == "exploit"]
+        if self.exclude_agents_same_patch:
+            expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id!=self.exploited_patch_id]
         # extracting their coordinates
         expl_agents_coords = [ag.position for ag in expl_agents]
 

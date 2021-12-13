@@ -26,6 +26,7 @@ def start():
                      regenerate_patches=bool(int(envconf["REGENERATE_PATCHES"])),
                      agent_consumption=int(envconf["AGENT_CONSUMPTION"]),
                      ghost_mode=bool(int(envconf["GHOST_WHILE_EXPLOIT"])),
+                     patchwise_exclusion=bool(int(envconf["PATCHWISE_SOCIAL_EXCLUSION"])),
                      teleport_exploit=bool(int(envconf["TELEPORT_TO_MIDDLE"])),
                      vision_range=int(envconf["VISION_RANGE"]),
                      visual_exclusion=bool(int(envconf["VISUAL_EXCLUSION"])),

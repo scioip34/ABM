@@ -1,6 +1,8 @@
 import pygame
 import numpy as np
 import sys
+
+from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
 from abm.contrib import colors, ifdb_params
@@ -14,11 +16,29 @@ from dotenv import dotenv_values
 envconf = dotenv_values(".env")
 
 
-def notify_agent(agent, status):
+def notify_agent(agent, status, res_id=None):
     """Notifying agent about the status of the environment in a given position"""
     agent.env_status_before = agent.env_status
     agent.env_status = status
-    agent.pool_success = 0  # restarting pooling timer when notified
+    agent.pool_success = 1  # restarting pooling timer when notified
+    if res_id is None:
+        agent.exploited_patch_id = -1
+    else:
+        agent.exploited_patch_id = res_id
+
+
+def refine_ar_overlap_group(collision_group):
+    """We define overlap according to the center of agents. If the collision is not yet with the center of agent,
+    we remove that collision from the group"""
+    for resc, agents in collision_group.items():
+        agents_refined = []
+        for agent in agents:
+            # Only keeping agent in collision group if it's center is inside the radius of the patch
+            # I.E: the agent can only get information from 1 point-like sensor in the center
+            if supcalc.distance(resc, agent) < resc.radius:
+                agents_refined.append(agent)
+        collision_group[resc] = agents_refined
+    return collision_group
 
 
 class Simulation:
@@ -28,7 +48,7 @@ class Simulation:
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
-                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True):
+                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -64,6 +84,8 @@ class Simulation:
         :param use_ifdb_logging: Switch to turn IFDB save on or off
         :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
         :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
+        :param patchwise_exclusion: excluding agents from social v field if they are exploiting the same patch as the
+            focal agent
         """
         # Arena parameters
         self.WIDTH = width
@@ -93,6 +115,7 @@ class Simulation:
         self.agent_fov = (-agent_fov * np.pi, agent_fov * np.pi)
         self.visual_exclusion = visual_exclusion
         self.ghost_mode = ghost_mode
+        self.patchwise_exclusion = patchwise_exclusion
 
         # Rescource parameters
         self.N_resc = N_resc
@@ -299,7 +322,8 @@ class Simulation:
                 pooling_prob=self.pooling_prob,
                 consumption=self.agent_consumption,
                 vision_range=self.vision_range,
-                visual_exclusion=self.visual_exclusion
+                visual_exclusion=self.visual_exclusion,
+                patchwise_exclusion=self.patchwise_exclusion
             )
             self.agents.add(agent)
 

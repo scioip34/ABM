@@ -527,6 +527,9 @@ class Simulation:
                     pygame.sprite.collide_circle
                 )
 
+                # refine collision group according to point-like pooling in center of agents
+                collision_group_ar = refine_ar_overlap_group(collision_group_ar)
+
                 # collecting agents that are on resource patch
                 agents_on_rescs = []
 
@@ -545,7 +548,7 @@ class Simulation:
                         if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
                                 or agent.pooling_time == 0:
                             # Notify about the patch
-                            notify_agent(agent, 1)
+                            notify_agent(agent, 1, resc.id)
                             # Teleport agent to the middle of the patch if needed
                             if self.teleport_exploit:
                                 agent.position = resc.position + resc.radius - agent.radius

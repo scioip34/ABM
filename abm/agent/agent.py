@@ -144,8 +144,8 @@ class Agent(pygame.sprite.Sprite):
 
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        w_p = self.w if self.w > 0 else 0
-        u_p = self.u if self.u > 0 else 0
+        w_p = self.w if self.w > self.T_w else 0
+        u_p = self.u if self.u > self.T_u else 0
         dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (
                     self.w - self.B_w) - u_p * self.S_uw  # self.tr_u() * self.S_uw
         du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu  # self.tr_w() * self.S_wu

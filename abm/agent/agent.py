@@ -338,8 +338,10 @@ class Agent(pygame.sprite.Sprite):
             # self.soc_v_field = soc_proj_f
             raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
-            self.soc_v_field[self.soc_v_field != 0] = 1
+            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            # self.soc_v_field[self.soc_v_field != 0] = 1
+            # if self.id == 0:
+            #     print(np.unique(self.soc_v_field))
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
@@ -413,7 +415,7 @@ class Agent(pygame.sprite.Sprite):
                 if not keep_distance_info:
                     v_field[proj_start:proj_end] = 1
                 else:
-                    v_field[proj_start:proj_end] = 1 / distance
+                    v_field[proj_start:proj_end] = (1 - distance/self.vision_range)
 
         # post_processing and limiting FOV
         v_field_post = np.roll(v_field, int(len(v_field) / 2))

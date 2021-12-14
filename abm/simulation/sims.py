@@ -272,7 +272,7 @@ class Simulation:
             # if the ghost mode is turned on and any of the 2 colliding agents is exploiting, the
             # collision protocol will not be carried out so that agents can overlap with each other in this case
             if self.ghost_mode:
-                if agent2.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                if agent2.get_mode() != "exploit" and agent1.get_mode() != "exploit":
                     do_collision = True
                 else:
                     do_collision = False

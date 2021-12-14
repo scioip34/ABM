@@ -80,6 +80,7 @@ class Agent(pygame.sprite.Sprite):
 
         ## u
         self.I_priv = 0
+        self.novelty = np.zeros(decision_params.Tau)
         self.S_uw = decision_params.S_uw
         self.T_u = decision_params.T_u
         self.u = 0
@@ -119,18 +120,11 @@ class Agent(pygame.sprite.Sprite):
     def calc_I_priv(self):
         """returning I_priv according to the environment status. Note that this is not necessarily the same as
         later on I_priv also includes the reward amount in the last n timesteps"""
-        # Large part of private info is the exploration of a new patch
-        new_patch_found = self.env_status - self.env_status_before
-        if new_patch_found > 0:
-            new_patch_found = 1
-        else:
-            new_patch_found = 0
-
         # other part is coming from uncovered resource units
         collected_unit = self.collected_r - self.collected_r_before
 
         # calculating private info by weighting these
-        self.I_priv = 3*new_patch_found + collected_unit
+        self.I_priv = decision_params.F_N * np.max(self.novelty) + decision_params.F_R*collected_unit
 
     def move_with_mouse(self, mouse, left_state, right_state):
         """Moving the agent with the mouse cursor, and rotating"""

@@ -23,5 +23,10 @@ B_u = 0
 u_max = 2
 
 ##### Inhibition ####
-S_wu = 0.02  # strength from w to u
-S_uw = 0.2  # strength from u to w
+S_wu = 0.25  # strength from w to u
+S_uw = 0.01  # strength from u to w
+
+##### Calculating Private Information #####
+Tau = 10
+F_N = 2
+F_R = 1

@@ -56,12 +56,13 @@ class Agent(pygame.sprite.Sprite):
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity
-        self.collected_r = 0  # collected rescource unit collected by agent
-        self.collected_r_before = 0 # collected resource in the previous timestep to monitor patch quality
+        self.collected_r = 0  # collected resource unit collected by agent
+        self.collected_r_before = 0  # collected resource in the previous time step to monitor patch quality
         self.exploited_patch_id = -1
         self.mode = "explore"  # explore, flock, collide, exploit, pool
-        self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
-        self.soc_v_field = np.zeros(self.v_field_res)
+        self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
+        # source data to calculate relevant visual field according to the used relocation force algorithm
+        self.vis_field_source_data = {}
 
         # Interaction
         self.is_moved_with_cursor = 0
@@ -324,8 +325,6 @@ class Agent(pygame.sprite.Sprite):
                        and ag.get_mode() == "exploit"]
         if self.exclude_agents_same_patch:
             expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id!=self.exploited_patch_id]
-        # extracting their coordinates
-        expl_agents_coords = [ag.position for ag in expl_agents]
 
         if self.visual_exclusion:
             # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
@@ -338,16 +337,20 @@ class Agent(pygame.sprite.Sprite):
             # self.soc_v_field = soc_proj_f
             raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=True)
             # self.soc_v_field[self.soc_v_field != 0] = 1
             # if self.id == 0:
             #     print(np.unique(self.soc_v_field))
 
-    def projection_field(self, obstacle_coords, keep_distance_info=False):
+    def projection_field(self, obstacles, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
-        :param obstacle_coords: list of coordinates of agents (with same radius) to generate projection field
+        :param obstacles: list of agents (with same radius) or some other obstacle sprites to generate projection field
         :param keep_distance_info: if True, the amplitude of the vpf will reflect the distance of the object from the
             agent so that exclusion can be easily generated with a single computational step."""
+
+        # extracting obstacle coordinates
+        obstacle_coords = [ob.position for ob in obstacles]
+
         # initializing visual field and relative angles
         v_field = np.zeros(self.v_field_res)
         phis = np.linspace(-np.pi, np.pi, self.v_field_res)

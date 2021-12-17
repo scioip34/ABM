@@ -1,6 +1,8 @@
 import pygame
 import numpy as np
 import sys
+
+from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
 from abm.contrib import colors, ifdb_params
@@ -14,20 +16,46 @@ from dotenv import dotenv_values
 envconf = dotenv_values(".env")
 
 
-def notify_agent(agent, status):
+def notify_agent(agent, status, res_id=None):
     """Notifying agent about the status of the environment in a given position"""
+    agent.env_status_before = agent.env_status
     agent.env_status = status
-    agent.pool_success = 0  # restarting pooling timer when notified
+    agent.novelty = np.roll(agent.novelty, 1)
+    novelty = agent.env_status - agent.env_status_before
+    novelty = 1 if novelty > 0 else 0
+    agent.novelty[0] = novelty
+    agent.novelty[0] = novelty
+    if agent.id==0:
+        print(agent.novelty)
+    agent.pool_success = 1  # restarting pooling timer when notified
+    if res_id is None:
+        agent.exploited_patch_id = -1
+    else:
+        agent.exploited_patch_id = res_id
+
+
+def refine_ar_overlap_group(collision_group):
+    """We define overlap according to the center of agents. If the collision is not yet with the center of agent,
+    we remove that collision from the group"""
+    for resc, agents in collision_group.items():
+        agents_refined = []
+        for agent in agents:
+            # Only keeping agent in collision group if it's center is inside the radius of the patch
+            # I.E: the agent can only get information from 1 point-like sensor in the center
+            if supcalc.distance(resc, agent) < resc.radius:
+                agents_refined.append(agent)
+        collision_group[resc] = agents_refined
+    return collision_group
 
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=25, window_pad=30, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
-                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, patch_radius=30,
-                 regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
+                 N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
+                 patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
-                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True):
+                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -44,6 +72,10 @@ class Simulation:
         :param N_resc: number of rescource patches in the environment
         :param min_resc_perpatch: minimum rescaurce unit per patch
         :param max_resc_perpatch: maximum rescaurce units per patch
+        :param min_resc_quality: minimum resource quality in unit/timesteps that is allowed for each agent on a patch 
+            to exploit from the patch
+        : param max_resc_quality: maximum resource quality in unit/timesteps that is allowed for each agent on a patch
+            to exploit from the patch
         :param patch_radius: radius of rescaurce patches
         :param regenerate_patches: bool to decide if patches shall be regenerated after depletion
         :param agent_consumption: agent consumption (exploitation speed) in res. units / time units
@@ -59,6 +91,8 @@ class Simulation:
         :param use_ifdb_logging: Switch to turn IFDB save on or off
         :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
         :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
+        :param patchwise_exclusion: excluding agents from social v field if they are exploiting the same patch as the
+            focal agent
         """
         # Arena parameters
         self.WIDTH = width
@@ -88,12 +122,15 @@ class Simulation:
         self.agent_fov = (-agent_fov * np.pi, agent_fov * np.pi)
         self.visual_exclusion = visual_exclusion
         self.ghost_mode = ghost_mode
+        self.patchwise_exclusion = patchwise_exclusion
 
         # Rescource parameters
         self.N_resc = N_resc
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch
+        self.min_resc_quality = min_resc_quality
+        self.max_resc_quality = max_resc_quality
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
@@ -222,7 +259,9 @@ class Simulation:
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
-            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units)
+            quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
+            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
+                                 quality)
             resource_proven = self.proove_resource(resource)
         self.rescources.add(resource)
 
@@ -240,7 +279,7 @@ class Simulation:
             # if the ghost mode is turned on and any of the 2 colliding agents is exploiting, the
             # collision protocol will not be carried out so that agents can overlap with each other in this case
             if self.ghost_mode:
-                if agent2.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                if agent2.get_mode() != "exploit" and agent1.get_mode() != "exploit":
                     do_collision = True
                 else:
                     do_collision = False
@@ -290,7 +329,8 @@ class Simulation:
                 pooling_prob=self.pooling_prob,
                 consumption=self.agent_consumption,
                 vision_range=self.vision_range,
-                visual_exclusion=self.visual_exclusion
+                visual_exclusion=self.visual_exclusion,
+                patchwise_exclusion=self.patchwise_exclusion
             )
             self.agents.add(agent)
 
@@ -323,6 +363,13 @@ class Simulation:
         if event.type == pygame.QUIT:
             sys.exit()
 
+        # Change orientation with mouse wheel
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y == -1:
+                event.y = 0
+            for ag in self.agents:
+                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1-event.y)
+
         # Pause on Space
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             self.is_paused = not self.is_paused
@@ -343,9 +390,10 @@ class Simulation:
         if pygame.mouse.get_pressed()[0]:
             try:
                 for ag in self.agents:
-                    ag.move_with_mouse(event.pos)
+                    ag.move_with_mouse(event.pos, 0, 0)
             except AttributeError:
-                pass
+                for ag in self.agents:
+                    ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
         else:
             for ag in self.agents:
                 ag.is_moved_with_cursor = False
@@ -486,6 +534,9 @@ class Simulation:
                     pygame.sprite.collide_circle
                 )
 
+                # refine collision group according to point-like pooling in center of agents
+                collision_group_ar = refine_ar_overlap_group(collision_group_ar)
+
                 # collecting agents that are on resource patch
                 agents_on_rescs = []
 
@@ -504,7 +555,7 @@ class Simulation:
                         if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
                                 or agent.pooling_time == 0:
                             # Notify about the patch
-                            notify_agent(agent, 1)
+                            notify_agent(agent, 1, resc.id)
                             # Teleport agent to the middle of the patch if needed
                             if self.teleport_exploit:
                                 agent.position = resc.position + resc.radius - agent.radius
@@ -513,6 +564,7 @@ class Simulation:
                         if agent.get_mode() == "exploit":
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
+                            agent.collected_r_before = agent.collected_r # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
                             if destroy_resc:  # consumed unit was the last in the patch
                                 notify_agent(agent, -1)
@@ -549,7 +601,7 @@ class Simulation:
             else:
                 # Still calculating visual fields
                 for ag in self.agents:
-                    ag.social_projection_field(self.agents)
+                    ag.calc_social_V_proj(self.agents)
 
             # Draw environment and agents
             self.draw_frame(stats, stats_pos)

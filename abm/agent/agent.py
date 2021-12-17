@@ -16,7 +16,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, FOV, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range, visual_exclusion):
+                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True):
         """
         Initalization method of main agent class of the simulations
 
@@ -34,11 +34,13 @@ class Agent(pygame.sprite.Sprite):
         :param consumption: (resource unit/time unit) consumption efficiency of agent
         :param vision_range: in px the range/radius in which the agent is able to see other agents
         :param visual_exclusion: if True social cues can be visually excluded by non social cues.
+        :param patchwise_exclusion: exclude agents from visual field if exploiting the same patch
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
 
         # Initializing agents with init parameters
+        self.exclude_agents_same_patch = patchwise_exclusion
         self.id = id
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)
@@ -55,6 +57,8 @@ class Agent(pygame.sprite.Sprite):
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity
         self.collected_r = 0  # collected rescource unit collected by agent
+        self.collected_r_before = 0 # collected resource in the previous timestep to monitor patch quality
+        self.exploited_patch_id = -1
         self.mode = "explore"  # explore, flock, collide, exploit, pool
         self.v_field = np.zeros(self.v_field_res)  # non-social visual projection field
         self.soc_v_field = np.zeros(self.v_field_res)
@@ -64,6 +68,7 @@ class Agent(pygame.sprite.Sprite):
 
         # Decision Variables
         self.overriding_mode = None
+
         ## w
         self.S_wu = decision_params.S_wu
         self.T_w = decision_params.T_w
@@ -75,6 +80,7 @@ class Agent(pygame.sprite.Sprite):
 
         ## u
         self.I_priv = 0
+        self.novelty = np.zeros(decision_params.Tau)
         self.S_uw = decision_params.S_uw
         self.T_u = decision_params.T_u
         self.u = 0
@@ -86,6 +92,7 @@ class Agent(pygame.sprite.Sprite):
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
         # dynamically)
+        self.env_status_before = 0
         self.env_status = 0  # status of the environment in current position, 1 if rescource, 0 otherwise
         self.pool_success = 0  # states if the agent deserves 1 piece of update about the status of env in given pos
 
@@ -113,18 +120,22 @@ class Agent(pygame.sprite.Sprite):
     def calc_I_priv(self):
         """returning I_priv according to the environment status. Note that this is not necessarily the same as
         later on I_priv also includes the reward amount in the last n timesteps"""
-        if self.env_status > 0:
-            self.I_priv = 1
-        # either uninformed or informed that there is no reward
-        else:
-            self.I_priv = 0
+        # other part is coming from uncovered resource units
+        collected_unit = self.collected_r - self.collected_r_before
 
-    def move_with_mouse(self, mouse):
-        """Moving the agent with the mouse cursor"""
+        # calculating private info by weighting these
+        self.I_priv = decision_params.F_N * np.max(self.novelty) + decision_params.F_R*collected_unit
+
+    def move_with_mouse(self, mouse, left_state, right_state):
+        """Moving the agent with the mouse cursor, and rotating"""
         if self.rect.collidepoint(mouse):
             # setting position of agent to cursor position
             self.position[0] = mouse[0] - self.radius
             self.position[1] = mouse[1] - self.radius
+            if left_state:
+                self.orientation+=0.1
+            if right_state:
+                self.orientation-=0.1
             self.is_moved_with_cursor = 1
             # updating agent visualization to make it more responsive
             self.draw_update()
@@ -133,8 +144,8 @@ class Agent(pygame.sprite.Sprite):
 
     def update_decision_processes(self):
         """updating inner decision processes according to the current state and the visual projection field"""
-        w_p = self.w if self.w > 0 else 0
-        u_p = self.u if self.u > 0 else 0
+        w_p = self.w if self.w > self.T_w else 0
+        u_p = self.u if self.u > self.T_u else 0
         dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (
                     self.w - self.B_w) - u_p * self.S_uw  # self.tr_u() * self.S_uw
         du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu  # self.tr_w() * self.S_wu
@@ -214,6 +225,7 @@ class Agent(pygame.sprite.Sprite):
 
         # updating agent visualization
         self.draw_update()
+        self.collected_r_before = self.collected_r
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
@@ -308,7 +320,10 @@ class Agent(pygame.sprite.Sprite):
         # visible agents (exluding self)
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
         # those of them that are exploiting
-        expl_agents = [ag for ag in agents if ag.id != self.id and ag.get_mode() == "exploit"]
+        expl_agents = [ag for ag in agents if ag.id != self.id
+                       and ag.get_mode() == "exploit"]
+        if self.exclude_agents_same_patch:
+            expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id!=self.exploited_patch_id]
         # extracting their coordinates
         expl_agents_coords = [ag.position for ag in expl_agents]
 
@@ -323,8 +338,10 @@ class Agent(pygame.sprite.Sprite):
             # self.soc_v_field = soc_proj_f
             raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=False)
-            self.soc_v_field[self.soc_v_field != 0] = 1
+            self.soc_v_field = self.projection_field(expl_agents_coords, keep_distance_info=True)
+            # self.soc_v_field[self.soc_v_field != 0] = 1
+            # if self.id == 0:
+            #     print(np.unique(self.soc_v_field))
 
     def projection_field(self, obstacle_coords, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
@@ -398,7 +415,7 @@ class Agent(pygame.sprite.Sprite):
                 if not keep_distance_info:
                     v_field[proj_start:proj_end] = 1
                 else:
-                    v_field[proj_start:proj_end] = 1 / distance
+                    v_field[proj_start:proj_end] = (1 - distance/self.vision_range)
 
         # post_processing and limiting FOV
         v_field_post = np.roll(v_field, int(len(v_field) / 2))

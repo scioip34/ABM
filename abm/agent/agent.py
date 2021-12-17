@@ -398,7 +398,7 @@ class Agent(pygame.sprite.Sprite):
                 c2 = np.array([v2_e_x, v2_e_y])
                 distance = np.linalg.norm(c2 - c1)
                 vis_angle = 2 * np.arctan(self.radius / (1 * distance))
-                proj_size = 300 * vis_angle
+                proj_size = (vis_angle / (2*np.pi)) * self.v_field_res
 
                 # placing the projection on the VPF of agent
                 phi_target = supcalc.find_nearest(phis, closed_angle)

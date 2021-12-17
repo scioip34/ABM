@@ -372,7 +372,8 @@ class Agent(pygame.sprite.Sprite):
         # calculating closed angle between obstacle and agent according to the position of the obstacle.
         # then calculating visual projection size according to visual angle on the agents's retina according to distance
         # between agent and obstacle
-        for obstacle_coord in obstacle_coords:
+        self.vis_field_source_data = {}
+        for i, obstacle_coord in enumerate(obstacle_coords):
             if not (obstacle_coord[0] == self.position[0] and obstacle_coord[1] == self.position[1]):
                 # center of obstacle (as it must be another agent)
                 v2_e_x = obstacle_coord[0] + self.radius
@@ -405,6 +406,10 @@ class Agent(pygame.sprite.Sprite):
 
                 proj_start = int(phi_target - proj_size / 2)
                 proj_end = int(phi_target + proj_size / 2)
+
+                self.vis_field_source_data[i] = {}
+                self.vis_field_source_data[i]["vis_angle"] = vis_angle
+                self.vis_field_source_data[i]["phi_target"] = phi_target
 
                 # circular boundaries to the VPF as there is 360 degree vision
                 if proj_start < 0:

@@ -25,8 +25,6 @@ def notify_agent(agent, status, res_id=None):
     novelty = 1 if novelty > 0 else 0
     agent.novelty[0] = novelty
     agent.novelty[0] = novelty
-    if agent.id==0:
-        print(agent.novelty)
     agent.pool_success = 1  # restarting pooling timer when notified
     if res_id is None:
         agent.exploited_patch_id = -1

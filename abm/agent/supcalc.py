@@ -130,9 +130,10 @@ def distance(agent1, agent2):
     distance = np.linalg.norm(c2 - c1)
     return distance
 
-def F_reloc_LR(V_now):
+def F_reloc_LR(vel_now, V_now):
     """Calculating relocation force according to the visual field/source data of the agent according to left-right
     algorithm """
+    v_desired = 1
     V_field_len = len(V_now)
     left_excitation = np.mean(V_now[0:int(V_field_len/2)])
     right_excitation = np.mean(V_now[int(V_field_len/2)::])
@@ -140,7 +141,7 @@ def F_reloc_LR(V_now):
     D_theta_max = 0.5
     vel = 0
     theta = D_leftright * D_theta_max
-    return vel, theta
+    return (v_desired-vel_now), theta
 
 def F_reloc_WTA(Phi, V_now):
     """Calculating relocation force according to the visual field/source data of the agent according to winner-takes-all

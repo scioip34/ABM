@@ -195,7 +195,7 @@ class Agent(pygame.sprite.Sprite):
                 # vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
                 #                                                     np.linspace(-np.pi, np.pi, self.v_field_res),
                 #                                                     self.soc_v_field)
-                vel, theta = supcalc.F_reloc_LR(self.soc_v_field)
+                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
                 # WHY ON EARTH DO WE NEED THIS NEGATION?
                 # whatever comes out has a sign that tells if the change in direction should be left or right
                 # seemingly what comes out has a different convention than our environment?

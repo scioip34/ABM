@@ -419,7 +419,7 @@ class Agent(pygame.sprite.Sprite):
                 # calculating closed angle between v1 and v2
                 # (rotated with the orientation of the agent as it is relative)
                 closed_angle = supcalc.angle_between(v1, v2)
-                closed_angle = (closed_angle % (2*np.pi))
+                closed_angle = (closed_angle % (2 * np.pi))
                 # at this point closed angle between 0 and 2pi but we need it between -pi and pi
                 # we also need to take our orientation convention into consideration to recalculate
                 # theta=0 is pointing to the right

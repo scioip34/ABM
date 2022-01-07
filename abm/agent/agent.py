@@ -420,6 +420,11 @@ class Agent(pygame.sprite.Sprite):
                     self.vis_field_source_data[i] = {}
                     self.vis_field_source_data[i]["vis_angle"] = vis_angle
                     self.vis_field_source_data[i]["phi_target"] = phi_target
+                    # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
+                    # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
+                    # using a single proportion
+                    self.vis_field_source_data[i]["proj_size"] = (vis_angle / (2 * np.pi)) * self.v_field_res
+
 
             # sorting VPF source data
             self.rank_V_source_data()
@@ -435,11 +440,7 @@ class Agent(pygame.sprite.Sprite):
             for k, v in self.vis_field_source_data.items():
                 vis_angle = v["vis_angle"]
                 phi_target = v["phi_target"]
-
-                # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
-                # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
-                # using a single proportion
-                proj_size = (vis_angle / (2 * np.pi)) * self.v_field_res
+                proj_size = v["proj_size"]
 
                 proj_start = int(phi_target - proj_size / 2)
                 proj_end = int(phi_target + proj_size / 2)

@@ -446,16 +446,20 @@ class Agent(pygame.sprite.Sprite):
                     # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
                     # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
                     # using a single proportion
-                    if self.visual_exclusion:
-                        # calculate projection size with exclusion comes here
-                        pass
-                    else:
-                        self.vis_field_source_data[i]["proj_size"] = (vis_angle / (2 * np.pi)) * self.v_field_res
+                    self.vis_field_source_data[i]["proj_size"] = (vis_angle / (2 * np.pi)) * self.v_field_res
+                    proj_size = self.vis_field_source_data[i]["proj_size"]
+                    self.vis_field_source_data[i]["proj_start"] = int(phi_target - proj_size / 2)
+                    self.vis_field_source_data[i]["proj_end"] = int(phi_target + proj_size / 2)
+                    self.vis_field_source_data[i]["proj_start_ex"] = int(phi_target - proj_size / 2)
+                    self.vis_field_source_data[i]["proj_end_ex"] = int(phi_target + proj_size / 2)
+                    self.vis_field_source_data[i]["proj_size_ex"] = proj_size
 
+            # calculating visual exclusion if requested
+            # if self.visual_exclusion:
+            self.exlude_V_source_data()
 
-            # sorting VPF source data
-            self.rank_V_source_data()
-
+            # sorting VPF source data according to visual angle
+            self.rank_V_source_data("vis_angle")
 
             if len(self.vis_field_source_data) > 0:
                 max_vis_angle = self.vis_field_source_data[list(self.vis_field_source_data.keys())[0]]["vis_angle"]
@@ -469,8 +473,8 @@ class Agent(pygame.sprite.Sprite):
                 phi_target = v["phi_target"]
                 proj_size = v["proj_size"]
 
-                proj_start = int(phi_target - proj_size / 2)
-                proj_end = int(phi_target + proj_size / 2)
+                proj_start = v["proj_start_ex"]
+                proj_end = v["proj_end_ex"]
 
                 # circular boundaries to the VPF as there is 360 degree vision
                 if proj_start < 0:
@@ -496,10 +500,11 @@ class Agent(pygame.sprite.Sprite):
 
         return v_field_post
 
-    def rank_V_source_data(self):
-        """Ranking source data of visual projection field by the visual angle"""
+    def rank_V_source_data(self, ranking_key, reverse=True):
+        """Ranking source data of visual projection field by the visual angle
+        :param: ranking_key: stribg key according to which the dictionary is sorted"""
         self.vis_field_source_data = OrderedDict(sorted(self.vis_field_source_data.items(),
-                                          key=lambda kv: kv[1]['vis_angle'], reverse=True))
+                                                        key=lambda kv: kv[1][ranking_key], reverse=reverse))
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""

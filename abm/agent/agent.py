@@ -374,10 +374,6 @@ class Agent(pygame.sprite.Sprite):
 
         v1 = np.array([v1_x, v1_y])
 
-        # pygame.draw.line(self.image, colors.RED, (self.radius, self.radius),
-        #                  ((1 + np.cos(self.orientation)) * self.radius, (1 - np.sin(self.orientation)) * self.radius),
-        #                  3)
-
         # calculating closed angle between obstacle and agent according to the position of the obstacle.
         # then calculating visual projection size according to visual angle on the agents's retina according to distance
         # between agent and obstacle

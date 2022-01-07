@@ -347,6 +347,32 @@ class Agent(pygame.sprite.Sprite):
             # if self.id == 0:
             #     print(np.unique(self.soc_v_field))
 
+    def exlude_V_source_data(self):
+        """Calculating parts of the VPF source data that depends on visual exclusion, i.e. how agents are excluding
+        parts of each others projection on the retina of the focal agent."""
+        self.rank_V_source_data("distance", reverse=False)
+
+        rank = 0
+        for kf, vf in self.vis_field_source_data.items():
+            if rank > 0:
+                for ki, vi in self.vis_field_source_data.items():
+                    if vi["distance"] < vf["distance"]:
+                        # Partial exclusion 1
+                        if vf["proj_start_ex"] <= vi["proj_start"] <= vf["proj_end_ex"]:
+                            vf["proj_end_ex"] = vi["proj_start"]
+                        # Partial exclusion 2
+                        if vf["proj_start_ex"] <= vi["proj_end"] <= vf["proj_end_ex"]:
+                            vf["proj_start_ex"] = vi["proj_end"]
+                        # Total exclusion
+                        if vi["proj_start"]<=vf["proj_start_ex"] and vi["proj_end"]>=vf["proj_end_ex"]:
+                            vf["proj_start_ex"] = 0
+                            vf["proj_end_ex"] = 0
+            else:
+                vf["proj_start_ex"] = vf["proj_start"]
+                vf["proj_end_ex"] = vf["proj_end"]
+            vf["proj_size_ex"] = vf["proj_end_ex"] - vf["proj_start_ex"]
+            rank += 1
+
     def projection_field(self, obstacles, keep_distance_info=False):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
         :param obstacles: list of agents (with same radius) or some other obstacle sprites to generate projection field

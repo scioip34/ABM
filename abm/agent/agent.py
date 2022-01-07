@@ -396,37 +396,35 @@ class Agent(pygame.sprite.Sprite):
 
                 # calculating closed angle between v1 and v2
                 # (rotated with the orientation of the agent as it is relative)
-                # I HAVE NO IDEA WHY IS IT SHIFTED WITH PI/4?
                 closed_angle = supcalc.angle_between(v1, v2)
-                # print("orientation: ", self.orientation)
-                # print("before: ", closed_angle)
                 closed_angle = (closed_angle % (2*np.pi))
                 # at this point closed angle between 0 and 2pi but we need it between -pi and pi
-                # print("middle: ", closed_angle)
+                # we also need to take our orientation convention into consideration to recalculate
+                # theta=0 is pointing to the right
                 if 0 < closed_angle < np.pi:
                     closed_angle = -closed_angle
                 else:
                     closed_angle = 2 * np.pi - closed_angle
 
-                # print("after: ", closed_angle)
-                # if self.FOV[0] < closed_angle < self.FOV[1]:
-                #     print("visible with fov: ", self.FOV)
-
-                # calculating size of the projection on the retina
+                # calculating the visual angle from focal agent to target
                 c1 = np.array([v1_s_x, v1_s_y])
                 c2 = np.array([v2_e_x, v2_e_y])
                 distance = np.linalg.norm(c2 - c1)
                 vis_angle = 2 * np.arctan(self.radius / (1 * distance))
 
-                # placing the projection on the VPF of agent
+                # finding where in the retina the projection belongs to
                 phi_target = supcalc.find_nearest(phis, closed_angle)
 
-                if self.FOV[0] < closed_angle < self.FOV[1]:  # target is visible
+                # if target is visible we save its projection into the VPF source data
+                if self.FOV[0] < closed_angle < self.FOV[1]:
                     self.vis_field_source_data[i] = {}
                     self.vis_field_source_data[i]["vis_angle"] = vis_angle
                     self.vis_field_source_data[i]["phi_target"] = phi_target
 
+            # sorting VPF source data
             self.rank_V_source_data()
+
+
             if len(self.vis_field_source_data) > 0:
                 max_vis_angle = self.vis_field_source_data[list(self.vis_field_source_data.keys())[0]]["vis_angle"]
                 min_vis_angle = self.vis_field_source_data[list(self.vis_field_source_data.keys())[0]]["vis_angle"]
@@ -437,6 +435,10 @@ class Agent(pygame.sprite.Sprite):
             for k, v in self.vis_field_source_data.items():
                 vis_angle = v["vis_angle"]
                 phi_target = v["phi_target"]
+
+                # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
+                # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
+                # using a single proportion
                 proj_size = (vis_angle / (2 * np.pi)) * self.v_field_res
 
                 proj_start = int(phi_target - proj_size / 2)
@@ -451,16 +453,16 @@ class Agent(pygame.sprite.Sprite):
                     v_field[0:proj_end - self.v_field_res] = 1
                     proj_end = self.v_field_res - 1
 
+                # weighing projection amplitude with rank information if requested
                 if not keep_distance_info:
-                    v_field[proj_start:proj_end] = 1 - (rank / (len(self.vis_field_source_data) + 1))
+                    v_field[proj_start:proj_end] = 1  # 1 - (rank / (len(self.vis_field_source_data) + 1))
                 else:
                     v_field[proj_start:proj_end] = (1 - distance / self.vision_range)
 
-                rank+=1
-
+                rank += 1
 
         # post_processing and limiting FOV
-        v_field_post = np.flip(v_field) # np.roll(v_field, int(len(v_field) / 2))
+        v_field_post = np.flip(v_field)
         v_field_post[phis < self.FOV[0]] = 0
         v_field_post[phis > self.FOV[1]] = 0
 

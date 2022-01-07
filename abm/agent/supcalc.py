@@ -132,7 +132,7 @@ def distance(agent1, agent2):
 
 def F_reloc_LR(vel_now, V_now):
     """Calculating relocation force according to the visual field/source data of the agent according to left-right
-    algorithm """
+    algorithm"""
     v_desired = 1
     V_field_len = len(V_now)
     left_excitation = np.mean(V_now[0:int(V_field_len/2)])

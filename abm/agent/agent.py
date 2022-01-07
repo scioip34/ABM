@@ -416,6 +416,7 @@ class Agent(pygame.sprite.Sprite):
                     self.vis_field_source_data[i] = {}
                     self.vis_field_source_data[i]["vis_angle"] = vis_angle
                     self.vis_field_source_data[i]["phi_target"] = phi_target
+                    self.vis_field_source_data[i]["distance"] = distance
                     # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
                     # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
                     # using a single proportion

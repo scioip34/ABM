@@ -420,7 +420,11 @@ class Agent(pygame.sprite.Sprite):
                     # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
                     # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
                     # using a single proportion
-                    self.vis_field_source_data[i]["proj_size"] = (vis_angle / (2 * np.pi)) * self.v_field_res
+                    if self.visual_exclusion:
+                        # calculate projection size with exclusion comes here
+                        pass
+                    else:
+                        self.vis_field_source_data[i]["proj_size"] = (vis_angle / (2 * np.pi)) * self.v_field_res
 
 
             # sorting VPF source data

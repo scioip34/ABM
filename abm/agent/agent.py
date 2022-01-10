@@ -461,37 +461,31 @@ class Agent(pygame.sprite.Sprite):
             # sorting VPF source data according to visual angle
             self.rank_V_source_data("vis_angle")
 
-            if len(self.vis_field_source_data) > 0:
-                max_vis_angle = self.vis_field_source_data[list(self.vis_field_source_data.keys())[0]]["vis_angle"]
-                min_vis_angle = self.vis_field_source_data[list(self.vis_field_source_data.keys())[0]]["vis_angle"]
+        rank = 1
+        for k, v in self.vis_field_source_data.items():
+            vis_angle = v["vis_angle"]
+            phi_target = v["phi_target"]
+            proj_size = v["proj_size"]
+
+            proj_start = v["proj_start_ex"]
+            proj_end = v["proj_end_ex"]
+
+            # circular boundaries to the VPF as there is 360 degree vision
+            if proj_start < 0:
+                v_field[self.v_field_res + proj_start:self.v_field_res] = 1
+                proj_start = 0
+
+            if proj_end >= self.v_field_res:
+                v_field[0:proj_end - self.v_field_res] = 1
+                proj_end = self.v_field_res - 1
+
+            # weighing projection amplitude with rank information if requested
+            if not keep_distance_info:
+                v_field[proj_start:proj_end] = 1  # 1 - (rank / (len(self.vis_field_source_data) + 1))
             else:
-                pass
+                v_field[proj_start:proj_end] = (1 - distance / self.vision_range)
 
-            rank = 1
-            for k, v in self.vis_field_source_data.items():
-                vis_angle = v["vis_angle"]
-                phi_target = v["phi_target"]
-                proj_size = v["proj_size"]
-
-                proj_start = v["proj_start_ex"]
-                proj_end = v["proj_end_ex"]
-
-                # circular boundaries to the VPF as there is 360 degree vision
-                if proj_start < 0:
-                    v_field[self.v_field_res + proj_start:self.v_field_res] = 1
-                    proj_start = 0
-
-                if proj_end >= self.v_field_res:
-                    v_field[0:proj_end - self.v_field_res] = 1
-                    proj_end = self.v_field_res - 1
-
-                # weighing projection amplitude with rank information if requested
-                if not keep_distance_info:
-                    v_field[proj_start:proj_end] = 1  # 1 - (rank / (len(self.vis_field_source_data) + 1))
-                else:
-                    v_field[proj_start:proj_end] = (1 - distance / self.vision_range)
-
-                rank += 1
+            rank += 1
 
         # post_processing and limiting FOV
         v_field_post = np.flip(v_field)

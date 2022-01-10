@@ -328,6 +328,8 @@ class Agent(pygame.sprite.Sprite):
         # those of them that are exploiting
         expl_agents = [ag for ag in agents if ag.id != self.id
                        and ag.get_mode() == "exploit"]
+        # all other agents to calculate visual exclusions
+        non_expl_agents = [ag for ag in agents if ag not in expl_agents]
         if self.exclude_agents_same_patch:
             expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != self.exploited_patch_id]
 
@@ -342,7 +344,8 @@ class Agent(pygame.sprite.Sprite):
             # self.soc_v_field = soc_proj_f
             raise Exception("Visual exclusion is not supported in the current version!")
         else:
-            self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False)
+            self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
+                                                     non_expl_agents=non_expl_agents)
             # self.soc_v_field[self.soc_v_field != 0] = 1
             # if self.id == 0:
             #     print(np.unique(self.soc_v_field))
@@ -373,11 +376,24 @@ class Agent(pygame.sprite.Sprite):
             vf["proj_size_ex"] = vf["proj_end_ex"] - vf["proj_start_ex"]
             rank += 1
 
-    def projection_field(self, obstacles, keep_distance_info=False):
+    def remove_nonsocial_V_source_data(self):
+        """Removing any non-social projection source data from the visual source data. Until this point we might have
+        needed them so we could calculate the visual exclusion on social cues they cause but from this point we do
+        not want interactions to happen according to them."""
+        clean_sdata = {}
+        for kf, vf in self.vis_field_source_data.items():
+            if vf['is_social_cue']:
+                clean_sdata[kf] = vf
+        self.vis_field_source_data = clean_sdata
+
+    def projection_field(self, obstacles, keep_distance_info=False, non_expl_agents=None):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
         :param obstacles: list of agents (with same radius) or some other obstacle sprites to generate projection field
         :param keep_distance_info: if True, the amplitude of the vpf will reflect the distance of the object from the
-            agent so that exclusion can be easily generated with a single computational step."""
+            agent so that exclusion can be easily generated with a single computational step.
+        :param non_expl_agents: a list of non-scoial visual cues (non-exploiting agents) that on the other hand can still
+            produce visual exlusion on the projection of social cues. If None only social cues can produce visual
+            exclusion on each other."""
 
         # extracting obstacle coordinates
         obstacle_coords = [ob.position for ob in obstacles]

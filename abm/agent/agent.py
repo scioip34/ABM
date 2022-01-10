@@ -484,11 +484,12 @@ class Agent(pygame.sprite.Sprite):
                         self.vis_field_source_data[i]["is_social_cue"] = True
 
             # calculating visual exclusion if requested
-            # if self.visual_exclusion:
-            self.exlude_V_source_data()
+            if self.visual_exclusion:
+                self.exlude_V_source_data()
 
-            # removing non-social cues from the source data after calculating exclusions
-            self.remove_nonsocial_V_source_data()
+            if non_expl_agents is not None:
+                # removing non-social cues from the source data after calculating exclusions
+                self.remove_nonsocial_V_source_data()
 
             # sorting VPF source data according to visual angle
             self.rank_V_source_data("vis_angle")

@@ -342,10 +342,11 @@ class Agent(pygame.sprite.Sprite):
             # # setting back to binary v field
             # soc_proj_f[soc_proj_f > 0] = 1
             # self.soc_v_field = soc_proj_f
-            raise Exception("Visual exclusion is not supported in the current version!")
-        else:
+            #raise Exception("Visual exclusion is not supported in the current version!")
             self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
                                                      non_expl_agents=non_expl_agents)
+        else:
+            self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False)
             # self.soc_v_field[self.soc_v_field != 0] = 1
             # if self.id == 0:
             #     print(np.unique(self.soc_v_field))

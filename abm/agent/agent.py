@@ -398,6 +398,11 @@ class Agent(pygame.sprite.Sprite):
         # extracting obstacle coordinates
         obstacle_coords = [ob.position for ob in obstacles]
 
+        # if non-social cues can visually exlude social ones we also concatenate these to the obstacle coords
+        if non_expl_agents is not None:
+            len_social = len(obstacles)
+            obstacle_coords.extend([ob.position for ob in non_expl_agents])
+
         # initializing visual field and relative angles
         v_field = np.zeros(self.v_field_res)
         phis = np.linspace(-np.pi, np.pi, self.v_field_res)
@@ -469,10 +474,20 @@ class Agent(pygame.sprite.Sprite):
                     self.vis_field_source_data[i]["proj_start_ex"] = int(phi_target - proj_size / 2)
                     self.vis_field_source_data[i]["proj_end_ex"] = int(phi_target + proj_size / 2)
                     self.vis_field_source_data[i]["proj_size_ex"] = proj_size
+                    if non_expl_agents is not None:
+                        if i < len_social:
+                            self.vis_field_source_data[i]["is_social_cue"] = True
+                        else:
+                            self.vis_field_source_data[i]["is_social_cue"] = False
+                    else:
+                        self.vis_field_source_data[i]["is_social_cue"] = True
 
             # calculating visual exclusion if requested
             # if self.visual_exclusion:
             self.exlude_V_source_data()
+
+            # removing non-social cues from the source data after calculating exclusions
+            self.remove_nonsocial_V_source_data()
 
             # sorting VPF source data according to visual angle
             self.rank_V_source_data("vis_angle")

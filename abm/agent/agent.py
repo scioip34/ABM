@@ -326,6 +326,9 @@ class Agent(pygame.sprite.Sprite):
         # all other agents to calculate visual exclusions
         non_expl_agents = [ag for ag in agents if ag not in expl_agents]
         if self.exclude_agents_same_patch:
+            # in case agents on same patch are excluded they can still cause visual exclusion for exploiting agents
+            # on the same patch (i.e. they can cover agents on other patches)
+            non_expl_agents.extend([ag for ag in expl_agents if ag.exploited_patch_id == self.exploited_patch_id])
             expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != self.exploited_patch_id]
 
         if self.visual_exclusion:

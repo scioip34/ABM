@@ -329,22 +329,10 @@ class Agent(pygame.sprite.Sprite):
             expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != self.exploited_patch_id]
 
         if self.visual_exclusion:
-            # soc_proj_f_wo_exc = self.projection_field(expl_agents_coords, keep_distance_info=True)
-            # non_soc_proj_f = self.projection_field(other_agents_coord, keep_distance_info=True)
-            # # calculating visual exclusion
-            # soc_proj_f = soc_proj_f_wo_exc - non_soc_proj_f
-            # soc_proj_f[soc_proj_f < 0] = 0
-            # # setting back to binary v field
-            # soc_proj_f[soc_proj_f > 0] = 1
-            # self.soc_v_field = soc_proj_f
-            # raise Exception("Visual exclusion is not supported in the current version!")
             self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
                                                      non_expl_agents=non_expl_agents)
         else:
             self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False)
-            # self.soc_v_field[self.soc_v_field != 0] = 1
-            # if self.id == 0:
-            #     print(np.unique(self.soc_v_field))
 
     def exlude_V_source_data(self):
         """Calculating parts of the VPF source data that depends on visual exclusion, i.e. how agents are excluding

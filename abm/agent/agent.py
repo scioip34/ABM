@@ -337,7 +337,7 @@ class Agent(pygame.sprite.Sprite):
             # # setting back to binary v field
             # soc_proj_f[soc_proj_f > 0] = 1
             # self.soc_v_field = soc_proj_f
-            #raise Exception("Visual exclusion is not supported in the current version!")
+            # raise Exception("Visual exclusion is not supported in the current version!")
             self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
                                                      non_expl_agents=non_expl_agents)
         else:
@@ -363,7 +363,7 @@ class Agent(pygame.sprite.Sprite):
                         if vf["proj_start_ex"] <= vi["proj_end"] <= vf["proj_end_ex"]:
                             vf["proj_start_ex"] = vi["proj_end"]
                         # Total exclusion
-                        if vi["proj_start"]<=vf["proj_start_ex"] and vi["proj_end"]>=vf["proj_end_ex"]:
+                        if vi["proj_start"] <= vf["proj_start_ex"] and vi["proj_end"] >= vf["proj_end_ex"]:
                             vf["proj_start_ex"] = 0
                             vf["proj_end_ex"] = 0
             else:
@@ -478,18 +478,17 @@ class Agent(pygame.sprite.Sprite):
                     else:
                         self.vis_field_source_data[i]["is_social_cue"] = True
 
-            # calculating visual exclusion if requested
-            if self.visual_exclusion:
-                self.exlude_V_source_data()
+        # calculating visual exclusion if requested
+        if self.visual_exclusion:
+            self.exlude_V_source_data()
 
-            if non_expl_agents is not None:
-                # removing non-social cues from the source data after calculating exclusions
-                self.remove_nonsocial_V_source_data()
+        if non_expl_agents is not None:
+            # removing non-social cues from the source data after calculating exclusions
+            self.remove_nonsocial_V_source_data()
 
-            # sorting VPF source data according to visual angle
-            self.rank_V_source_data("vis_angle")
+        # sorting VPF source data according to visual angle
+        self.rank_V_source_data("vis_angle")
 
-        rank = 1
         for k, v in self.vis_field_source_data.items():
             vis_angle = v["vis_angle"]
             phi_target = v["phi_target"]
@@ -509,11 +508,9 @@ class Agent(pygame.sprite.Sprite):
 
             # weighing projection amplitude with rank information if requested
             if not keep_distance_info:
-                v_field[proj_start:proj_end] = 1  # 1 - (rank / (len(self.vis_field_source_data) + 1))
+                v_field[proj_start:proj_end] = 1
             else:
                 v_field[proj_start:proj_end] = (1 - distance / self.vision_range)
-
-            rank += 1
 
         # post_processing and limiting FOV
         v_field_post = np.flip(v_field)

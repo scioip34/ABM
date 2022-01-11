@@ -139,7 +139,6 @@ def F_reloc_LR(vel_now, V_now):
     right_excitation = np.mean(V_now[int(V_field_len/2)::])
     D_leftright = left_excitation - right_excitation
     D_theta_max = 0.5
-    vel = 0
     theta = D_leftright * D_theta_max
     return (v_desired-vel_now), theta
 

@@ -192,9 +192,6 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("exploit")
                 vel, theta = (-self.velocity * 0.08, 0)
             elif self.tr_w() and not self.tr_u():
-                # vel, theta = supcalc.VSWRM_flocking_state_variables(self.velocity,
-                #                                                     np.linspace(-np.pi, np.pi, self.v_field_res),
-                #                                                     self.soc_v_field)
                 vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
                 # WHY ON EARTH DO WE NEED THIS NEGATION?
                 # whatever comes out has a sign that tells if the change in direction should be left or right
@@ -203,8 +200,6 @@ class Agent(pygame.sprite.Sprite):
                 # environment: the opposite way around
                 # theta = -theta
                 self.set_mode("relocate")
-                if self.id == 0:
-                    print(theta)
             elif self.tr_u() and not self.tr_w():
                 self.set_mode("exploit")
                 vel, theta = (-self.velocity * 0.04, 0)

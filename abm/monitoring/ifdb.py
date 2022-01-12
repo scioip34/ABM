@@ -58,7 +58,10 @@ def save_agent_data(ifclient, agents):
         fields[f"velocity_{agent_name}"] = float(agent.velocity)
         fields[f"w_{agent_name}"] = float(agent.w)
         fields[f"u_{agent_name}"] = float(agent.u)
-        fields[f"collectedr_{agent_name}"] = int(agent.collected_r)
+        fields[f"Ipriv_{agent_name}"] = float(agent.I_priv)
+        fields[f"mode_{agent_name}"] = int(mode_to_int(agent.mode))
+        fields[f"collectedr_{agent_name}"] = float(agent.collected_r)
+        fields[f"expl_patch_id_{agent_name}"] = int(agent.exploited_patch_id)
         # only storing visual field edges to compress data and keep real time simulations
         fields[f"vfield_up_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}"
         fields[f"vfield_down_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}"
@@ -73,6 +76,18 @@ def save_agent_data(ifclient, agents):
 
     # write the measurement
     ifclient.write_points(body)
+
+
+def mode_to_int(mode):
+    """converts a string agent mode flag into an int so that it can be saved into a fluxDB"""
+    if mode == "explore":
+        return int(0)
+    elif mode == "exploit":
+        return int(1)
+    elif mode == "relocate":
+        return int(2)
+    elif mode == "collide":
+        return int(3)
 
 
 def save_resource_data(ifclient, resources):

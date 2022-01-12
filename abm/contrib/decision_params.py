@@ -2,7 +2,7 @@
 # Excitatory threshold above which a relocation is initiated
 T_w = 0.5
 # Social excitability
-Eps_w = 2
+Eps_w = 3
 # w decay time constant
 g_w = 0.085
 # Baseline of decision process
@@ -14,7 +14,7 @@ w_max = 1
 # Refractory threshold above which u resets decision w
 T_u = 0.5
 # Sensitivity of u to nearby agents
-Eps_u = 1
+Eps_u = 3
 # Timeconstant of u decay
 g_u = 0.085
 # Baseline of refractory variable u

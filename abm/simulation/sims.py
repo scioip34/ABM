@@ -25,8 +25,6 @@ def notify_agent(agent, status, res_id=None):
     novelty = 1 if novelty > 0 else 0
     agent.novelty[0] = novelty
     agent.novelty[0] = novelty
-    if agent.id==0:
-        print(agent.novelty)
     agent.pool_success = 1  # restarting pooling timer when notified
     if res_id is None:
         agent.exploited_patch_id = -1
@@ -425,7 +423,7 @@ class Simulation:
 
             for j in range(self.agents.sprites()[k].v_field_res):
                 curr_idx = int(j * (stats_width / self.v_field_res))
-                if self.agents.sprites()[k].soc_v_field[j] == 1:
+                if self.agents.sprites()[k].soc_v_field[j] != 0:
                     stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
                 # elif self.agents.sprites()[k].soc_v_field[j] == -1:
                 #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)

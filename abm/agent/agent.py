@@ -604,3 +604,4 @@ class Agent(pygame.sprite.Sprite):
         elif mode == "pool":
             self.overriding_mode = "pool"
             # self.w = 0
+        self.mode = mode

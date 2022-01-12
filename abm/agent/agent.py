@@ -202,7 +202,7 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("relocate")
             elif self.tr_u() and not self.tr_w():
                 self.set_mode("exploit")
-                vel, theta = (-self.velocity * 0.04, 0)
+                vel, theta = (-self.velocity * 0.08, 0)
         else:
             # COLLISION AVOIDANCE IS ACTIVE, let that guide us
             # As we don't have proximity sensor interface as with e.g. real robots we will let

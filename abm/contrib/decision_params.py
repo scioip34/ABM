@@ -1,32 +1,37 @@
+# loading env variables from dotenv file
+from dotenv import dotenv_values
+
+envconf = dotenv_values(".env")
+
 #### W #####
 # Excitatory threshold above which a relocation is initiated
-T_w = 0.5
+T_w = float(envconf.get("DEC_TW", 0.5))
 # Social excitability
-Eps_w = 3
+Eps_w = float(envconf.get("DEC_EPSW", 3))
 # w decay time constant
-g_w = 0.085
+g_w = float(envconf.get("DEC_GW", 0.085))
 # Baseline of decision process
-B_w = 0
+B_w = float(envconf.get("DEC_BW", 0))
 # max value for w
-w_max = 1
+w_max = float(envconf.get("DEC_WMAX", 1))
 
 #### U #####
 # Refractory threshold above which u resets decision w
-T_u = 0.5
+T_u = float(envconf.get("DEC_TU", 0.5))
 # Sensitivity of u to nearby agents
-Eps_u = 3
+Eps_u = float(envconf.get("DEC_EPSU", 3))
 # Timeconstant of u decay
-g_u = 0.085
+g_u = float(envconf.get("DEC_GU", 0.085))
 # Baseline of refractory variable u
-B_u = 0
+B_u = float(envconf.get("DEC_BU", 0))
 # max value for u
-u_max = 1
+u_max = float(envconf.get("DEC_UMAX", 1))
 
 ##### Inhibition ####
-S_wu = 0.25  # strength from w to u
-S_uw = 0.01  # strength from u to w
+S_wu = float(envconf.get("DEC_SWU", 0.25))  # strength from w to u
+S_uw = float(envconf.get("DEC_SUW", 0.01))  # strength from u to w
 
 ##### Calculating Private Information #####
-Tau = 10
-F_N = 2
-F_R = 1
+Tau = int(envconf.get("DEC_TAU", 10))
+F_N = float(envconf.get("DEC_FN", 2))  # novelty multiplier
+F_R = float(envconf.get("DEC_FR", 1))  # quality multiplier

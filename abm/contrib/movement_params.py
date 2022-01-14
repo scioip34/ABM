@@ -13,3 +13,7 @@ exp_theta_max = float(envconf.get("MOV_EXP_TH_MAX", 0.3))
 # Relocation movement parameters
 reloc_des_vel = float(envconf.get("MOV_REL_DES_VEL", 1))
 reloc_theta_max = float(envconf.get("MOV_REL_TH_MAX", 0.5))
+
+# Exploitation params
+# deceleration when a patch is reached
+exp_stop_ratio = float(envconf.get("CONS_STOP_RATIO", 0.08))

@@ -5,7 +5,7 @@ agent.py : including the main classes to create an agent. Supplementary calculat
 
 import pygame
 import numpy as np
-from abm.contrib import colors, decision_params
+from abm.contrib import colors, decision_params, movement_params
 from abm.agent import supcalc
 from collections import OrderedDict
 
@@ -190,7 +190,7 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("explore")
             elif self.tr_w() and self.tr_u():
                 self.set_mode("exploit")
-                vel, theta = (-self.velocity * 0.08, 0)
+                vel, theta = (-self.velocity * movement_params.exp_stop_ratio, 0)
             elif self.tr_w() and not self.tr_u():
                 vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
                 # WHY ON EARTH DO WE NEED THIS NEGATION?
@@ -202,7 +202,7 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("relocate")
             elif self.tr_u() and not self.tr_w():
                 self.set_mode("exploit")
-                vel, theta = (-self.velocity * 0.08, 0)
+                vel, theta = (-self.velocity * movement_params.exp_stop_ratio, 0)
         else:
             # COLLISION AVOIDANCE IS ACTIVE, let that guide us
             # As we don't have proximity sensor interface as with e.g. real robots we will let

@@ -117,11 +117,14 @@ def angle_between(v1, v2):
 
 
 # Random Walk functions
-def random_walk(vel_limit=(-0.2, 0.2), theta_limit=(-0.3, 0.3)):
+def random_walk():
     """Pooling a small orientation and absolute velocity increment from some distribution"""
-    vel = 1  # np.random.uniform(vel_limit[0], vel_limit[1])
-    theta = np.random.uniform(theta_limit[0], theta_limit[1])
-    return vel, theta
+    dvel = np.random.uniform(movement_params.exp_vel_min,
+                            movement_params.exp_vel_max)
+    dtheta = np.random.uniform(movement_params.exp_theta_min,
+                              movement_params.exp_theta_max)
+    return dvel, dtheta
+
 
 def distance(agent1, agent2):
     """Distance between 2 agent class agents in the environment as pixels"""
@@ -133,14 +136,14 @@ def distance(agent1, agent2):
 def F_reloc_LR(vel_now, V_now):
     """Calculating relocation force according to the visual field/source data of the agent according to left-right
     algorithm"""
-    v_desired = 1
+    v_desired = movement_params.reloc_des_vel
     V_field_len = len(V_now)
-    left_excitation = np.mean(V_now[0:int(V_field_len/2)])
-    right_excitation = np.mean(V_now[int(V_field_len/2)::])
+    left_excitation = np.mean(V_now[0:int(V_field_len / 2)])
+    right_excitation = np.mean(V_now[int(V_field_len / 2)::])
     D_leftright = left_excitation - right_excitation
-    D_theta_max = 0.5
+    D_theta_max = movement_params.reloc_theta_max
     theta = D_leftright * D_theta_max
-    return (v_desired-vel_now), theta
+    return (v_desired - vel_now), theta
 
 def F_reloc_WTA(Phi, V_now):
     """Calculating relocation force according to the visual field/source data of the agent according to winner-takes-all

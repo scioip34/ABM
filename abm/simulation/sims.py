@@ -11,6 +11,8 @@ from abm.monitoring import ifdb
 from abm.monitoring import env_saver
 from math import atan2
 
+from datetime import datetime
+
 # loading env variables from dotenv file
 from dotenv import dotenv_values
 
@@ -468,6 +470,9 @@ class Simulation:
         pygame.display.flip()
 
     def start(self):
+
+        start_time = datetime.now()
+
         # Creating N agents in the environment
         self.create_agents()
 
@@ -621,6 +626,10 @@ class Simulation:
             # Moving time forward
             self.clock.tick(self.framerate)
 
+        end_time = datetime.now()
+        print("Total simulation time: ", (end_time-start_time).total_seconds())
+
+
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
@@ -630,4 +639,8 @@ class Simulation:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"
                                 " or turn off CSV saving feature.")
+
+        end_save_time = datetime.now()
+        print("Total saving time:", (end_save_time - end_time).total_seconds())
+
         pygame.quit()

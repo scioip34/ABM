@@ -172,9 +172,7 @@ def save_ifdb_as_csv():
                               ifdbp.INFLUX_DB_NAME)
 
     # create base folder in data
-    root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    save_timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    save_dir = os.path.join(root_abm_dir, ifdbp.SAVE_DIR, save_timestamp)
+    save_dir = ifdbp.TIMESTAMP_SAVE_DIR
     os.makedirs(save_dir, exist_ok=True)
 
     measurement_names = ["agent_data", "simulation_params", "resource_data"]

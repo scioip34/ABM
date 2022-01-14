@@ -3,7 +3,7 @@ calc.py : Supplementary methods and calculations necessary for agents
 """
 import numpy as np
 from scipy import integrate
-from abm.contrib import vswrm
+from abm.contrib import vswrm, movement_params
 
 
 # Functions needed for VSWRM functionality

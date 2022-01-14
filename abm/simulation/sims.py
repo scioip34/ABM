@@ -49,7 +49,7 @@ def refine_ar_overlap_group(collision_group):
 
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
-                 framerate=25, window_pad=30, show_vis_field=False,
+                 framerate=25, window_pad=30, with_visualization=True, show_vis_field=False,
                  pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
@@ -64,6 +64,8 @@ class Simulation:
         :param height: real height of environment (not window size)
         :param framerate: framerate of simulation
         :param window_pad: padding of the environment in simulation window in pixels
+        :param with_visualization: turns visualization on or off. For large batch autmatic simulation should be off so
+            that we can use a higher/maximal framerate.
         :param show_vis_field: (Bool) turn on visualization for visual field of agents
         :param pooling_time: time units for a single pooling events
         :param pooling probability: initial probability of switching to pooling regime for any agent
@@ -102,7 +104,12 @@ class Simulation:
         self.N = N
         self.T = T
         self.t = 0
-        self.framerate_orig = framerate
+        self.with_visualization = with_visualization
+        if self.with_visualization:
+            self.framerate_orig = framerate
+        else:
+            # this is more than what is possible withy pygame so it will use the maximal framerate
+            self.framerate_orig = 200
         self.framerate = self.framerate_orig
         self.is_paused = False
 
@@ -603,7 +610,8 @@ class Simulation:
                     ag.calc_social_V_proj(self.agents)
 
             # Draw environment and agents
-            self.draw_frame(stats, stats_pos)
+            if self.with_visualization:
+                self.draw_frame(stats, stats_pos)
 
             # Monitoring with IFDB
             if self.save_in_ifd:

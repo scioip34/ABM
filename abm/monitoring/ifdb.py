@@ -58,7 +58,10 @@ def save_agent_data(ifclient, agents):
         fields[f"velocity_{agent_name}"] = float(agent.velocity)
         fields[f"w_{agent_name}"] = float(agent.w)
         fields[f"u_{agent_name}"] = float(agent.u)
-        fields[f"collectedr_{agent_name}"] = int(agent.collected_r)
+        fields[f"Ipriv_{agent_name}"] = float(agent.I_priv)
+        fields[f"mode_{agent_name}"] = int(mode_to_int(agent.mode))
+        fields[f"collectedr_{agent_name}"] = float(agent.collected_r)
+        fields[f"expl_patch_id_{agent_name}"] = int(agent.exploited_patch_id)
         # only storing visual field edges to compress data and keep real time simulations
         fields[f"vfield_up_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}"
         fields[f"vfield_down_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}"
@@ -75,19 +78,36 @@ def save_agent_data(ifclient, agents):
     ifclient.write_points(body)
 
 
+def mode_to_int(mode):
+    """converts a string agent mode flag into an int so that it can be saved into a fluxDB"""
+    if mode == "explore":
+        return int(0)
+    elif mode == "exploit":
+        return int(1)
+    elif mode == "relocate":
+        return int(2)
+    elif mode == "collide":
+        return int(3)
+
+
 def save_resource_data(ifclient, resources):
-    """Saving relevant resource patch data into InfluxDB intance"""
+    """Saving relevant resource patch data into InfluxDB instance"""
     measurement_name = "resource_data"
     fields = {}
     for res in resources:
         res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
         # take a timestamp for this measurement
         time = datetime.datetime.utcnow()
-
         # format the data as a single measurement for influx
+        # pos and radius are enough to calculate center
+        # (only important in spatially moving res, otherwise take the first element)
+        # wasteful with resources but generalizable for later with no effort
         fields[f"posx_{res_name}"] = int(res.position[0])
         fields[f"posy_{res_name}"] = int(res.position[1])
+        fields[f"radius_{res_name}"] = int(res.radius)
+
         fields[f"resc_left_{res_name}"] = float(res.resc_left)
+        fields[f"quality_{res_name}"] = float(res.unit_per_timestep)
 
     body = [
         {
@@ -152,9 +172,7 @@ def save_ifdb_as_csv():
                               ifdbp.INFLUX_DB_NAME)
 
     # create base folder in data
-    root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-    save_timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    save_dir = os.path.join(root_abm_dir, ifdbp.SAVE_DIR, save_timestamp)
+    save_dir = ifdbp.TIMESTAMP_SAVE_DIR
     os.makedirs(save_dir, exist_ok=True)
 
     measurement_names = ["agent_data", "simulation_params", "resource_data"]

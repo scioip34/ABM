@@ -8,6 +8,7 @@ from abm.environment.rescource import Rescource
 from abm.contrib import colors, ifdb_params
 from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
+from abm.monitoring import env_saver
 from math import atan2
 
 # loading env variables from dotenv file
@@ -616,6 +617,7 @@ class Simulation:
         if self.save_csv_files:
             if self.save_in_ifd:
                 ifdb.save_ifdb_as_csv()
+                env_saver.save_env_vars([".env"], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"

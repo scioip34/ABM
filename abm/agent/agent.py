@@ -5,7 +5,7 @@ agent.py : including the main classes to create an agent. Supplementary calculat
 
 import pygame
 import numpy as np
-from abm.contrib import colors, decision_params
+from abm.contrib import colors, decision_params, movement_params
 from abm.agent import supcalc
 from collections import OrderedDict
 
@@ -42,10 +42,10 @@ class Agent(pygame.sprite.Sprite):
 
         # Initializing agents with init parameters
         self.exclude_agents_same_patch = patchwise_exclusion
-        self.id = id
+        self.id = id  # saved
         self.radius = radius
-        self.position = np.array(position, dtype=np.float64)
-        self.orientation = orientation
+        self.position = np.array(position, dtype=np.float64) # saved
+        self.orientation = orientation # saved
         self.color = color
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
@@ -56,11 +56,11 @@ class Agent(pygame.sprite.Sprite):
         self.FOV = FOV
 
         # Non-initialisable private attributes
-        self.velocity = 0  # agent absolute velocity
-        self.collected_r = 0  # collected resource unit collected by agent
+        self.velocity = 0  # agent absolute velocity  # saved
+        self.collected_r = 0  # collected resource unit collected by agent  # saved
         self.collected_r_before = 0  # collected resource in the previous time step to monitor patch quality
-        self.exploited_patch_id = -1
-        self.mode = "explore"  # explore, flock, collide, exploit, pool
+        self.exploited_patch_id = -1  # saved
+        self.mode = "explore"  # explore, flock, collide, exploit, pool  # saved
         self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
         # source data to calculate relevant visual field according to the used relocation force algorithm
         self.vis_field_source_data = {}
@@ -81,7 +81,7 @@ class Agent(pygame.sprite.Sprite):
         self.w_max = decision_params.w_max
 
         ## u
-        self.I_priv = 0
+        self.I_priv = 0  # saved
         self.novelty = np.zeros(decision_params.Tau)
         self.S_uw = decision_params.S_uw
         self.T_u = decision_params.T_u
@@ -190,7 +190,7 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("explore")
             elif self.tr_w() and self.tr_u():
                 self.set_mode("exploit")
-                vel, theta = (-self.velocity * 0.08, 0)
+                vel, theta = (-self.velocity * movement_params.exp_stop_ratio, 0)
             elif self.tr_w() and not self.tr_u():
                 vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
                 # WHY ON EARTH DO WE NEED THIS NEGATION?
@@ -202,7 +202,7 @@ class Agent(pygame.sprite.Sprite):
                 self.set_mode("relocate")
             elif self.tr_u() and not self.tr_w():
                 self.set_mode("exploit")
-                vel, theta = (-self.velocity * 0.04, 0)
+                vel, theta = (-self.velocity * movement_params.exp_stop_ratio, 0)
         else:
             # COLLISION AVOIDANCE IS ACTIVE, let that guide us
             # As we don't have proximity sensor interface as with e.g. real robots we will let
@@ -604,3 +604,4 @@ class Agent(pygame.sprite.Sprite):
         elif mode == "pool":
             self.overriding_mode = "pool"
             # self.w = 0
+        self.mode = mode

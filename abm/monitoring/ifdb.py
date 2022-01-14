@@ -91,18 +91,23 @@ def mode_to_int(mode):
 
 
 def save_resource_data(ifclient, resources):
-    """Saving relevant resource patch data into InfluxDB intance"""
+    """Saving relevant resource patch data into InfluxDB instance"""
     measurement_name = "resource_data"
     fields = {}
     for res in resources:
         res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
         # take a timestamp for this measurement
         time = datetime.datetime.utcnow()
-
         # format the data as a single measurement for influx
+        # pos and radius are enough to calculate center
+        # (only important in spatially moving res, otherwise take the first element)
+        # wasteful with resources but generalizable for later with no effort
         fields[f"posx_{res_name}"] = int(res.position[0])
         fields[f"posy_{res_name}"] = int(res.position[1])
+        fields[f"radius_{res_name}"] = int(res.radius)
+
         fields[f"resc_left_{res_name}"] = float(res.resc_left)
+        fields[f"quality_{res_name}"] = float(res.unit_per_timestep)
 
     body = [
         {

@@ -36,13 +36,13 @@ class Rescource(pygame.sprite.Sprite):
 
         # Initializing agents with init parameters
         self.id = id
-        self.radius = radius
-        self.resc_left = self.resc_units
-        self.position = np.array(position, dtype=np.float64)
+        self.radius = radius  # saved
+        self.resc_left = self.resc_units  # saved
+        self.position = np.array(position, dtype=np.float64)  # saved
         self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
         self.color = color
         self.resc_left_color = (color[0]-20, color[1]-20, color[2]-20)
-        self.unit_per_timestep = quality
+        self.unit_per_timestep = quality  # saved
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -69,7 +69,6 @@ class Rescource(pygame.sprite.Sprite):
         self.rect.y = self.position[1]
         font = pygame.font.Font(None, 25)
         text = font.render(f"{self.radius}", True, colors.BLACK)
-        text_rect = text.get_rect(center=self.rect.center)
         self.image.blit(text, (0, 0))
 
     def update(self):

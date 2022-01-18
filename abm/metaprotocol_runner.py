@@ -1,4 +1,5 @@
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol
+from time import sleep
 
 # Defining criterions as parameter ranges (Tunables) and single parameter values (Constants)
 criteria = []

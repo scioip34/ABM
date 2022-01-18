@@ -3,15 +3,14 @@ metarunner.py: including the main classes and methods to programatically ruzn me
      for some parameter search.
 """
 import shutil
-
 import numpy as np
 import os
 import itertools
-from shutil import rmtree
 from dotenv import dotenv_values
 import warnings
 from abm import app
 import glob
+from time import sleep
 
 envconf = dotenv_values("../.env")
 
@@ -102,7 +101,7 @@ class MetaProtocol:
 
         if os.path.isdir(temp_dir):
             warnings.warn("Temprary directory for env files is not empty and will be overwritten")
-            rmtree(temp_dir)
+            shutil.rmtree(temp_dir)
 
         tunable_names = [t.name for t in self.tunables]
         tunable_values = [t.get_values() for t in self.tunables]
@@ -129,10 +128,13 @@ class MetaProtocol:
         backup_default_env = os.path.join(root_abm_dir, ".env-orig")
         if os.path.isfile(default_env_path) and not os.path.isfile(backup_default_env):
             os.rename(default_env_path, backup_default_env)
+        os.remove(default_env_path)
         os.rename(env_path, default_env_path)
         # here we run the simulation
         app.start()
+        os.remove(default_env_path)
         shutil.copyfile(backup_default_env, default_env_path)
+        sleep(2)
 
     def run_protocols(self):
         """Running all remaining protocols in tep env folder"""
@@ -141,5 +143,6 @@ class MetaProtocol:
         temp_dir = os.path.join(root_abm_dir, temp_dir)
 
         glob_pattern = os.path.join(temp_dir, "*.env")
+        print("found files: ", sorted(glob.iglob(glob_pattern)))
         for env_path in sorted(glob.iglob(glob_pattern)):
             self.run_protocol(env_path)

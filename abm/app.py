@@ -3,10 +3,10 @@ from abm.simulation.sims import Simulation
 # loading env variables from dotenv file
 from dotenv import dotenv_values
 import os
-root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-envconf = dotenv_values(os.path.join(root_abm_dir, ".env"))
 
 def start():
+    root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    envconf = dotenv_values(os.path.join(root_abm_dir, ".env"))
     sim = Simulation(N=int(float(envconf["N"])),
                      T=int(float(envconf["T"])),
                      v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),

@@ -6,7 +6,9 @@ metarunner.py: including the main classes and methods to programatically ruzn me
 import numpy as np
 import os
 import itertools
+from shutil import rmtree
 from dotenv import dotenv_values
+import warnings
 
 envconf = dotenv_values("../.env")
 
@@ -49,7 +51,7 @@ class Tunable:
         if min_v is None and values_override is None:
             raise Exception("Neither value borders nor override values have been given to create Tunable!")
         elif min_v is not None and values_override is not None:
-            raise Warning("Both value borders and override values are defined when creating Tunable, using override"
+            warnings.warn("Both value borders and override values are defined when creating Tunable, using override"
                           "values as default!")
 
         self.name = var_name
@@ -94,6 +96,10 @@ class MetaProtocol:
         temp_dir = "abm/data/metaprotocol/temp"
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         temp_dir = os.path.join(root_abm_dir, temp_dir)
+
+        if os.path.isdir(temp_dir):
+            warnings.warn("Temprary directory for env files is not empty and will be overwritten")
+            rmtree(temp_dir)
 
         tunable_names = [t.name for t in self.tunables]
         tunable_values = [t.get_values() for t in self.tunables]

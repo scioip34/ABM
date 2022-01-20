@@ -141,58 +141,58 @@ To parametrize the simulation we use `.env` files. These include the main parame
 <details>
   <summary>Click to see all env variables!</summary>
   
-`N`: number of agents
-`N_RESOURCES`: number of resource patches
-`T`: number of simulation timesteps
-`INIT_FRAMERATE`: default framerate when visualization is on. Irrelevant for when visualization is turned off
-`WITH_VISUALIZATION`: turns visualization on or off
-`VISUAL_FIELD_RESOLUTION`: Resolution/size of agents' visual projection fields in pixels
-`ENV_WIDTH`: width of the environment in pixels
-`ENV_HEIGHT`: height of the environment in pixels
-`RADIUS_AGENT`: radius of agents in pixels
-`RADIUS_RESOURCE`: radius or resource patches in pixels
-`MIN_RESOURCE_PER_PATCH`: minimum contained resource units of a resourca patch. real value will be random uniform between min and max values.
-`MAX_RESOURCE_PER_PATCH`: maximum contained resource units of a resourca patch.
-`REGENERATE_PATCHES`: turns on or off resource patch regeneration upon full depletion.
-`AGENT_CONSUMPTION`: maximum resource consumption of agents (per time unit). Can be lower according to resource patch quality
-`MIN_RESOURCE_QUALITY`: minimum quality of resourca patch. real quality will be random uniform between min and max quality.
-`MAX_RESOURCE_QUALITY`: maximum quality of resource patches.
-`TELEPORT_TO_MIDDLE`: pulling exploiting agents into the middle of the resource patch if turned on.
-`GHOST_WHILE_EXPLOIT`: disabling collisions when the agents exploit when turned on.
-`PATCHWISE_SOCIAL_EXCLUSION`: not taking into consideration agents on the same patch as social cues if turned on.
-`AGENT_FOV`: Field of view of the agents. FOV is symmetric and defined with percent of pi. e.g if 0.6 then fov is (-0.6*pi, 0.6*pi). 1 is full 360 degree vision
-`VISION_RANGE`: visual range in pixels
-`VISUAL_EXCLUSION`: taking visual exclusion into account when calculating visual cues if turned on.
-`SHOW_VISUAL_FIELDS`: always show visual fields of agents when turned on.
-`SHOW_VISUAL_FIELDS_RETURN`: show visual fields of agents when return pressed if turned on
-`SHOW_VISION_RANGE`: visualizing visual range and field of view of agents when turned on.
-`USE_IFDB_LOGGING`: logs simulation data into a connected InfluxDB database when turned on (and InfluxDB is initialized)
-`SAVE_CSV_FILES`: saves data from connected InfluxDB instance as csv files if turned on.
+* `N`: number of agents
+* `N_RESOURCES`: number of resource patches
+* `T`: number of simulation timesteps
+* `INIT_FRAMERATE`: default framerate when visualization is on. Irrelevant for when visualization is turned off
+* `WITH_VISUALIZATION`: turns visualization on or off
+* `VISUAL_FIELD_RESOLUTION`: Resolution/size of agents' visual projection fields in pixels
+* `ENV_WIDTH`: width of the environment in pixels
+* `ENV_HEIGHT`: height of the environment in pixels
+* `RADIUS_AGENT`: radius of agents in pixels
+* `RADIUS_RESOURCE`: radius or resource patches in pixels
+* `MIN_RESOURCE_PER_PATCH`: minimum contained resource units of a resourca patch. real value will be random uniform between min and max values.
+* `MAX_RESOURCE_PER_PATCH`: maximum contained resource units of a resourca patch.
+* `REGENERATE_PATCHES`: turns on or off resource patch regeneration upon full depletion.
+* `AGENT_CONSUMPTION`: maximum resource consumption of agents (per time unit). Can be lower according to resource patch quality
+* `MIN_RESOURCE_QUALITY`: minimum quality of resourca patch. real quality will be random uniform between min and max quality.
+* `MAX_RESOURCE_QUALITY`: maximum quality of resource patches.
+* `TELEPORT_TO_MIDDLE`: pulling exploiting agents into the middle of the resource patch if turned on.
+* `GHOST_WHILE_EXPLOIT`: disabling collisions when the agents exploit when turned on.
+* `PATCHWISE_SOCIAL_EXCLUSION`: not taking into consideration agents on the same patch as social cues if turned on.
+* `AGENT_FOV`: Field of view of the agents. FOV is symmetric and defined with percent of pi. e.g if 0.6 then fov is (-0.6*pi, 0.6*pi). 1 is full 360 degree vision
+* `VISION_RANGE`: visual range in pixels
+* `VISUAL_EXCLUSION`: taking visual exclusion into account when calculating visual cues if turned on.
+* `SHOW_VISUAL_FIELDS`: always show visual fields of agents when turned on.
+* `SHOW_VISUAL_FIELDS_RETURN`: show visual fields of agents when return pressed if turned on
+* `SHOW_VISION_RANGE`: visualizing visual range and field of view of agents when turned on.
+* `USE_IFDB_LOGGING`: logs simulation data into a connected InfluxDB database when turned on (and InfluxDB is initialized)
+* `SAVE_CSV_FILES`: saves data from connected InfluxDB instance as csv files if turned on.
   
  Parameters of the decision process as decsribed in rpopsal:
-`DEC_TW`: time constant of w process
-`DEC_EPSW`: social excitability
-`DEC_GW`: social decay
-`DEC_BW`: social process baseline
-`DEC_WMAX`: social process limit
-`DEC_TU`: time constant of u process
-`DEC_EPSU`: individual excitability
-`DEC_GU`: individual decay
-`DEC_BU`: individual process baseline
-`DEC_UMAX`: individual process limit
-`DEC_SWU`: social to individual inhibition
-`DEC_SUW`: individual to social inhibition
-`DEC_TAU`: novelty time window of private information
-`DEC_FN`: novelty multiplier
-`DEC_FR`: quality multiplier
+* `DEC_TW`: time constant of w process
+* `DEC_EPSW`: social excitability
+* `DEC_GW`: social decay
+* `DEC_BW`: social process baseline
+* `DEC_WMAX`: social process limit
+* `DEC_TU`: time constant of u process
+* `DEC_EPSU`: individual excitability
+* `DEC_GU`: individual decay
+* `DEC_BU`: individual process baseline
+* `DEC_UMAX`: individual process limit
+* `DEC_SWU`: social to individual inhibition
+* `DEC_SUW`: individual to social inhibition
+* `DEC_TAU`: novelty time window of private information
+* `DEC_FN`: novelty multiplier
+* `DEC_FR`: quality multiplier
 
 Movement parameters:
-`MOV_EXP_VEL_MIN`: minimum exploration velocity
-`MOV_EXP_VEL_MAX`: maximum exploration velocity
-`MOV_EXP_TH_MIN`: minimum exploration orientation change (per time unit)
-`MOV_EXP_TH_MAX`: maximum exploration orientation change (per time unit)
-`MOV_REL_DES_VEL`: relocation velocity
-`MOV_REL_TH_MAX`: relocation maximal orientation change
-`CONS_STOP_RATIO`: deceleration during exploitation
+* `MOV_EXP_VEL_MIN`: minimum exploration velocity
+* `MOV_EXP_VEL_MAX`: maximum exploration velocity
+* `MOV_EXP_TH_MIN`: minimum exploration orientation change (per time unit)
+* `MOV_EXP_TH_MAX`: maximum exploration orientation change (per time unit)
+* `MOV_REL_DES_VEL`: relocation velocity
+* `MOV_REL_TH_MAX`: relocation maximal orientation change
+* `CONS_STOP_RATIO`: deceleration during exploitation
   
 </details>

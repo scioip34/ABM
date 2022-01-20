@@ -633,8 +633,11 @@ class Simulation:
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
+                import os
                 ifdb.save_ifdb_as_csv()
-                env_saver.save_env_vars([".env"], "env_params.json")
+                root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+                env_path = os.path.join(root_abm_dir, ".env")
+                env_saver.save_env_vars([env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"

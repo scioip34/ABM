@@ -4,10 +4,10 @@ Agent based model framework to simulate collective foraging with visual private 
 ## Introduction
 This repository hold the code base for the agent based model framework implemented in python/pygame to model and simualate agents collectively foraging in the environment.
 
-## Requirements
+### Requirements
 To run the simulations you will need python 3.8 or 3.9 and pip correspondingly. It is worth to set up a virtualenvironment using pipenv or venv for the project so that your global workspace is not polluted.
 
-## Test
+### Test
 To test the code:
   1. Clone the repo
   2. Activate your virtual environment (pipenv, venv) if you are using one
@@ -16,7 +16,9 @@ To test the code:
 
 ## Install Grafana and InfluxDB
 To monitor individual agents real time and save simulation data (i.e. write simulation data real time and save upon request at the end) we use InfluxDB and a grafana server for visualization. For this purpose you will need to install influx and grafana. If you don't do these steps you are still going to be able to run simulations, but you won't be able to save the resulting data or visualize the agent's parameters. This installation guide is only tested on Ubuntu. If you decide to use another op.system or you don't want to monitor and save simulation data, set `USE_IFDB_LOGGING` and `SAVE_CSV_FILES` parameters in the `.env` file to `0`.
-
+<details>
+  <summary>Click to expand for Grafana and InfluxDB installation details!</summary>
+  
 ### Install Grafana
 1. run the following commands to add the grafana APT repository and install grafana
 ```bash
@@ -89,3 +91,11 @@ influx --execute "show users"
 ### Import Dashboard from repo
 1. Open your grafana app from the browser and on the left menu bar click on the "+" button and the on the "Import button"
 2. Upload the json file (that holds the blueprint of the grafana dashboard) from the repo under the path `abm/data/grafana_dashboard.json`
+  
+</details>
+
+## Details of the package
+In this section the package is detailed for reproducibility and for ease of use. Among others you can read about the main restrictions and assumptions we used in our framework, how one can initialize the package with different parameters through `.env` files, and how the code is structured.
+
+### Code Elements
+The code is structured into a single installable python package called `abm`. Submodules of this package contain the main classes and methods that are used to implement the functionalities of our framework, such as `Agent`, `Resource` and `Simulation` classes among others. A dedicated `contrib` submodule provides parameters for running the simulations in python syntax. These parameters are either initialized from a `.env` file (described later) or they are not to be changed throughout simulations (such as passwords and database details) and therefore fixed in these scripts. Note that although we store passwords as text these are absolutely insensitive as they are only needed locally on a simulation computer to access the database in which we store simulation data (that is by nature not sensitive data).

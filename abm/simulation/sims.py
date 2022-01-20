@@ -10,13 +10,16 @@ from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
 from abm.monitoring import env_saver
 from math import atan2
+import os
 
 from datetime import datetime
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_path = os.path.join(root_abm_dir, ".env")
 
-envconf = dotenv_values(".env")
+envconf = dotenv_values(env_path)
 
 
 def notify_agent(agent, status, res_id=None):

@@ -127,7 +127,7 @@ class MetaProtocol:
         default_env_path = os.path.join(root_abm_dir, ".env")
         backup_default_env = os.path.join(root_abm_dir, ".env-orig")
         if os.path.isfile(default_env_path) and not os.path.isfile(backup_default_env):
-            os.rename(default_env_path, backup_default_env)
+            shutil.copyfile(default_env_path, backup_default_env)
         os.remove(default_env_path)
         os.rename(env_path, default_env_path)
         # here we run the simulation

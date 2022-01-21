@@ -10,6 +10,8 @@ from influxdb import InfluxDBClient, DataFrameClient
 
 import abm.contrib.ifdb_params as ifdbp
 
+import importlib
+
 
 def create_ifclient():
     """Connecting to the InfluxDB defined with environmental variables and returning a client instance.
@@ -164,6 +166,7 @@ def save_simulation_params(ifclient, sim):
 
 def save_ifdb_as_csv():
     """Saving the whole influx database as a single csv file"""
+    importlib.reload(ifdbp)
     # from influxdb_client import InfluxDBClient
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
                               ifdbp.INFLUX_PORT,

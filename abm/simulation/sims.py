@@ -10,13 +10,16 @@ from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
 from abm.monitoring import env_saver
 from math import atan2
+import os
 
 from datetime import datetime
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_path = os.path.join(root_abm_dir, ".env")
 
-envconf = dotenv_values(".env")
+envconf = dotenv_values(env_path)
 
 
 def notify_agent(agent, status, res_id=None):
@@ -633,8 +636,11 @@ class Simulation:
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
+                import os
                 ifdb.save_ifdb_as_csv()
-                env_saver.save_env_vars([".env"], "env_params.json")
+                root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+                env_path = os.path.join(root_abm_dir, ".env")
+                env_saver.save_env_vars([env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"

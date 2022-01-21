@@ -17,7 +17,7 @@ def save_env_vars(env_files_list, json_path):
     a single json file in the data folder"""
     all_env_vars_dict = {}
     for file_path in env_files_list:
-        envconf = dotenv_values(".env")
+        envconf = dotenv_values(file_path)
         for k, v in envconf.items():
             all_env_vars_dict[k] = v
 

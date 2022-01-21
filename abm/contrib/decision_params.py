@@ -32,6 +32,6 @@ S_wu = float(envconf.get("DEC_SWU", 0.25))  # strength from w to u
 S_uw = float(envconf.get("DEC_SUW", 0.01))  # strength from u to w
 
 ##### Calculating Private Information #####
-Tau = int(envconf.get("DEC_TAU", 10))
+Tau = int(float(envconf.get("DEC_TAU", 10)))
 F_N = float(envconf.get("DEC_FN", 2))  # novelty multiplier
 F_R = float(envconf.get("DEC_FR", 1))  # quality multiplier

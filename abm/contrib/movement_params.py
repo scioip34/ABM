@@ -1,8 +1,11 @@
 """parameters for individual exploration, relocation and exploitation movements"""
 
 from dotenv import dotenv_values
+import os
 
-envconf = dotenv_values(".env")
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_path = os.path.join(root_abm_dir, ".env")
+envconf = dotenv_values(env_path)
 
 # Exploration movement parameters
 exp_vel_min = float(envconf.get("MOV_EXP_VEL_MIN", 1))

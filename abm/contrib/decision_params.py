@@ -1,7 +1,10 @@
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+import os
 
-envconf = dotenv_values(".env")
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_path = os.path.join(root_abm_dir, ".env")
+envconf = dotenv_values(env_path)
 
 #### W #####
 # Excitatory threshold above which a relocation is initiated

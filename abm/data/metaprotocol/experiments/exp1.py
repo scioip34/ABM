@@ -87,7 +87,7 @@ criteria_exp3 = [
 mp = MetaProtocol()
 for crit in fixed_criteria:
     mp.add_criterion(crit)
-for crit in criteria_exp1:
+for crit in criteria_exp2:
     mp.add_criterion(crit)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due

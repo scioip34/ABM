@@ -11,7 +11,7 @@ from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol
 fixed_criteria = [
     Constant("USE_IFDB_LOGGING", 1),
     Constant("SAVE_CSV_FILES", 1),
-    Constant("WITH_VISUALIZATION", 0),  # how does the speed scale with N
+    Constant("WITH_VISUALIZATION", 0),  # how does the simulation speed scale with N
     Constant("TELEPORT_TO_MIDDLE", 0),
     Constant("GHOST_WHILE_EXPLOIT", 1),
     Constant("PATCHWISE_SOCIAL_EXCLUSION", 1),
@@ -52,6 +52,7 @@ fixed_criteria = [
     Constant("DEC_GU", 0.085),
     Constant("DEC_TW", 0.5),
     Constant("DEC_TU", 0.5),
+    Constant("T", 5000),
 ]
 
 # Defining decision param
@@ -84,13 +85,14 @@ criteria_exp3 = [
 
 # Creating metaprotocol and add defined criteria
 mp = MetaProtocol()
-for crit in criteria:
+for crit in fixed_criteria:
+    mp.add_criterion(crit)
+for crit in criteria_exp1:
     mp.add_criterion(crit)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due
 # to interruption
 mp.generate_temp_env_files()
-# sleep(2)
 
 # Running the simulations
 mp.run_protocols()

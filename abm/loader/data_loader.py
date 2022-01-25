@@ -126,6 +126,7 @@ class ExperimentLoader:
 
     def __init__(self, experiment_path):
         # save experiment path
+        self.res_summary = None
         self.agent_summary = None
 
         self.all_env = {}
@@ -150,8 +151,7 @@ class ExperimentLoader:
             self.get_changing_variables()
             # summarizinf loaded data into arrays
             self.summarize_data()
-        else:
-            self.reload_summarized_data()
+        self.reload_summarized_data()
 
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
@@ -347,6 +347,15 @@ class ExperimentLoader:
         """Loading an already summarized experiment to spare time and resources"""
         print("Reloading previous experiment summary!")
         self.agent_summary = np.load(os.path.join(self.experiment_path, "summary", "agent_summary.npz"))
+        self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"))
+        with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
+            self.env = json.loads(fixf.read())
+        with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
+            self.varying_params = json.loads(tunedf.read())
+
+        # from pprint import pprint
+        # pprint(self.env)
+        # pprint(self.varying_params)
         print("Experiment loaded")
 
     def get_summary_statistics(self):

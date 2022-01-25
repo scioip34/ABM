@@ -58,8 +58,8 @@ fixed_criteria = [
 # Defining decision param
 criteria_exp1 = [
     Constant("N", 1),
-    Tunable("DEC_EPSW", values_override=[0, 0.01, 0.1, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0, 0.01, 0.1, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSU", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Constant("N_RESOURCES", 5),
@@ -67,8 +67,8 @@ criteria_exp1 = [
 
 criteria_exp2 = [
     Constant("N", 3),
-    Tunable("DEC_EPSW", values_override=[0, 0.01, 0.1, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0, 0.01, 0.1, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSU", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Constant("N_RESOURCES", 5),
@@ -76,15 +76,15 @@ criteria_exp2 = [
 
 criteria_exp3 = [
     Constant("N", 5),
-    Tunable("DEC_EPSW", values_override=[0, 0.01, 0.1, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0, 0.01, 0.1, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSU", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Constant("N_RESOURCES", 5),
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol()
+mp = MetaProtocol(experiment_name="Experiment1_3agents", num_batches=1)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp2:

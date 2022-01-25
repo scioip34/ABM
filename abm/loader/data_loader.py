@@ -98,9 +98,11 @@ class DataLoader:
         self.env_data["USE_IFDB_LOGGING"] = bool(int(self.env_data["USE_IFDB_LOGGING"])),
         self.env_data["SAVE_CSV_FILES"] = bool(int(self.env_data["SAVE_CSV_FILES"]))
 
-        self.agent_data['vfield_up_agent-01']
+        for k, v in self.env_data.items():
+            if isinstance(v, tuple):
+                self.env_data[k] = v[0]
 
-        #Change time-series data types
+        # Change time-series data types
         for k, v in self.agent_data.items():
             if k.find("vfield") == -1:
                 self.agent_data[k] = np.array([float(i) for i in v])
@@ -108,7 +110,7 @@ class DataLoader:
                 self.agent_data[k] = np.array([json.loads(i.replace(" ", ", ")) for i in v], dtype=object)
 
         for k, v in self.resource_data.items():
-                self.resource_data[k] = np.array([float(i) for i in v])
+            self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
 
     def get_loaded_data(self):
         """returning the loaded data upon request"""

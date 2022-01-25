@@ -1,3 +1,3 @@
-from abm.loader.data_loader import LoadedSimulation
+from abm.loader.data_loader import ExperimentLoader
 
-dl = LoadedSimulation("/home/david/Desktop/ABM/abm/data/simulation_data/2022-01-14_13-50-59")
+loaded_experiment = ExperimentLoader("/home/david/Desktop/ABM/abm/data/simulation_data/StandardData3vars")

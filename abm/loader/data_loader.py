@@ -129,18 +129,20 @@ class ExperimentLoader:
         # experiment data after summary
         self.res_summary = None
         self.agent_summary = None
+        self.varying_params = {}
 
+        # raw temporary experiment data
         self.all_env = {}
         self.all_agdata = {}
         self.all_rdata = {}
-        self.varying_params = {}
 
+        # path variables
         self.experiment_path = experiment_path
         self.experiment_name = os.path.basename(experiment_path)
+
         # collecting batch folders
         glob_pattern = os.path.join(experiment_path, "*")
         self.batch_folders = [path for path in glob.iglob(glob_pattern) if path.find("summary") < 0]
-        print(self.batch_folders)
 
         self.num_batches = len(self.batch_folders)
         self.num_runs = None
@@ -150,8 +152,10 @@ class ExperimentLoader:
             self.read_all_data()
             # check parameter variability
             self.get_changing_variables()
-            # summarizinf loaded data into arrays
+            # summarizing loaded data into arrays
             self.summarize_data()
+
+        # reloading previously saved numpy arrays
         self.reload_summarized_data()
 
     def read_all_data(self):

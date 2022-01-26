@@ -10,6 +10,7 @@ from abm.agent.agent import Agent
 from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 class LoadedAgent(Agent):
@@ -124,8 +125,8 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path):
-        # save experiment path
+    def __init__(self, experiment_path, enforce_summary=False):
+        # experiment data after summary
         self.res_summary = None
         self.agent_summary = None
 
@@ -144,8 +145,8 @@ class ExperimentLoader:
         self.num_batches = len(self.batch_folders)
         self.num_runs = None
 
-        # reading data folders
-        if not self.is_already_summarized():
+        # reading and restructuring raw data into numpy arrays
+        if not self.is_already_summarized() or enforce_summary:
             self.read_all_data()
             # check parameter variability
             self.get_changing_variables()

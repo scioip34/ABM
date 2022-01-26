@@ -158,6 +158,8 @@ class ExperimentLoader:
         # reloading previously saved numpy arrays
         self.reload_summarized_data()
 
+        self.mean_collected_resources()
+
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
         print("Reading all experimental data first...")
@@ -358,32 +360,60 @@ class ExperimentLoader:
         with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
             self.varying_params = json.loads(tunedf.read())
 
-        # from pprint import pprint
-        # pprint(self.env)
-        # pprint(self.varying_params)
         print("Experiment loaded")
 
-    def get_summary_statistics(self):
-        print('starting test...')
-        axes = [0, 0.1, 0.5, 1, 2, 5]
-        sumrewarray = np.zeros((len(axes), len(axes)))
-        for i, batch_path in enumerate(self.batch_folders):
-            glob_pattern = os.path.join(batch_path, "*")
-            run_folders = [path for path in glob.iglob(glob_pattern)]
-            for run in run_folders:
-                agent_data, resource_data, env_data = DataLoader(run).get_loaded_data()
-                xloc = axes.index(float(self.env_data['DEC_EPSW']))
-                yloc = axes.index(float(self.env_data['DEC_EPSU']))
-                sumrew = self.collected_sum_reward(agent_data, env_data, change_across=['DEC_EPSW', 'DEC_EPSU'])
-                sumrewarray[xloc, yloc] = sumrew
-            self.summary[f'batch{i}']["sum_collected_reward"] = sumrewarray.tolist()
+    def mean_collected_resources(self):
 
-    def collected_sum_reward(self):
-        sumrew = 0
-        for k, v in self.agent_data.items():
-            if k.find("collectedr_agent") > -1:
-                sumrew += v[-1]
-        return sumrew
+        fig, ax = plt.subplots(1, 1)
+        plt.title("Mean (over agents and batches) total collected resource units")
+        im = ax.imshow(np.mean(np.mean(self.agent_summary["collresource"][:, :, :, :, -1], axis=3), axis=0))
+        ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+        ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+        plt.xlabel(list(self.varying_params.keys())[0])
+        ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
+        ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
+        plt.ylabel(list(self.varying_params.keys())[1])
+
+        num_agents = self.agent_summary["collresource"].shape[3]
+        num_runs = 1
+        for k, v in self.varying_params.items():
+            num_runs *= len(v)
+        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
+                           f"of total collected resource units over the experiments.\n\n" \
+                           f"Varied parameters: {list(self.varying_params.keys())}\n" \
+                           f"Simulation time per run: {self.env['T']}\n" \
+                           f"Number of runs per batch: {num_runs}\n" \
+                           f"Number of resource patches: {self.env['N_RESOURCES']}\n" \
+                           f"Resource Quality and Contained units: " \
+                           f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
+                           f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
+        bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
+        annot = ax.annotate(description_text, xy=(0.1, 0.9), xycoords='axes fraction', horizontalalignment='left',
+                            verticalalignment='top', bbox=bbox_props)
+        annot.set_visible(False)
+
+        fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
+        fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
+
+        print(self.varying_params)
+        plt.show()
+
+
+def show_plot_description(event, fig, annotation_box):
+    """Callback function for matplotlib figure.canvas.mpl_connect function to show some
+    description text for the user about what exactly is on the plot and how the data was
+    summarized"""
+    annotation_box.set_visible(True)
+    fig.canvas.draw_idle()
+
+def hide_plot_description(event, fig, annotation_box):
+    """Callback function for matplotlib figure.canvas.mpl_connect function to show some
+    description text for the user about what exactly is on the plot and how the data was
+    summarized"""
+    annotation_box.set_visible(False)
+    fig.canvas.draw_idle()
+
+
 
 # class LoadedSimulation:
 #     def __init__(self, data_folder_path):

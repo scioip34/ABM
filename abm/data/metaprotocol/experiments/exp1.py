@@ -83,11 +83,20 @@ criteria_exp3 = [
     Constant("N_RESOURCES", 5),
 ]
 
+criteria_exp_changing = [
+    Constant("N", 3),
+    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
+    Tunable("DEC_EPSU", values_override=[0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5, 3]),
+    Constant("DEC_SWU", 0),
+    Constant("DEC_SUW", 0),
+    Constant("N_RESOURCES", 1)
+]
+
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment1_3agents", num_batches=1)
+mp = MetaProtocol(experiment_name="Experiment1", num_batches=3)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
-for crit in criteria_exp2:
+for crit in criteria_exp1:
     mp.add_criterion(crit)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due

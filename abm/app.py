@@ -37,6 +37,7 @@ def start(parallel=False):
                      visual_exclusion=bool(int(float(envconf["VISUAL_EXCLUSION"]))),
                      show_vision_range=bool(int(float(envconf["SHOW_VISION_RANGE"]))),
                      use_ifdb_logging=bool(int(float(envconf["USE_IFDB_LOGGING"]))),
-                     save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"])))
+                     save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
+                     parallel=parallel
                      )
     sim.start()

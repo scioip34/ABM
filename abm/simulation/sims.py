@@ -60,7 +60,8 @@ class Simulation:
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
-                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True):
+                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True,
+                 parallel=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -101,6 +102,8 @@ class Simulation:
         :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
         :param patchwise_exclusion: excluding agents from social v field if they are exploiting the same patch as the
             focal agent
+        :param parallel: if True we request to run the simulation parallely with other simulation instances and hence
+            the influxDB saving will be handled accordingly.
         """
         # Arena parameters
         self.WIDTH = width
@@ -158,13 +161,24 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
+        self.parallel = parallel
+        if self.parallel:
+            self.ifdb_hash = uuid.uuid4().hex
+        else:
+            self.ifdb_hash = ""
         self.save_in_ifd = use_ifdb_logging
         self.save_csv_files = save_csv_files
         if self.save_in_ifd:
             self.ifdb_client = ifdb.create_ifclient()
-            self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
+            if not self.parallel:
+                self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
             self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
-            ifdb.save_simulation_params(self.ifdb_client, self)
+            ifdb.save_simulation_params(self.ifdb_client, self, exp_hash=self.ifdb_hash)
+
+        # by default we parametrize with the .env file in root folder
+        root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+        self.env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+
 
     def proove_resource(self, resource):
         """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
@@ -626,8 +640,8 @@ class Simulation:
 
             # Monitoring with IFDB
             if self.save_in_ifd:
-                ifdb.save_agent_data(self.ifdb_client, self.agents)
-                ifdb.save_resource_data(self.ifdb_client, self.rescources)
+                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash)
+                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash)
 
             # Moving time forward
             self.clock.tick(self.framerate)
@@ -639,11 +653,8 @@ class Simulation:
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
-                import os
-                ifdb.save_ifdb_as_csv()
-                root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-                env_path = os.path.join(root_abm_dir, ".env")
-                env_saver.save_env_vars([env_path], "env_params.json")
+                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash)
+                env_saver.save_env_vars([self.env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"

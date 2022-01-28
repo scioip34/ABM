@@ -65,7 +65,7 @@ sudo systemctl enable influxdb.service
 influx --execute "create database home"
 influx --execute "use home"
 influx --execute "create user monitoring with password 'password' with all privileges"
-influx --execute "grant all privileges on home to grafana"
+influx --execute "grant all privileges on home to monitoring"
 influx --execute "show users"
 ```
 4. after the last command you will see this

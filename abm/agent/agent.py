@@ -8,6 +8,7 @@ import numpy as np
 from abm.contrib import colors, decision_params, movement_params
 from abm.agent import supcalc
 from collections import OrderedDict
+import importlib
 
 
 class Agent(pygame.sprite.Sprite):
@@ -39,6 +40,10 @@ class Agent(pygame.sprite.Sprite):
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
+
+        # in case we run multiple simulations, we reload the env parameters
+        importlib.reload(decision_params)
+        importlib.reload(movement_params)
 
         # Initializing agents with init parameters
         self.exclude_agents_same_patch = patchwise_exclusion

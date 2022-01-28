@@ -12,7 +12,10 @@ from abm import app
 import glob
 from time import sleep
 
-envconf = dotenv_values("../.env")
+
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_path = os.path.join(root_abm_dir, ".env")
+envconf = dotenv_values(env_path)
 
 
 def generate_env_file(env_data, file_name, save_folder):
@@ -82,9 +85,11 @@ class Tunable:
 class MetaProtocol:
     """Metaprotocol class that is initialized with Tunables and runs through the desired simulations accordingly"""
 
-    def __init__(self):
+    def __init__(self, experiment_name=None, num_batches=1):
         self.default_envconf = envconf
         self.tunables = []
+        self.experiment_name = experiment_name
+        self.num_batches = num_batches
 
     def add_criterion(self, criterion):
         """Adding a criterion to the metaprotocol as a Tunable or Constant"""
@@ -109,15 +114,21 @@ class MetaProtocol:
 
         print(f"Generating {len(combos)} env files for simulations")
 
-        for i, combo in enumerate(combos):
-            new_envconf = self.default_envconf.copy()
-            for j, value in enumerate(combo):
-                name = tunable_names[j]
-                if not isinstance(value, bool):
-                    new_envconf[name] = value
+        for nb in range(self.num_batches):
+            for i, combo in enumerate(combos):
+                new_envconf = self.default_envconf.copy()
+                for j, value in enumerate(combo):
+                    name = tunable_names[j]
+                    if not isinstance(value, bool):
+                        new_envconf[name] = value
+                    else:
+                        new_envconf[name] = int(value)
+                if self.experiment_name is None:
+                    new_envconf["SAVE_ROOT_DIR"] = os.path.join("abm/data/simulation_data", "UnknownExp", f"batch_{nb}")
                 else:
-                    new_envconf[name] = int(value)
-            generate_env_file(new_envconf, f"{i}.env", temp_dir)
+                    new_envconf["SAVE_ROOT_DIR"] = os.path.join("abm/data/simulation_data", self.experiment_name, f"batch_{nb}")
+
+                generate_env_file(new_envconf, f"{i}_b{nb}.env", temp_dir)
 
         print(f"Env files generated according to criterions!")
 
@@ -144,5 +155,8 @@ class MetaProtocol:
 
         glob_pattern = os.path.join(temp_dir, "*.env")
         print("found files: ", sorted(glob.iglob(glob_pattern)))
+        i = 1
         for env_path in sorted(glob.iglob(glob_pattern)):
+            print(f"Running protocol {i}/{len(sorted(glob.iglob(glob_pattern)))}")
             self.run_protocol(env_path)
+            i+=1

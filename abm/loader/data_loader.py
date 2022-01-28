@@ -218,8 +218,8 @@ class ExperimentLoader:
         num_agents = int(float(self.all_env[0][0]['N']))
         num_timesteps = int(float(self.all_env[0][0]['T']))
         axes_lens = []
-        for k, v in self.varying_params.items():
-            axes_lens.append(len(v))
+        for k in sorted(list(self.varying_params.keys())):
+            axes_lens.append(len(self.varying_params[k]))
         max_num_resources = self.find_max_num_resources()
 
         print("Summarizing collected agent data")

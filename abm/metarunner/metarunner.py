@@ -155,5 +155,8 @@ class MetaProtocol:
 
         glob_pattern = os.path.join(temp_dir, "*.env")
         print("found files: ", sorted(glob.iglob(glob_pattern)))
+        i = 1
         for env_path in sorted(glob.iglob(glob_pattern)):
+            print(f"Running protocol {i}/{len(sorted(glob.iglob(glob_pattern)))}")
             self.run_protocol(env_path)
+            i+=1

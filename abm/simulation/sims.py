@@ -56,7 +56,7 @@ def refine_ar_overlap_group(collision_group):
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=25, window_pad=30, with_visualization=True, show_vis_field=False,
-                 pooling_time=3, pooling_prob=0.05, agent_radius=10,
+                 show_vis_field_return=False, pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
@@ -73,6 +73,7 @@ class Simulation:
         :param with_visualization: turns visualization on or off. For large batch autmatic simulation should be off so
             that we can use a higher/maximal framerate.
         :param show_vis_field: (Bool) turn on visualization for visual field of agents
+        :param show_vis_field_return: (Bool) sow visual fields when return/enter is pressed
         :param pooling_time: time units for a single pooling events
         :param pooling probability: initial probability of switching to pooling regime for any agent
         :param agent_radius: radius of the agents
@@ -121,6 +122,7 @@ class Simulation:
 
         # Visualization parameters
         self.show_vis_field = show_vis_field
+        self.show_vis_field_return = show_vis_field_return
         self.show_vision_range = show_vision_range
 
         # Agent parameters
@@ -414,7 +416,7 @@ class Simulation:
         """Deciding f the visual field needs to be shown or not"""
         keys = pygame.key.get_pressed()
         if keys[pygame.K_RETURN]:
-            show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
+            show_vis_fields_on_return = self.show_vis_field_return
             if not self.show_vis_field and show_vis_fields_on_return:
                 self.show_vis_field = 1
                 turned_on_vfield = 1

@@ -18,6 +18,7 @@ def start(parallel=False):
                      width=int(float(envconf["ENV_WIDTH"])),
                      height=int(float(envconf["ENV_HEIGHT"])),
                      show_vis_field=bool(int(float(envconf["SHOW_VISUAL_FIELDS"]))),
+                     show_vis_field_return=bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN'])),
                      pooling_time=int(float(envconf["POOLING_TIME"])),
                      pooling_prob=float(envconf["POOLING_PROBABILITY"]),
                      agent_radius=int(float(envconf["RADIUS_AGENT"])),

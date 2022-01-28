@@ -12,9 +12,9 @@ from abm import app
 import glob
 from time import sleep
 
-
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-env_path = os.path.join(root_abm_dir, ".env")
+env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 envconf = dotenv_values(env_path)
 
 

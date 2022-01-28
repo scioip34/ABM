@@ -44,9 +44,12 @@ def pad_to_n_digits(number, n=3):
         return str(number)
 
 
-def save_agent_data(ifclient, agents):
-    """Saving relevant agent data into InfluxDB intance"""
-    measurement_name = "agent_data"
+def save_agent_data(ifclient, agents, exp_hash=""):
+    """Saving relevant agent data into InfluxDB intance
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database
+    """
+    measurement_name = f"agent_data{exp_hash}"
     fields = {}
     for agent in agents:
         agent_name = f"agent-{pad_to_n_digits(agent.id, n=2)}"
@@ -92,9 +95,11 @@ def mode_to_int(mode):
         return int(3)
 
 
-def save_resource_data(ifclient, resources):
-    """Saving relevant resource patch data into InfluxDB instance"""
-    measurement_name = "resource_data"
+def save_resource_data(ifclient, resources, exp_hash=""):
+    """Saving relevant resource patch data into InfluxDB instance
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database"""
+    measurement_name = f"resource_data{exp_hash}"
     fields = {}
     for res in resources:
         res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
@@ -123,10 +128,12 @@ def save_resource_data(ifclient, resources):
     ifclient.write_points(body)
 
 
-def save_simulation_params(ifclient, sim):
-    """saving simulation parameters to IFDB"""
+def save_simulation_params(ifclient, sim, exp_hash=""):
+    """saving simulation parameters to IFDB
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database"""
 
-    measurement_name = "simulation_params"
+    measurement_name = f"simulation_params{exp_hash}"
     fields = {}
 
     # take a timestamp for this measurement
@@ -164,8 +171,10 @@ def save_simulation_params(ifclient, sim):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv():
-    """Saving the whole influx database as a single csv file"""
+def save_ifdb_as_csv(exp_hash=""):
+    """Saving the whole influx database as a single csv file
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database"""
     importlib.reload(ifdbp)
     # from influxdb_client import InfluxDBClient
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
@@ -178,9 +187,13 @@ def save_ifdb_as_csv():
     save_dir = ifdbp.TIMESTAMP_SAVE_DIR
     os.makedirs(save_dir, exist_ok=True)
 
-    measurement_names = ["agent_data", "simulation_params", "resource_data"]
+    measurement_names = [f"agent_data{exp_hash}", f"simulation_params{exp_hash}", f"resource_data{exp_hash}"]
     for mes_name in measurement_names:
         data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=100000)
         ret = data_dict[mes_name]
-        save_file_path = os.path.join(save_dir, f'{mes_name}.csv')
+        if exp_hash != "":
+            filename = mes_name.split(exp_hash)[0]
+        else:
+            filename = mes_name
+        save_file_path = os.path.join(save_dir, f'{filename}.csv')
         ret.to_csv(save_file_path, sep=",", encoding="utf-8")

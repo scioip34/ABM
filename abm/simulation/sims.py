@@ -149,6 +149,8 @@ class Simulation:
         self.max_resc_units = max_resc_perpatch
         self.min_resc_quality = min_resc_quality
         self.max_resc_quality = max_resc_quality
+        if self.max_resc_quality < 0:
+            self.max_resc_quality = self.min_resc_quality
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame

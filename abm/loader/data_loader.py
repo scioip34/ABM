@@ -112,7 +112,7 @@ class DataLoader:
             if k.find("vfield") == -1:
                 self.agent_data[k] = np.array([float(i) for i in v])
             else:
-                self.agent_data[k] = np.array([json.loads(i.replace(" ", ", ")) for i in v], dtype=object)
+                self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace("[ ", "[").replace(" ", ", ") for i in v], dtype=object)
 
         for k, v in self.resource_data.items():
             self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])

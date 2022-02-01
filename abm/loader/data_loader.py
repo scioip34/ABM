@@ -197,9 +197,10 @@ class ExperimentLoader:
                 variability[k].append(v)
 
         for k, v in variability.items():
-            if len(list(set(v))) > 1:
-                self.varying_params[k] = sorted([float(i) for i in list(set(v))])
-                print(f"Found tuned parameter {k} with values {self.varying_params[k]}")
+            if k != "SAVE_ROOT_DIR":
+                if len(list(set(v))) > 1:
+                    self.varying_params[k] = sorted([float(i) for i in list(set(v))])
+                    print(f"Found tuned parameter {k} with values {self.varying_params[k]}")
 
     def find_max_num_resources(self):
         """finding the maximum number of resources in an experiment through batches and runs"""

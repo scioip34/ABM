@@ -38,7 +38,7 @@ class DataLoader:
     parameters
     """
 
-    def __init__(self, data_folder_path):
+    def __init__(self, data_folder_path, only_env=False):
         """
         Initalization method of main DataLoader class
 
@@ -49,6 +49,7 @@ class DataLoader:
                 the given data folder.
         """
         # Initializing DataLoader paths according to convention
+        self.only_env = only_env
         self.data_folder_path = data_folder_path
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
         self.resource_csv_path = os.path.join(self.data_folder_path, "resource_data.csv")
@@ -61,17 +62,19 @@ class DataLoader:
 
     def load_files(self):
         """loading agent and resource data files into memory and make post-processing on time series"""
-        self.agent_data = dh.load_csv_file(self.agent_csv_path)
-        self.resource_data = dh.load_csv_file(self.resource_csv_path)
+        if not self.only_env:
+            self.agent_data = dh.load_csv_file(self.agent_csv_path)
+            self.resource_data = dh.load_csv_file(self.resource_csv_path)
         with open(self.env_json_path, "r") as file:
             self.env_data = json.load(file)
 
     def preprocess_data(self):
         """preprocessing loaded data structures"""
-        time_len = len(self.agent_data["t"])
-        new_time = [i for i in range(time_len)]
-        self.agent_data["t"] = new_time
-        self.resource_data["t"] = new_time
+        if not self.only_env:
+            time_len = len(self.agent_data["t"])
+            new_time = [i for i in range(time_len)]
+            self.agent_data["t"] = new_time
+            self.resource_data["t"] = new_time
 
         # Change env data types
         self.env_data["N"] = int(self.env_data["N"]),
@@ -108,14 +111,15 @@ class DataLoader:
                 self.env_data[k] = v[0]
 
         # Change time-series data types
-        for k, v in self.agent_data.items():
-            if k.find("vfield") == -1:
-                self.agent_data[k] = np.array([float(i) for i in v])
-            else:
-                self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace("[ ", "[").replace(" ", ", ") for i in v], dtype=object)
+        if not self.only_env:
+            for k, v in self.agent_data.items():
+                if k.find("vfield") == -1:
+                    self.agent_data[k] = np.array([float(i) for i in v])
+                else:
+                    self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace("[ ", "[").replace(" ", ", ") for i in v], dtype=object)
 
-        for k, v in self.resource_data.items():
-            self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
+            for k, v in self.resource_data.items():
+                self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
 
     def get_loaded_data(self):
         """returning the loaded data upon request"""

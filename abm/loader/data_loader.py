@@ -135,11 +135,6 @@ class ExperimentLoader:
         self.agent_summary = None
         self.varying_params = {}
 
-        # raw temporary experiment data
-        self.all_env = {}
-        self.all_agdata = {}
-        self.all_rdata = {}
-
         # path variables
         self.experiment_path = experiment_path
         self.experiment_name = os.path.basename(experiment_path)
@@ -153,11 +148,10 @@ class ExperimentLoader:
 
         # reading and restructuring raw data into numpy arrays
         if not self.is_already_summarized() or enforce_summary:
-            self.read_all_data()
             # check parameter variability
             self.get_changing_variables()
-            # summarizing loaded data into arrays
-            self.summarize_data()
+            # load and summarize data run by run
+            self.read_all_data()
 
         # reloading previously saved numpy arrays
         self.reload_summarized_data()
@@ -167,149 +161,111 @@ class ExperimentLoader:
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
         print("Reading all experimental data first...")
+
+        max_r_in_runs = 0
         for i, batch_path in enumerate(self.batch_folders):
             glob_pattern = os.path.join(batch_path, "*")
             run_folders = [path for path in glob.iglob(glob_pattern)]
             if i == 0:
                 self.num_runs = len(run_folders)
-            batch_env = {}
-            batch_agdata = {}
-            batch_rdata = {}
+
             for j, run in enumerate(run_folders):
-                print(f"Reading batch {i}, run {j}")
+                print(f"Reading agent data batch {i}, run {j}")
                 agent_data, res_data, env_data = DataLoader(run).get_loaded_data()
-                batch_env[j] = env_data
-                batch_agdata[j] = agent_data
-                batch_rdata[j] = res_data
-            self.all_env[i] = batch_env
-            self.all_agdata[i] = batch_agdata
-            self.all_rdata[i] = batch_rdata
-        print("Datastructures initialized according to loaded data!")
 
-    def get_changing_variables(self):
-        """Collecting env variables along which the initialization has changed across runs"""
-        print("Checking for changing parameters along runs...")
-        base_keys = list(self.all_env[0][0].keys())
-        variability = {}
+                # finding out max depleted patches for next loop
+                num_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+                if num_in_run > max_r_in_runs:
+                    max_r_in_runs = num_in_run
 
-        for base_key in base_keys:
-            variability[base_key] = []
+                if i == 0 and j == 0:
+                    num_agents = int(float(env_data['N']))
+                    num_timesteps = int(float(env_data['T']))
+                    axes_lens = []
+                    for k in sorted(list(self.varying_params.keys())):
+                        axes_lens.append(len(self.varying_params[k]))
+                    print("Initialize data arrays for agent data")
+                    # num_batches x criterion1 x criterion2 x ... x criterionN x num_agents x time
+                    # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
+                    posx_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    posy_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    rew_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    ori_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    vel_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    w_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    u_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    Ip_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    mode_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    expl_patch_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
 
-        # here we assume that parameter ranges do not change from batch to batch
-        for ke, env in self.all_env[0].items():
-            for k, v in env.items():
-                variability[k].append(v)
-
-        for k, v in variability.items():
-            if k != "SAVE_ROOT_DIR":
-                if len(list(set(v))) > 1:
-                    self.varying_params[k] = sorted([float(i) for i in list(set(v))])
-                    print(f"Found tuned parameter {k} with values {self.varying_params[k]}")
-
-    def find_max_num_resources(self):
-        """finding the maximum number of resources in an experiment through batches and runs"""
-        max_num = 0
-        for i in range(self.num_batches):
-            for j in range(self.num_runs):
-                num_in_run = len([k for k in list(self.all_rdata[i][j].keys()) if k.find("posx_res") > -1])
-                if num_in_run > max_num:
-                    max_num = num_in_run
-        return max_num
-
-    def summarize_data(self):
-        """summarizing loaded data into numpy arrays and metadata"""
-
-        print("summarizing experiment data into NumPy arrays...")
-        num_agents = int(float(self.all_env[0][0]['N']))
-        num_timesteps = int(float(self.all_env[0][0]['T']))
-        axes_lens = []
-        for k in sorted(list(self.varying_params.keys())):
-            axes_lens.append(len(self.varying_params[k]))
-        max_num_resources = self.find_max_num_resources()
-
-        print("Summarizing collected agent data")
-        # num_batches x criterion1 x criterion2 x ... x criterionN x num_agents x time
-        # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
-        posx_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        posy_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        rew_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        ori_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        vel_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        w_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        u_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        Ip_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        mode_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-        expl_patch_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-
-        for i in range(self.num_batches):
-            print(f"*", end="")
-            for j in range(self.num_runs):
-                print(f".", end="")
-                # indexing along the varying axes happens according to the extracted varying parameters
-                index = [self.varying_params[k].index(float(self.all_env[i][j][k])) for k in
+                index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
                 for ai in range(num_agents):
                     ind = (i,) + tuple(index) + (ai,)
-                    posx_array[ind] = self.all_agdata[i][j][f'posx_agent-{pad_to_n_digits(ai, n=2)}']
-                    posy_array[ind] = self.all_agdata[i][j][f'posy_agent-{pad_to_n_digits(ai, n=2)}']
-                    rew_array[ind] = self.all_agdata[i][j][f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
-                    ori_array[ind] = self.all_agdata[i][j][f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
-                    vel_array[ind] = self.all_agdata[i][j][f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
-                    w_array[ind] = self.all_agdata[i][j][f'w_agent-{pad_to_n_digits(ai, n=2)}']
-                    u_array[ind] = self.all_agdata[i][j][f'u_agent-{pad_to_n_digits(ai, n=2)}']
-                    Ip_array[ind] = self.all_agdata[i][j][f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
-                    mode_array[ind] = self.all_agdata[i][j][f'mode_agent-{pad_to_n_digits(ai, n=2)}']
-                    expl_patch_array[ind] = self.all_agdata[i][j][f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+                    posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
+                    posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']
+                    rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
+                    ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
+                    vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
+                    w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
+                    u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
+                    Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
+                    mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
+                    expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
 
-                # remove dict data from memory
-                self.all_agdata[i][j] = None
+        for i, batch_path in enumerate(self.batch_folders):
+            glob_pattern = os.path.join(batch_path, "*")
 
-        print("\nSummarizing collected resource data")
-        # num_batches x criterion1 x criterion2 x ... x criterionN x max_num_resources x time
-        # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
-        # where the value is -1 the resource does not exist in time
-        r_posx_array = -1 * np.ones((self.num_batches, *axes_lens, max_num_resources, num_timesteps))
-        r_posy_array = -1 + np.ones((self.num_batches, *axes_lens, max_num_resources, num_timesteps))
-        r_qual_array = -1 + np.ones((self.num_batches, *axes_lens, max_num_resources, num_timesteps))
-        r_rescleft_array = -1 + np.ones((self.num_batches, *axes_lens, max_num_resources, num_timesteps))
+            run_folders = [path for path in glob.iglob(glob_pattern)]
+            if i == 0:
+                self.num_runs = len(run_folders)
 
-        for i in range(self.num_batches):
-            print(f"*", end="")
-            for j in range(self.num_runs):
-                print(f".", end="")
-                # indexing along the varying axes happens according to the extracted varying parameters
-                index = [self.varying_params[k].index(float(self.all_env[i][j][k])) for k in
-                         sorted(list(self.varying_params.keys()))]
-                num_res_in_run = len([k for k in list(self.all_rdata[i][j].keys()) if k.find("posx_res") > -1])
-                for ri in range(num_res_in_run):
-                    ind = (i,) + tuple(index) + (ri,)
-                    data = self.all_rdata[i][j][f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_posx_array[ind] = data
+            for j, run in enumerate(run_folders):
+                print(f"Reading resource data batch {i}, run {j}")
+                _, res_data, env_data = DataLoader(run).get_loaded_data()
 
-                    data = self.all_rdata[i][j][f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_posy_array[ind] = data
+                if i == 0 and j == 0:
+                    print("\nInitializing resource data structures")
+                    # num_batches x criterion1 x criterion2 x ... x criterionN x max_num_resources x time
+                    # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
+                    # where the value is -1 the resource does not exist in time
+                    r_posx_array = -1 * np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
-                    data = self.all_rdata[i][j][f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_qual_array[ind] = data
+                    index = [self.varying_params[k].index(float(env_data[k])) for k in
+                             sorted(list(self.varying_params.keys()))]
+                    num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
 
-                    data = self.all_rdata[i][j][f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_rescleft_array[ind] = data
+                    for ri in range(num_res_in_run):
+                        ind = (i,) + tuple(index) + (ri,)
+                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = [float(d) if d != "" else -1.0 for d in data]
+                        # clean empty strings as -1s
+                        r_posx_array[ind] = data
 
-            # remove dict data from memory
-            self.all_rdata[i][j] = None
+                        data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = [float(d) if d != "" else -1.0 for d in data]
+                        # clean empty strings as -1s
+                        r_posy_array[ind] = data
 
+                        data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = [float(d) if d != "" else -1.0 for d in data]
+                        # clean empty strings as -1s
+                        r_qual_array[ind] = data
+
+                        data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = [float(d) if d != "" else -1.0 for d in data]
+                        # clean empty strings as -1s
+                        r_rescleft_array[ind] = data
+
+        print("Datastructures initialized according to loaded data!")
+        print("Saving summary..." )
         summary_path = os.path.join(self.experiment_path, "summary")
         os.makedirs(summary_path, exist_ok=True)
         np.savez(os.path.join(summary_path, "agent_summary.npz"),
@@ -331,7 +287,7 @@ class ExperimentLoader:
                  resc_left=r_rescleft_array)
 
         with open(os.path.join(summary_path, "fixed_env.json"), "w") as fenvf:
-            fixed_env = self.all_env[0][0]
+            fixed_env = env_data
             for k, v in fixed_env.items():
                 if k in list(self.varying_params.keys()):
                     fixed_env[k] = "----TUNED----"
@@ -340,11 +296,39 @@ class ExperimentLoader:
         with open(os.path.join(summary_path, "tuned_env.json"), "w") as tenvf:
             json.dump(self.varying_params, tenvf)
 
-        # cleaning initial data structures from memory
-        self.all_agdata = None
-        self.all_rdata = None
-        self.all_env = None
-        print("\nData summarized and saved under experiment folder!")
+        print("Summary saved!")
+
+    def get_changing_variables(self):
+        """Collecting env variables along which the initialization has changed across runs"""
+        print("Checking for changing parameters along runs...")
+        all_env = {}
+        for i, batch_path in enumerate(self.batch_folders):
+            all_env[i] = {}
+            glob_pattern = os.path.join(batch_path, "*")
+            run_folders = [path for path in glob.iglob(glob_pattern)]
+            if i == 0:
+                self.num_runs = len(run_folders)
+
+            for j, run in enumerate(run_folders):
+                _, _, env_data = DataLoader(run, only_env=True).get_loaded_data()
+                all_env[i][j] = env_data
+
+        base_keys = list(all_env[0][0].keys())
+        variability = {}
+
+        for base_key in base_keys:
+            variability[base_key] = []
+
+        # here we assume that parameter ranges do not change from batch to batch
+        for ke, env in all_env[0].items():
+            for k, v in env.items():
+                variability[k].append(v)
+
+        for k, v in variability.items():
+            if k != "SAVE_ROOT_DIR":
+                if len(list(set(v))) > 1:
+                    self.varying_params[k] = sorted([float(i) for i in list(set(v))])
+                    print(f"Found tuned parameter {k} with values {self.varying_params[k]}")
 
     def is_already_summarized(self):
         """Deciding if the experiment was laready summarized before"""

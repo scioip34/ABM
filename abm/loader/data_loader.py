@@ -179,7 +179,11 @@ class ExperimentLoader:
                     max_r_in_runs = num_in_run
 
                 if i == 0 and j == 0:
-                    num_agents = int(float(env_data['N']))
+                    if "N" not in list(self.varying_params.keys()):
+                        num_agents = int(float(env_data['N']))
+                    else:
+                        print("Detected varying group size across runs, will use maximum agent number...")
+                        num_agents = int(np.max(self.varying_params["N"]))
                     num_timesteps = int(float(env_data['T']))
                     axes_lens = []
                     for k in sorted(list(self.varying_params.keys())):
@@ -200,7 +204,7 @@ class ExperimentLoader:
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
-                for ai in range(num_agents):
+                for ai in range(int(float(env_data["N"]))):
                     ind = (i,) + tuple(index) + (ai,)
                     posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
                     posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']

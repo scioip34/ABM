@@ -6,7 +6,7 @@ data_loader.py : including the main classes to load previously saved data (csv+j
 import json
 import os
 import glob
-from abm.agent.agent import Agent
+from abm.agent.agent import Agent, supcalc
 from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
@@ -134,6 +134,7 @@ class ExperimentLoader:
         self.res_summary = None
         self.agent_summary = None
         self.varying_params = {}
+        self.distances = None
 
         # path variables
         self.experiment_path = experiment_path
@@ -428,6 +429,21 @@ class ExperimentLoader:
 
         print(self.varying_params)
         plt.show()
+
+    def get_travelled_distances(self):
+        """calculating the travelled distance for all agents in all runs and batches in an experiment.
+        Returns a numpy array that has dimensions of
+            (batches, *[var_1, var_2, ..., var_N], agents) where each value is the total distance travelled
+            in a specific batch for a specific parameter combination (var1...N) and agent"""
+        if self.distances is None:
+            posx = self.agent_summary["posx"]
+            posy = self.agent_summary["posy"]
+            T = posx.shape[-1]
+            x1s = posx[..., 1::]
+            y1s = posy[..., 1::]
+            x2s = posx[..., 0:T-1]
+            y2s = posy[..., 0:T-1]
+            self.distances = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
 
 
 def show_plot_description(event, fig, annotation_box):

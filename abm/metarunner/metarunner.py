@@ -85,11 +85,12 @@ class Tunable:
 class MetaProtocol:
     """Metaprotocol class that is initialized with Tunables and runs through the desired simulations accordingly"""
 
-    def __init__(self, experiment_name=None, num_batches=1, parallel=False):
+    def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None):
         self.default_envconf = envconf
         self.tunables = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
+        self.description = description
         # in case we want to run multiple experiemnts in different terminals set this to True
         if experiment_name is None and parallel==True:
             raise Exception("Can't run multiple experiments parallely without experiment name!")
@@ -138,6 +139,18 @@ class MetaProtocol:
 
         print(f"Env files generated according to criterions!")
 
+    def save_description(self):
+        """Saving description text as txt file in the experiment folder"""
+        if self.description is not None:
+            if self.experiment_name is None:
+                experiment_folder = os.path.join("abm/data/simulation_data", "UnknownExp")
+            else:
+                experiment_folder = os.path.join("abm/data/simulation_data", self.experiment_name)
+            description_path = os.path.join(experiment_folder, "README.txt")
+            os.makedirs(experiment_folder, exist_ok=True)
+            with open(description_path, "w") as readmefile:
+                readmefile.write(self.description)
+
     def run_protocol(self, env_path):
         """Runs a single simulation run according to an env file given by the env path"""
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -155,6 +168,8 @@ class MetaProtocol:
 
     def run_protocols(self):
         """Running all remaining protocols in tep env folder"""
+        self.save_description()
+
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         temp_dir = os.path.join(root_abm_dir, self.temp_dir)
 

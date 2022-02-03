@@ -131,6 +131,9 @@ class ExperimentLoader:
 
     def __init__(self, experiment_path, enforce_summary=False):
         # experiment data after summary
+        self.efficiency = None
+        self.eff_std = None
+        self.mean_efficiency = None
         self.res_summary = None
         self.agent_summary = None
         self.varying_params = {}
@@ -156,8 +159,9 @@ class ExperimentLoader:
 
         # reloading previously saved numpy arrays
         self.reload_summarized_data()
-        self.mean_relocation_time()
-        self.mean_collected_resources()
+        self.plot_search_efficiency()
+        self.plot_mean_relocation_time()
+        self.plot_mean_travelled_distances()
 
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
@@ -356,27 +360,69 @@ class ExperimentLoader:
 
         print("Experiment loaded")
 
-    def mean_collected_resources(self):
+    def calculate_search_efficiency(self):
+        """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
+        with the travelled distance"""
+        if self.mean_efficiency is None:
+            print("Calculating mean search efficiency...")
+            self.get_travelled_distances()
+
+            batch_dim = 0
+            num_var_params = len(list(self.varying_params.keys()))
+            agent_dim = batch_dim + num_var_params + 1
+            time_dim = agent_dim + 1
+
+            collres = self.agent_summary["collresource"][..., -1]
+            sum_distances = np.sum(self.distances, axis=time_dim)
+            self.efficiency = collres / sum_distances
+
+            self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+
+    def plot_search_efficiency(self):
+        """Method to plot search efficiency irrespectively of how many parameters have been tuned during the
+        experiments."""
+
+        self.calculate_search_efficiency()
 
         fig, ax = plt.subplots(1, 1)
-        plt.title("Mean (over agents and batches) total collected resource units")
-        im = ax.imshow(np.mean(np.mean(self.agent_summary["collresource"][:, :, :, :, -1], axis=3), axis=0))
-        ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-        ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-        plt.xlabel(list(self.varying_params.keys())[0])
-        ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
-        ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
-        plt.ylabel(list(self.varying_params.keys())[1])
+        plt.title("Search Efficiency")
 
-        num_agents = self.agent_summary["collresource"].shape[3]
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            plt.plot(self.mean_efficiency)
+            plt.plot(self.mean_efficiency + self.eff_std)
+            plt.plot(self.mean_efficiency - self.eff_std)
+            print(self.efficiency.shape)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+        elif num_var_params == 2:
+            im = ax.imshow(self.mean_efficiency)
+
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
+            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
+            plt.ylabel(list(self.varying_params.keys())[1])
+
+        num_agents = self.agent_summary["collresource"].shape[agent_dim]
         num_runs = 1
         for k, v in self.varying_params.items():
             num_runs *= len(v)
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
-                           f"of total collected resource units over the experiments.\n\n" \
+                           f"of total collected resource units normalized with the mean total\n" \
+                           f"distance travelled by agents over the experiments.\n" \
                            f"Varied parameters: {list(self.varying_params.keys())}\n" \
                            f"Simulation time per run: {self.env['T']}\n" \
-                           f"Number of runs per batch: {num_runs}\n" \
+                           f"Number of par.combinations per batch: {num_runs}\n" \
                            f"Number of resource patches: {self.env['N_RESOURCES']}\n" \
                            f"Resource Quality and Contained units: " \
                            f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
@@ -392,29 +438,107 @@ class ExperimentLoader:
         print(self.varying_params)
         plt.show()
 
-    def mean_relocation_time(self):
+    def plot_mean_relocation_time(self):
+        """Plotting the mean relative relocation time over agents and batches"""
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
 
         fig, ax = plt.subplots(1, 1)
         plt.title("Mean (over agents and batches) relative relocation time")
-        print(np.mean(self.agent_summary["mode"]==2))
-        metric = np.mean(np.mean(np.mean((self.agent_summary["mode"] == 2).astype(int), axis=4), axis=3), axis=0)
-        im = ax.imshow(metric)
-        ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-        ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-        plt.xlabel(list(self.varying_params.keys())[0])
-        ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
-        ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
-        plt.ylabel(list(self.varying_params.keys())[1])
 
-        num_agents = self.agent_summary["collresource"].shape[3]
+        rel_reloc_matrix = np.mean((self.agent_summary["mode"] == 2).astype(int), axis=time_dim)
+        mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+        std_rel_reloc =  np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+
+        if num_var_params == 1:
+            plt.plot(mean_rel_reloc)
+            plt.plot(mean_rel_reloc + std_rel_reloc)
+            plt.plot(mean_rel_reloc - std_rel_reloc)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(rel_reloc_matrix, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+        elif num_var_params == 2:
+            im = ax.imshow(mean_rel_reloc)
+
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
+            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
+            plt.ylabel(list(self.varying_params.keys())[1])
+
+        num_agents = self.agent_summary["collresource"].shape[agent_dim]
         num_runs = 1
         for k, v in self.varying_params.items():
             num_runs *= len(v)
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
-                           f"of total collected resource units over the experiments.\n\n" \
+                           f"of relative relocation time, i.e. ratio of time spent in relocation\n" \
                            f"Varied parameters: {list(self.varying_params.keys())}\n" \
                            f"Simulation time per run: {self.env['T']}\n" \
-                           f"Number of runs per batch: {num_runs}\n" \
+                           f"Number of par.combinations per batch: {num_runs}\n" \
+                           f"Number of resource patches: {self.env['N_RESOURCES']}\n" \
+                           f"Resource Quality and Contained units: " \
+                           f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
+                           f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
+        bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
+        annot = ax.annotate(description_text, xy=(0.1, 0.9), xycoords='axes fraction', horizontalalignment='left',
+                            verticalalignment='top', bbox=bbox_props)
+        annot.set_visible(False)
+
+        fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
+        fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
+
+        print(self.varying_params)
+        plt.show()
+
+    def plot_mean_travelled_distances(self):
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        fig, ax = plt.subplots(1, 1)
+        plt.title("Mean (over agents and batches) travelled distance")
+        self.get_travelled_distances()
+
+        sum_distances = np.sum(self.distances, axis=time_dim)
+        mean_dist = np.mean(np.mean(sum_distances, axis=agent_dim), axis=batch_dim)
+        std_dist = np.std(np.mean(sum_distances, axis=agent_dim), axis=batch_dim)
+
+        if num_var_params == 1:
+            plt.plot(mean_dist)
+            plt.plot(mean_dist + std_dist)
+            plt.plot(mean_dist - std_dist)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(sum_distances, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+        elif num_var_params == 2:
+            im = ax.imshow(mean_dist)
+
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
+            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
+            plt.ylabel(list(self.varying_params.keys())[1])
+
+        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_runs = 1
+        for k, v in self.varying_params.items():
+            num_runs *= len(v)
+        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
+                           f"travelled distance\n" \
+                           f"Varied parameters: {list(self.varying_params.keys())}\n" \
+                           f"Simulation time per run: {self.env['T']}\n" \
+                           f"Number of par.combinations per batch: {num_runs}\n" \
                            f"Number of resource patches: {self.env['N_RESOURCES']}\n" \
                            f"Resource Quality and Contained units: " \
                            f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \

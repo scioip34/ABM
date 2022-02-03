@@ -414,29 +414,10 @@ class ExperimentLoader:
             plt.ylabel(list(self.varying_params.keys())[1])
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
-        num_runs = 1
-        for k, v in self.varying_params.items():
-            num_runs *= len(v)
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of total collected resource units normalized with the mean total\n" \
-                           f"distance travelled by agents over the experiments.\n" \
-                           f"Varied parameters: {list(self.varying_params.keys())}\n" \
-                           f"Simulation time per run: {self.env['T']}\n" \
-                           f"Number of par.combinations per batch: {num_runs}\n" \
-                           f"Number of resource patches: {self.env['N_RESOURCES']}\n" \
-                           f"Resource Quality and Contained units: " \
-                           f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
-                           f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
-        bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
-        annot = ax.annotate(description_text, xy=(0.1, 0.9), xycoords='axes fraction', horizontalalignment='left',
-                            verticalalignment='top', bbox=bbox_props)
-        annot.set_visible(False)
-
-        fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
-        fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
-
-        print(self.varying_params)
-        plt.show()
+                           f"distance travelled by agents over the experiments.\n"
+        self.add_plot_interaction(description_text, fig, ax, show=True)
 
     def plot_mean_relocation_time(self):
         """Plotting the mean relative relocation time over agents and batches"""
@@ -473,28 +454,9 @@ class ExperimentLoader:
             plt.ylabel(list(self.varying_params.keys())[1])
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
-        num_runs = 1
-        for k, v in self.varying_params.items():
-            num_runs *= len(v)
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
-                           f"of relative relocation time, i.e. ratio of time spent in relocation\n" \
-                           f"Varied parameters: {list(self.varying_params.keys())}\n" \
-                           f"Simulation time per run: {self.env['T']}\n" \
-                           f"Number of par.combinations per batch: {num_runs}\n" \
-                           f"Number of resource patches: {self.env['N_RESOURCES']}\n" \
-                           f"Resource Quality and Contained units: " \
-                           f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
-                           f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
-        bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
-        annot = ax.annotate(description_text, xy=(0.1, 0.9), xycoords='axes fraction', horizontalalignment='left',
-                            verticalalignment='top', bbox=bbox_props)
-        annot.set_visible(False)
-
-        fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
-        fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
-
-        print(self.varying_params)
-        plt.show()
+                           f"of relative relocation time, i.e. ratio of time spent in relocation\n"
+        self.add_plot_interaction(description_text, fig, ax, show=True)
 
     def plot_mean_travelled_distances(self):
 
@@ -531,11 +493,16 @@ class ExperimentLoader:
             plt.ylabel(list(self.varying_params.keys())[1])
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
+                           f"travelled distance\n"
+        self.add_plot_interaction(description_text, fig, ax, show=True)
+
+    def add_plot_interaction(self, description_text, fig, ax, show=True):
+        """Adding plot description to figure with interaction and showing if requested"""
         num_runs = 1
         for k, v in self.varying_params.items():
             num_runs *= len(v)
-        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
-                           f"travelled distance\n" \
+        description_text = f"{description_text}" \
                            f"Varied parameters: {list(self.varying_params.keys())}\n" \
                            f"Simulation time per run: {self.env['T']}\n" \
                            f"Number of par.combinations per batch: {num_runs}\n" \
@@ -544,15 +511,16 @@ class ExperimentLoader:
                            f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
                            f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
         bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
-        annot = ax.annotate(description_text, xy=(0.1, 0.9), xycoords='axes fraction', horizontalalignment='left',
+        annot = ax.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction', horizontalalignment='left',
                             verticalalignment='top', bbox=bbox_props)
         annot.set_visible(False)
 
         fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
         fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
 
-        print(self.varying_params)
-        plt.show()
+        if show:
+            plt.show()
+
 
     def get_travelled_distances(self):
         """calculating the travelled distance for all agents in all runs and batches in an experiment.

@@ -131,6 +131,7 @@ class ExperimentLoader:
 
     def __init__(self, experiment_path, enforce_summary=False):
         # experiment data after summary
+        self.description = None
         self.efficiency = None
         self.eff_std = None
         self.mean_efficiency = None
@@ -357,7 +358,15 @@ class ExperimentLoader:
             self.env = json.loads(fixf.read())
         with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
             self.varying_params = json.loads(tunedf.read())
-
+        print("Agent, resource and parameter data reloaded!")
+        description_path = os.path.join(self.experiment_path, "summary", "README.txt")
+        if os.path.isfile(description_path):
+            with open(description_path, "r") as readmefile:
+                data = readmefile.readlines()
+                self.description = "".join(data)
+            print("\n____README____")
+            print(self.description)
+            print("___END_README___\n")
         print("Experiment loaded")
 
     def calculate_search_efficiency(self):

@@ -530,7 +530,6 @@ class ExperimentLoader:
         if show:
             plt.show()
 
-
     def get_travelled_distances(self):
         """calculating the travelled distance for all agents in all runs and batches in an experiment.
         Returns a numpy array that has dimensions of

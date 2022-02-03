@@ -459,11 +459,3 @@ def hide_plot_description(event, fig, annotation_box):
     summarized"""
     annotation_box.set_visible(False)
     fig.canvas.draw_idle()
-
-
-
-# class LoadedSimulation:
-#     def __init__(self, data_folder_path):
-#         """Init method of LadedSimulation class to initialize a simulation-like structure according to
-#         previously saved data"""
-#         self.agent_data, self.resource_data, self.env_data = DataLoader(data_folder_path).get_loaded_data()

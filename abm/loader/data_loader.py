@@ -6,6 +6,8 @@ data_loader.py : including the main classes to load previously saved data (csv+j
 import json
 import os
 import glob
+import shutil
+
 from abm.agent.agent import Agent, supcalc
 from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
@@ -146,8 +148,8 @@ class ExperimentLoader:
 
         # collecting batch folders
         glob_pattern = os.path.join(experiment_path, "*")
-        self.batch_folders = [path for path in glob.iglob(glob_pattern) if path.find("summary") < 0]
-
+        self.batch_folders = [path for path in glob.iglob(glob_pattern) if
+                              path.find("summary") < 0 and path.find("README") < 0]
         self.num_batches = len(self.batch_folders)
         self.num_runs = None
 
@@ -305,6 +307,11 @@ class ExperimentLoader:
 
         with open(os.path.join(summary_path, "tuned_env.json"), "w") as tenvf:
             json.dump(self.varying_params, tenvf)
+
+        raw_description_path = os.path.join(self.experiment_path, "README.txt")
+        sum_description_path = os.path.join(summary_path, "README.txt")
+        if os.path.isfile(raw_description_path):
+            shutil.copyfile(raw_description_path, sum_description_path)
 
         print("Summary saved!")
 

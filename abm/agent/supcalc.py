@@ -126,6 +126,20 @@ def random_walk():
     return dvel, dtheta
 
 
+def distance_coords(x1, y1, x2, y2, vectorized=False):
+    """Distance between 2 points in 2D space calculated from point coordinates.
+    if vectorized is True, we use multidimensional (i.e. vectorized) form of distance
+    calculation that preserved original dimensions of coordinate arrays in the dimensions of the output and the output
+    will contain pairwise distance measures according to coordinate matrices."""
+    c1 = np.array([x1, y1])
+    c2 = np.array([x2, y2])
+    if not vectorized:
+        distance = np.linalg.norm(c2 - c1)
+    else:
+        distance = np.linalg.norm(c2 - c1, axis=0)
+    return distance
+
+
 def distance(agent1, agent2):
     """Distance between 2 agent class agents in the environment as pixels"""
     c1 = np.array([agent1.position[0] + agent1.radius, agent1.position[1] + agent1.radius])

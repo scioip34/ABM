@@ -120,9 +120,9 @@ def angle_between(v1, v2):
 def random_walk():
     """Pooling a small orientation and absolute velocity increment from some distribution"""
     dvel = np.random.uniform(movement_params.exp_vel_min,
-                            movement_params.exp_vel_max)
+                             movement_params.exp_vel_max)
     dtheta = np.random.uniform(movement_params.exp_theta_min,
-                              movement_params.exp_theta_max)
+                               movement_params.exp_theta_max)
     return dvel, dtheta
 
 

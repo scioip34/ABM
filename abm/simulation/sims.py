@@ -344,8 +344,8 @@ class Simulation:
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
-            x = np.random.randint(self.WIDTH / 3, 2 * self.WIDTH / 3 + 1)
-            y = np.random.randint(self.HEIGHT / 3, 2 * self.HEIGHT / 3 + 1)
+            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
+            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
             agent = Agent(
                 id=i,
                 radius=self.agent_radii,

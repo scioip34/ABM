@@ -17,6 +17,7 @@ from datetime import datetime
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
@@ -182,13 +183,12 @@ class Simulation:
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         self.env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
-
-    def proove_resource(self, resource):
-        """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
-        or given resource patch distribution, etc"""
+    def proove_sprite(self, sprite):
+        """Checks if the proposed agent or resource is valid according to some rules, e.g. no overlap with resource
+        patches or agents"""
         # Checking for collision with already existing resources
         new_res_group = pygame.sprite.Group()
-        new_res_group.add(resource)
+        new_res_group.add(sprite)
         collision_group = pygame.sprite.groupcollide(
             self.rescources,
             new_res_group,
@@ -203,7 +203,7 @@ class Simulation:
             False,
             pygame.sprite.collide_circle
         )
-        if len(collision_group) > 0 or len(collision_group_a):
+        if len(collision_group) > 0 or len(collision_group_a) > 0:
             return False
         else:
             return True
@@ -228,15 +228,15 @@ class Simulation:
         for agent in self.agents:
             # Show visual range
             pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
-                                width=1)
+                               width=1)
 
             # Show limits of FOV
             if self.agent_fov[1] < np.pi:
-                angles = [agent.orientation+agent.FOV[0], agent.orientation+agent.FOV[1]]
+                angles = [agent.orientation + agent.FOV[0], agent.orientation + agent.FOV[1]]
                 for angle in angles:
                     start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
-                    end_pos = [start_pos[0] + (np.cos(angle)) * 3*agent.radius,
-                               start_pos[1] + ( - np.sin(angle)) * 3*agent.radius]
+                    end_pos = [start_pos[0] + (np.cos(angle)) * 3 * agent.radius,
+                               start_pos[1] + (- np.sin(angle)) * 3 * agent.radius]
                     pygame.draw.line(self.screen, colors.LIGHT_BLUE,
                                      start_pos,
                                      end_pos, 1)
@@ -293,7 +293,7 @@ class Simulation:
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
                                  quality)
-            resource_proven = self.proove_resource(resource)
+            resource_proven = self.proove_sprite(resource)
         self.rescources.add(resource)
 
     def agent_agent_collision(self, agent1, agent2):
@@ -343,7 +343,8 @@ class Simulation:
 
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
-        for i in range(self.N):
+        i = 0
+        while i < self.N:
             x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
             y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
             agent = Agent(
@@ -363,7 +364,9 @@ class Simulation:
                 visual_exclusion=self.visual_exclusion,
                 patchwise_exclusion=self.patchwise_exclusion
             )
-            self.agents.add(agent)
+            if self.proove_sprite(agent):
+                self.agents.add(agent)
+                i += 1
 
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""
@@ -399,7 +402,7 @@ class Simulation:
             if event.y == -1:
                 event.y = 0
             for ag in self.agents:
-                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1-event.y)
+                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
 
         # Pause on Space
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -598,7 +601,7 @@ class Simulation:
                         if agent.get_mode() == "exploit":
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
-                            agent.collected_r_before = agent.collected_r # rolling resource memory
+                            agent.collected_r_before = agent.collected_r  # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
                             if destroy_resc:  # consumed unit was the last in the patch
                                 notify_agent(agent, -1)
@@ -650,8 +653,7 @@ class Simulation:
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
-        print("Total simulation time: ", (end_time-start_time).total_seconds())
-
+        print("Total simulation time: ", (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:

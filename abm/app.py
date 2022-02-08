@@ -1,12 +1,14 @@
 from abm.simulation.sims import Simulation
 
+import os
 # loading env variables from dotenv file
 from dotenv import dotenv_values
-import os
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 
-def start():
+
+def start(parallel=False):
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    envconf = dotenv_values(os.path.join(root_abm_dir, ".env"))
+    envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
     sim = Simulation(N=int(float(envconf["N"])),
                      T=int(float(envconf["T"])),
                      v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),
@@ -16,6 +18,7 @@ def start():
                      width=int(float(envconf["ENV_WIDTH"])),
                      height=int(float(envconf["ENV_HEIGHT"])),
                      show_vis_field=bool(int(float(envconf["SHOW_VISUAL_FIELDS"]))),
+                     show_vis_field_return=bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN'])),
                      pooling_time=int(float(envconf["POOLING_TIME"])),
                      pooling_prob=float(envconf["POOLING_PROBABILITY"]),
                      agent_radius=int(float(envconf["RADIUS_AGENT"])),
@@ -34,6 +37,7 @@ def start():
                      visual_exclusion=bool(int(float(envconf["VISUAL_EXCLUSION"]))),
                      show_vision_range=bool(int(float(envconf["SHOW_VISION_RANGE"]))),
                      use_ifdb_logging=bool(int(float(envconf["USE_IFDB_LOGGING"]))),
-                     save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"])))
+                     save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
+                     parallel=parallel
                      )
     sim.start()

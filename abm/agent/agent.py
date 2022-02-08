@@ -122,6 +122,8 @@ class Agent(pygame.sprite.Sprite):
         pygame.draw.line(self.image, colors.BACKGROUND, (radius, radius),
                          ((1 + np.cos(self.orientation)) * radius, (1 - np.sin(self.orientation)) * radius), 3)
         self.rect = self.image.get_rect()
+        self.rect.x = self.position[0]
+        self.rect.y = self.position[1]
         self.mask = pygame.mask.from_surface(self.image)
 
     def calc_I_priv(self):

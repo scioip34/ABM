@@ -11,13 +11,16 @@ from abm.monitoring import ifdb
 from abm.monitoring import env_saver
 from math import atan2
 import os
+import uuid
 
 from datetime import datetime
 
 # loading env variables from dotenv file
 from dotenv import dotenv_values
+
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-env_path = os.path.join(root_abm_dir, ".env")
+env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
 envconf = dotenv_values(env_path)
 
@@ -55,11 +58,12 @@ def refine_ar_overlap_group(collision_group):
 class Simulation:
     def __init__(self, N, T, v_field_res=800, width=600, height=480,
                  framerate=25, window_pad=30, with_visualization=True, show_vis_field=False,
-                 pooling_time=3, pooling_prob=0.05, agent_radius=10,
+                 show_vis_field_return=False, pooling_time=3, pooling_prob=0.05, agent_radius=10,
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
-                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True):
+                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True,
+                 parallel=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -72,6 +76,7 @@ class Simulation:
         :param with_visualization: turns visualization on or off. For large batch autmatic simulation should be off so
             that we can use a higher/maximal framerate.
         :param show_vis_field: (Bool) turn on visualization for visual field of agents
+        :param show_vis_field_return: (Bool) sow visual fields when return/enter is pressed
         :param pooling_time: time units for a single pooling events
         :param pooling probability: initial probability of switching to pooling regime for any agent
         :param agent_radius: radius of the agents
@@ -99,6 +104,8 @@ class Simulation:
         :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
         :param patchwise_exclusion: excluding agents from social v field if they are exploiting the same patch as the
             focal agent
+        :param parallel: if True we request to run the simulation parallely with other simulation instances and hence
+            the influxDB saving will be handled accordingly.
         """
         # Arena parameters
         self.WIDTH = width
@@ -120,6 +127,7 @@ class Simulation:
 
         # Visualization parameters
         self.show_vis_field = show_vis_field
+        self.show_vis_field_return = show_vis_field_return
         self.show_vision_range = show_vision_range
 
         # Agent parameters
@@ -142,6 +150,8 @@ class Simulation:
         self.max_resc_units = max_resc_perpatch
         self.min_resc_quality = min_resc_quality
         self.max_resc_quality = max_resc_quality
+        if self.max_resc_quality < 0:
+            self.max_resc_quality = self.min_resc_quality
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
@@ -155,20 +165,30 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
+        self.parallel = parallel
+        if self.parallel:
+            self.ifdb_hash = uuid.uuid4().hex
+        else:
+            self.ifdb_hash = ""
         self.save_in_ifd = use_ifdb_logging
         self.save_csv_files = save_csv_files
         if self.save_in_ifd:
             self.ifdb_client = ifdb.create_ifclient()
-            self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
+            if not self.parallel:
+                self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
             self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
-            ifdb.save_simulation_params(self.ifdb_client, self)
+            ifdb.save_simulation_params(self.ifdb_client, self, exp_hash=self.ifdb_hash)
 
-    def proove_resource(self, resource):
-        """Checks if the proposed resource can be taken into self.resources according to some rules, e.g. no overlap,
-        or given resource patch distribution, etc"""
+        # by default we parametrize with the .env file in root folder
+        root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+        self.env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+
+    def proove_sprite(self, sprite):
+        """Checks if the proposed agent or resource is valid according to some rules, e.g. no overlap with resource
+        patches or agents"""
         # Checking for collision with already existing resources
         new_res_group = pygame.sprite.Group()
-        new_res_group.add(resource)
+        new_res_group.add(sprite)
         collision_group = pygame.sprite.groupcollide(
             self.rescources,
             new_res_group,
@@ -183,7 +203,7 @@ class Simulation:
             False,
             pygame.sprite.collide_circle
         )
-        if len(collision_group) > 0 or len(collision_group_a):
+        if len(collision_group) > 0 or len(collision_group_a) > 0:
             return False
         else:
             return True
@@ -208,15 +228,15 @@ class Simulation:
         for agent in self.agents:
             # Show visual range
             pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
-                                width=1)
+                               width=1)
 
             # Show limits of FOV
             if self.agent_fov[1] < np.pi:
-                angles = [agent.orientation+agent.FOV[0], agent.orientation+agent.FOV[1]]
+                angles = [agent.orientation + agent.FOV[0], agent.orientation + agent.FOV[1]]
                 for angle in angles:
                     start_pos = (agent.position[0] + agent.radius, agent.position[1] + agent.radius)
-                    end_pos = [start_pos[0] + (np.cos(angle)) * 3*agent.radius,
-                               start_pos[1] + ( - np.sin(angle)) * 3*agent.radius]
+                    end_pos = [start_pos[0] + (np.cos(angle)) * 3 * agent.radius,
+                               start_pos[1] + (- np.sin(angle)) * 3 * agent.radius]
                     pygame.draw.line(self.screen, colors.LIGHT_BLUE,
                                      start_pos,
                                      end_pos, 1)
@@ -273,7 +293,7 @@ class Simulation:
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
                                  quality)
-            resource_proven = self.proove_resource(resource)
+            resource_proven = self.proove_sprite(resource)
         self.rescources.add(resource)
 
     def agent_agent_collision(self, agent1, agent2):
@@ -323,9 +343,10 @@ class Simulation:
 
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
-        for i in range(self.N):
-            x = np.random.randint(self.WIDTH / 3, 2 * self.WIDTH / 3 + 1)
-            y = np.random.randint(self.HEIGHT / 3, 2 * self.HEIGHT / 3 + 1)
+        i = 0
+        while i < self.N:
+            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
+            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
             agent = Agent(
                 id=i,
                 radius=self.agent_radii,
@@ -343,7 +364,9 @@ class Simulation:
                 visual_exclusion=self.visual_exclusion,
                 patchwise_exclusion=self.patchwise_exclusion
             )
-            self.agents.add(agent)
+            if self.proove_sprite(agent):
+                self.agents.add(agent)
+                i += 1
 
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""
@@ -379,7 +402,7 @@ class Simulation:
             if event.y == -1:
                 event.y = 0
             for ag in self.agents:
-                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1-event.y)
+                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
 
         # Pause on Space
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -413,7 +436,7 @@ class Simulation:
         """Deciding f the visual field needs to be shown or not"""
         keys = pygame.key.get_pressed()
         if keys[pygame.K_RETURN]:
-            show_vis_fields_on_return = bool(int(envconf['SHOW_VISUAL_FIELDS_RETURN']))
+            show_vis_fields_on_return = self.show_vis_field_return
             if not self.show_vis_field and show_vis_fields_on_return:
                 self.show_vis_field = 1
                 turned_on_vfield = 1
@@ -578,7 +601,7 @@ class Simulation:
                         if agent.get_mode() == "exploit":
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
-                            agent.collected_r_before = agent.collected_r # rolling resource memory
+                            agent.collected_r_before = agent.collected_r  # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
                             if destroy_resc:  # consumed unit was the last in the patch
                                 notify_agent(agent, -1)
@@ -623,24 +646,20 @@ class Simulation:
 
             # Monitoring with IFDB
             if self.save_in_ifd:
-                ifdb.save_agent_data(self.ifdb_client, self.agents)
-                ifdb.save_resource_data(self.ifdb_client, self.rescources)
+                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash)
+                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash)
 
             # Moving time forward
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
-        print("Total simulation time: ", (end_time-start_time).total_seconds())
-
+        print("Total simulation time: ", (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd:
-                import os
-                ifdb.save_ifdb_as_csv()
-                root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-                env_path = os.path.join(root_abm_dir, ".env")
-                env_saver.save_env_vars([env_path], "env_params.json")
+                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash)
+                env_saver.save_env_vars([self.env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"

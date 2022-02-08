@@ -196,3 +196,37 @@ Movement parameters:
 * `CONS_STOP_RATIO`: deceleration during exploitation
   
 </details>
+
+### Running multiple simulations at the same time
+#### Metarunner API
+To carry out multiple simulations fast (without visualizations), exploring parameter ranges in a clean and programatic way, a dedicated API has been created called `metarunner`.
+On can define parameter ranges (and desired values by first creating so called simulation "critera" as `Tunable` and `Constant` calss instances with parameter names and values. To know what parameters to fix and tune see parameter descriptions in the previous block. Once criteria has been defined, one can create a `MetaProtocol` instance and add the defined criteria. After this, the `MetaProtocol` instance can be run, meaning all defined parameter combinations will be used to carry out simulations. The resulting data will be generated under `data/simulation_data/<experiment_name>/batch_<batch_id>/<simulation_timestamp>`. Experiment files are dedicated python files (.py) using the metarunner API of the package to define and easily run such `MetaProtocol` instances. All runs during running a `MetaProtocol` are initialized with the help of `.env` files. An example of such an experiment file can be found in `data/metaprotocol/experiments/exp1.py` that can be simply run as:
+```bash
+python path_to_exp_file.py
+```
+
+Note that an initial `.env` file must exist under the root `ABM` folder.
+
+#### Parallel Run of MetaProtocols
+To carry out simulations parallel to each other (so that we can increase simulation speed) one needs to pay attention how the simulations (defined in experiment files) are started. In case we run multiple `MetaProtocol` instances at the same time, we have to set the attribute `parallel` of the `MetaProtocol` class instance to `True`, as well as we must define an experiment name (`experiment_name` attribute of `MetaProtocol` class). Furthermore, as now we need to initialize different metaprotocol classes with different `.env` files we also need to define how this happens. To do so here is a general recipe:
+
+- create as many copies of an initial `.env` file in the root `ABM` directory as many parallely running `MetaProtocol` instances will be present. This is outside of the package `ABM/abm` directory.
+- name these `.env` files as `exp1.env`, `exp2.env`, ..., `expN.env`
+- open as many terminals as many parallely running `MetaProtocol` instances will be present.
+- create as many experiment files as many parallely running `MetaProtocol` instances will be present.
+- name these experiment files as `exp1.py`, `exp2.py`, ..., `expN.py`
+- in each experiment file the criteria are defined and added to a `MetaProtocol` instance that has `parallel` set to `True` and has an `experiment_name` attribute.
+- in each terminal `i` run the following command:
+
+```bash
+EXPERIMENT_NAME=exp<i> python <path_to_exp_file_folder>/exp<i>.py
+```
+Note that the parantheses denote variable indices and paths according to where you store your experiment files and which terminal you are at.
+A more concrete example could be:
+
+```bash
+EXPERIMENT_NAME=exp4 python home/ABM/abm/data/metarunner/experiments/exp4.py
+```
+where we assume you have a `exp4.env` file in the root project folder (`home/ABM`) and you store an experiment file `exp4.py` under a dedicated path, in the example, this path is `home/ABM/abm/data/metarunner/experiments/`.
+
+Note that the env variable `EXPERIMENT_NAME` is used to show the given `MetaProtocol` instance which `.env` file it needs to use (and replace during runs). Therefore it must have a scope ONLY for the given command. If you set this varaible globally on your OS then all `MetaProtocol` instances will try to use and replace the same `.env` file and therefore during parallel runs unwanted behavior and corrupted data states can occur. The given commands are only to be used on Linux.

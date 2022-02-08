@@ -12,9 +12,9 @@ from abm import app
 import glob
 from time import sleep
 
-
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-env_path = os.path.join(root_abm_dir, ".env")
+env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 envconf = dotenv_values(env_path)
 
 
@@ -85,11 +85,20 @@ class Tunable:
 class MetaProtocol:
     """Metaprotocol class that is initialized with Tunables and runs through the desired simulations accordingly"""
 
-    def __init__(self, experiment_name=None, num_batches=1):
+    def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None):
         self.default_envconf = envconf
         self.tunables = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
+        self.description = description
+        # in case we want to run multiple experiemnts in different terminals set this to True
+        if experiment_name is None and parallel==True:
+            raise Exception("Can't run multiple experiments parallely without experiment name!")
+        self.parallel_run = parallel
+        if self.experiment_name is not None:
+            self.temp_dir = f"abm/data/metaprotocol/temp/{self.experiment_name}"
+        else:
+            self.temp_dir = "abm/data/metaprotocol/temp"
 
     def add_criterion(self, criterion):
         """Adding a criterion to the metaprotocol as a Tunable or Constant"""
@@ -99,10 +108,8 @@ class MetaProtocol:
 
     def generate_temp_env_files(self):
         """generating a batch of env files that will describe the metaprotocol in a temporary folder"""
-
-        temp_dir = "abm/data/metaprotocol/temp"
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-        temp_dir = os.path.join(root_abm_dir, temp_dir)
+        temp_dir = os.path.join(root_abm_dir, self.temp_dir)
 
         if os.path.isdir(temp_dir):
             warnings.warn("Temprary directory for env files is not empty and will be overwritten")
@@ -132,26 +139,39 @@ class MetaProtocol:
 
         print(f"Env files generated according to criterions!")
 
+    def save_description(self):
+        """Saving description text as txt file in the experiment folder"""
+        if self.description is not None:
+            if self.experiment_name is None:
+                experiment_folder = os.path.join("abm/data/simulation_data", "UnknownExp")
+            else:
+                experiment_folder = os.path.join("abm/data/simulation_data", self.experiment_name)
+            description_path = os.path.join(experiment_folder, "README.txt")
+            os.makedirs(experiment_folder, exist_ok=True)
+            with open(description_path, "w") as readmefile:
+                readmefile.write(self.description)
+
     def run_protocol(self, env_path):
         """Runs a single simulation run according to an env file given by the env path"""
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-        default_env_path = os.path.join(root_abm_dir, ".env")
+        default_env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
         backup_default_env = os.path.join(root_abm_dir, ".env-orig")
         if os.path.isfile(default_env_path) and not os.path.isfile(backup_default_env):
             shutil.copyfile(default_env_path, backup_default_env)
         os.remove(default_env_path)
         os.rename(env_path, default_env_path)
         # here we run the simulation
-        app.start()
+        app.start(self.parallel_run)
         os.remove(default_env_path)
         shutil.copyfile(backup_default_env, default_env_path)
         sleep(2)
 
     def run_protocols(self):
         """Running all remaining protocols in tep env folder"""
-        temp_dir = "abm/data/metaprotocol/temp"
+        self.save_description()
+
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-        temp_dir = os.path.join(root_abm_dir, temp_dir)
+        temp_dir = os.path.join(root_abm_dir, self.temp_dir)
 
         glob_pattern = os.path.join(temp_dir, "*.env")
         print("found files: ", sorted(glob.iglob(glob_pattern)))

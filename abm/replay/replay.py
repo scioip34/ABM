@@ -3,6 +3,7 @@ import sys
 from abm.loader.data_loader import ExperimentLoader
 from abm.contrib import colors
 from pygame_widgets.slider import Slider
+from pygame_widgets.button import Button
 from pygame_widgets.textbox import TextBox
 import pygame_widgets
 import pygame
@@ -35,6 +36,7 @@ class ExperimentReplay:
 
         self.varying_params = self.experiment.varying_params
 
+        self.is_paused = True
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -89,6 +91,32 @@ class ExperimentReplay:
                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1))
             vpi += 1
 
+        self.button_height = 50
+        button_start_y = (slider_i + vpi) * (self.slider_height + self.action_area_pad)
+        # Creates the button with optional parameters
+        self.run_button = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width/2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Start / Stop',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_run()  # Function to call when clicked on
+        )
+
+    def on_run(self):
+        self.is_paused = not self.is_paused
+        if not self.is_paused:
+            self.run_button.inactiveColour = colors.GREEN
+        else:
+            self.run_button.inactiveColour = colors.GREY
+
     def draw_walls(self):
         """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
         pygame.draw.line(self.screen, colors.RED,
@@ -137,6 +165,18 @@ class ExperimentReplay:
             corresp_value = self.varying_params[corresp_key][indexalongdim]
             tbox.setText(f"{corresp_key}: {corresp_value}")
             tbox.draw()
+
+        if not self.is_paused:
+            if self.t < self.T-1:
+                self.t += 1
+                self.time_slider.setValue(self.t)
+                self.time_textbox.setText(f"time: {self.t}")
+                self.time_textbox.draw()
+            else:
+                self.is_paused = True
+                self.run_button.inactiveColour = colors.GREY
+
+
 
         self.update_frame_data()
         pygame.display.flip()

@@ -131,8 +131,9 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False):
+    def __init__(self, experiment_path, enforce_summary=False, with_plotting=False):
         # experiment data after summary
+        self.env = None
         self.description = None
         self.efficiency = None
         self.eff_std = None
@@ -162,9 +163,10 @@ class ExperimentLoader:
 
         # reloading previously saved numpy arrays
         self.reload_summarized_data()
-        self.plot_search_efficiency()
-        self.plot_mean_relocation_time()
-        self.plot_mean_travelled_distances()
+        if with_plotting:
+            self.plot_search_efficiency()
+            self.plot_mean_relocation_time()
+            self.plot_mean_travelled_distances()
 
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
@@ -246,35 +248,36 @@ class ExperimentLoader:
                     r_qual_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
                     r_rescleft_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
-                    index = [self.varying_params[k].index(float(env_data[k])) for k in
-                             sorted(list(self.varying_params.keys()))]
-                    num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+                index = [self.varying_params[k].index(float(env_data[k])) for k in
+                         sorted(list(self.varying_params.keys()))]
+                num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
 
-                    for ri in range(num_res_in_run):
-                        ind = (i,) + tuple(index) + (ri,)
-                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_posx_array[ind] = data
+                for ri in range(num_res_in_run):
+                    ind = (i,) + tuple(index) + (ri,)
+                    data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_posx_array[ind] = data
 
-                        data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_posy_array[ind] = data
+                    data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    print("max posy: ", np.max(data))
+                    # clean empty strings as -1s
+                    r_posy_array[ind] = data
 
-                        data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_qual_array[ind] = data
+                    data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_qual_array[ind] = data
 
-                        data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_rescleft_array[ind] = data
+                    data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_rescleft_array[ind] = data
 
         print("Datastructures initialized according to loaded data!")
         print("Saving summary..." )

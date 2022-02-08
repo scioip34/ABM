@@ -24,6 +24,8 @@ class ExperimentReplay:
         self.full_width = self.WIDTH + self.action_area_width + 2 * self.window_pad
         self.full_height = self.action_area_height
 
+        self.env = self.experiment.env
+
         self.posx = self.experiment.agent_summary['posx']
         self.posy = self.experiment.agent_summary['posy']
         self.orientation = self.experiment.agent_summary['orientation']
@@ -31,11 +33,14 @@ class ExperimentReplay:
         self.res_pos_x = self.experiment.res_summary['posx']
         self.res_pos_y = self.experiment.res_summary['posy']
 
+        self.varying_params = self.experiment.varying_params
+
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
         self.batch_id = 0
 
+        self.experiment = None
 
         # Initializing pygame
         self.quit_term = False
@@ -67,6 +72,22 @@ class ExperimentReplay:
                                   self.slider_height, min=0, max=self.num_batches-1, step=1, initial=0)
         self.batch_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+
+        slider_i = 4
+        self.varying_sliders = []
+        self.varying_textboxes = []
+        self.varying_dimensions = {}
+        vpi = 0
+        for k, v in self.varying_params.items():
+            self.varying_dimensions[vpi] = 0
+            slider_start_y = (slider_i + vpi) * (self.slider_height + self.action_area_pad)
+            self.varying_sliders.append(
+                Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                       self.slider_height, min=0, max=len(v) - 1, step=1, initial=0))
+            self.varying_textboxes.append(
+                TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                        self.slider_height, fontSize=self.slider_height - 2, borderThickness=1))
+            vpi += 1
 
     def draw_walls(self):
         """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
@@ -104,19 +125,35 @@ class ExperimentReplay:
         self.batch_id = self.batch_slider.getValue()
         self.batch_textbox.setText(f"batch: {self.batch_id}")
         self.batch_textbox.draw()
+
+        var_keys = sorted(list(self.varying_params.keys()))
+        for i in range(len(self.varying_sliders)):
+            slider = self.varying_sliders[i]
+            tbox = self.varying_textboxes[i]
+            dimnum = i
+            indexalongdim = slider.getValue()
+            self.varying_dimensions[dimnum] = indexalongdim
+            corresp_key = var_keys[i]
+            corresp_value = self.varying_params[corresp_key][indexalongdim]
+            tbox.setText(f"{corresp_key}: {corresp_value}")
+            tbox.draw()
+
         self.update_frame_data()
         pygame.display.flip()
 
     def update_frame_data(self):
         """updating the data that needs to be visualized"""
-        posx = self.posx[self.batch_id, 0, 0, :, self.t]
-        posy = self.posy[self.batch_id, 0, 0, :, self.t]
-        orientation = self.orientation[self.batch_id, 0, 0, :, self.t]
-        radius = self.experiment.env["RADIUS_AGENT"]
+        index = [self.varying_dimensions[k] for k in sorted(list(self.varying_dimensions.keys()))]
+        index = (self.batch_id,) + tuple(index)
 
-        res_posx = self.res_pos_x[self.batch_id, 0, 0, :, self.t]
-        res_posy = self.res_pos_y[self.batch_id, 0, 0, :, self.t]
-        res_radius = self.experiment.env["RADIUS_RESOURCE"]
+        posx = self.posx[index][:, self.t]
+        posy = self.posy[index][:, self.t]
+        orientation = self.orientation[index][:, self.t]
+        radius = self.env["RADIUS_AGENT"]
+
+        res_posx = self.res_pos_x[index][:, self.t]
+        res_posy = self.res_pos_y[index][:, self.t]
+        res_radius = self.env["RADIUS_RESOURCE"]
         self.draw_resources(res_posx, res_posy, res_radius)
         self.draw_agents(posx, posy, orientation, radius)
 

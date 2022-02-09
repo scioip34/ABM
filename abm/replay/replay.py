@@ -35,6 +35,8 @@ class ExperimentReplay:
 
         self.res_pos_x = self.experiment.res_summary['posx']
         self.res_pos_y = self.experiment.res_summary['posy']
+        self.resc_left = self.experiment.res_summary['resc_left']
+        self.resc_quality = self.experiment.res_summary['quality']
 
         self.varying_params = self.experiment.varying_params
 
@@ -197,18 +199,21 @@ class ExperimentReplay:
 
         res_posx = self.res_pos_x[index][:, self.t]
         res_posy = self.res_pos_y[index][:, self.t]
+        resc_left = self.resc_left[index][:, self.t]
+        max_units = np.max(self.resc_left[index], axis=1)
+        resc_quality = self.resc_quality[index][:, self.t]
         res_radius = self.env["RADIUS_RESOURCE"]
-        self.draw_resources(res_posx, res_posy, res_radius)
+        self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         self.draw_agents(posx, posy, orientation, mode, radius)
 
-    def draw_resources(self, posx, posy, radius):
+    def draw_resources(self, posx, posy, max_units, resc_left, resc_quality, radius):
         """Drawing agents in arena according to data"""
         num_resources = len(posx)
         for ri in range(num_resources):
             if posx[ri] != -1 and posy[ri] != -1:
-                self.draw_res_patch(posx[ri], posy[ri], radius)
+                self.draw_res_patch(posx[ri], posy[ri], max_units[ri], resc_left[ri], resc_quality[ri], radius)
 
-    def draw_res_patch(self, posx, posy, radius):
+    def draw_res_patch(self, posx, posy, max_unit, resc_left, resc_quality, radius):
         """Drawing a single resource patch"""
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
@@ -216,6 +221,11 @@ class ExperimentReplay:
         pygame.draw.circle(
             image, colors.GREY, (radius, radius), radius
         )
+        new_radius = int((resc_left/max_unit)*radius)
+        pygame.draw.circle(
+            image, colors.DARK_GREY, (radius, radius), new_radius
+        )
+
 
         self.screen.blit(image, (posx, posy))
 

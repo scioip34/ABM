@@ -44,6 +44,8 @@ class ExperimentReplay:
 
         self.is_paused = True
         self.show_stats = False
+        self.show_paths = False
+        self.path_length = 100
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -137,6 +139,32 @@ class ExperimentReplay:
             onClick=lambda: self.on_run_stats(),  # Function to call when clicked on
             borderThickness=1
         )
+
+        button_start_y += self.button_height
+        # Creates the button with optional parameters
+        self.show_path_button = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Show Path',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_run_show_path(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
+    def on_run_show_path(self):
+        self.show_paths = not self.show_paths
+        if self.show_paths:
+            self.show_path_button.inactiveColour = colors.GREEN
+        else:
+            self.show_path_button.inactiveColour = colors.GREY
 
     def on_run_stats(self):
         self.show_stats = not self.show_stats
@@ -235,6 +263,10 @@ class ExperimentReplay:
         res_radius = self.env["RADIUS_RESOURCE"]
 
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
+        if self.show_paths:
+            self.draw_agent_paths(self.posx[index][:, max(0, self.t-self.path_length):self.t],
+                                  self.posy[index][:, max(0, self.t-self.path_length):self.t],
+                                  radius)
         self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
 
         num_agents = len(posx)
@@ -252,6 +284,20 @@ class ExperimentReplay:
             end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
                                                    coll_resc, previous_metrics=time_dep_stats)
             self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
+
+    def draw_agent_paths(self, posx, posy, radius):
+        num_agents = posx.shape[0]
+        path_length = posx.shape[1]
+        try:
+            for ai in range(num_agents):
+                for t in range(1, path_length):
+                    point1 = (posx[ai, t-1] + radius, posy[ai, t-1] + radius)
+                    point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
+                    pygame.draw.line(self.screen, colors.GREY, point1, point2, 3)
+        except IndexError as e:
+            pass
+
+
 
     def draw_resources(self, posx, posy, max_units, resc_left, resc_quality, radius):
         """Drawing agents in arena according to data"""

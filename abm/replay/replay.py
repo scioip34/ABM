@@ -249,16 +249,18 @@ class ExperimentReplay:
             if np.isnan(std_reloc):
                 std_reloc = 0
             time_dep_stats.append(f"Relocation Time (0-t): Mean:{mean_reloc:10.2f} ± {std_reloc:10.2f}")
-            self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode, coll_resc, previous_metrics=time_dep_stats)
+            end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
+                                                   coll_resc, previous_metrics=time_dep_stats)
+            self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
 
     def draw_resources(self, posx, posy, max_units, resc_left, resc_quality, radius):
         """Drawing agents in arena according to data"""
         num_resources = len(posx)
         for ri in range(num_resources):
             if posx[ri] != -1 and posy[ri] != -1:
-                self.draw_res_patch(posx[ri], posy[ri], max_units[ri], resc_left[ri], resc_quality[ri], radius)
+                self.draw_res_patch(ri, posx[ri], posy[ri], max_units[ri], resc_left[ri], resc_quality[ri], radius)
 
-    def draw_res_patch(self, posx, posy, max_unit, resc_left, resc_quality, radius):
+    def draw_res_patch(self, id, posx, posy, max_unit, resc_left, resc_quality, radius):
         """Drawing a single resource patch"""
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
@@ -273,8 +275,9 @@ class ExperimentReplay:
         self.screen.blit(image, (posx, posy))
         if self.show_stats:
             font = pygame.font.Font(None, 16)
-            text = font.render(f"{resc_left:.2f}/{max_unit:.2f} Q:{resc_quality:.2f}", True, colors.BLACK)
-            self.screen.blit(text, (posx, posy))
+            text = font.render(f"RID: {id}", True, colors.BLACK)
+            tbsize = text.get_size()
+            self.screen.blit(text, (int(posx+radius-tbsize[0]/2), int(posy+radius-tbsize[1]/2)))
 
     def draw_agents(self, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing agents in arena according to data"""
@@ -307,7 +310,8 @@ class ExperimentReplay:
 
     def draw_agent_stat_summary(self, ids,  posx, posy, orientation, mode, coll_resc, previous_metrics=None):
         """Showing the summary of agent data for given frame"""
-        font = pygame.font.Font(None, 16)
+        line_height = 16
+        font = pygame.font.Font(None, line_height)
         if previous_metrics is not None:
             status = previous_metrics
             status.append(" ")
@@ -326,7 +330,25 @@ class ExperimentReplay:
             else:
                 text_color = self.mode_to_color(mode[i-line_count_before])
             text = font.render(stat_i, True, text_color)
-            self.screen.blit(text, (self.window_pad, self.vis_area_end_height + i * 16))
+            self.screen.blit(text, (self.window_pad, self.vis_area_end_height + i * line_height))
+            summary_end_position = (self.window_pad, self.vis_area_end_height + i * line_height)
+
+        return summary_end_position
+
+    def draw_resource_stat_summary(self, posx, posy, max_units, resc_left, resc_quality, start_position):
+        """Showing the summary of agent data for given frame"""
+        line_height = 16
+        font = pygame.font.Font(None, line_height)
+        status = [" ", "RESOURCE SUMMARY:"]
+        line_count_before = len(status)
+        ids = [i for i in range(len(max_units))]
+        for ri in ids:
+            if resc_quality[ri] > 0:
+                status.append(f"ID:{ri:5}, Units Left:{resc_left[ri]:10.2f}, Quality:{resc_quality[ri]:10.2f}")
+
+        for i, stat_i in enumerate(status):
+            text = font.render(stat_i, True, colors.BLACK)
+            self.screen.blit(text, (start_position[0], start_position[1] + (i+1) * line_height))
 
     def draw_agent(self, id, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing a single agent according to position and orientation"""

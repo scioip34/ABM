@@ -21,6 +21,7 @@ class ExperimentReplay:
         self.T = int(float(self.experiment.env["T"]))
         self.window_pad = 30
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
+        self.vis_area_end_height = 2 * self.window_pad + self.HEIGHT
         self.action_area_width = 400
         self.action_area_height = 800
         self.full_width = self.WIDTH + self.action_area_width + 2 * self.window_pad
@@ -32,6 +33,7 @@ class ExperimentReplay:
         self.posy = self.experiment.agent_summary['posy']
         self.orientation = self.experiment.agent_summary['orientation']
         self.agmodes = self.experiment.agent_summary['mode']
+        self.coll_resc = self.experiment.agent_summary['collresource']
 
         self.res_pos_x = self.experiment.res_summary['posx']
         self.res_pos_y = self.experiment.res_summary['posy']
@@ -41,6 +43,7 @@ class ExperimentReplay:
         self.varying_params = self.experiment.varying_params
 
         self.is_paused = True
+        self.show_stats = False
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -51,7 +54,7 @@ class ExperimentReplay:
         # Initializing pygame
         self.quit_term = False
         pygame.init()
-        self.screen = pygame.display.set_mode([self.full_width, self.full_height])
+        self.screen = pygame.display.set_mode([self.full_width, self.full_height], pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
 
         # pygame widgets
@@ -113,8 +116,34 @@ class ExperimentReplay:
             fontSize=20,  # Size of font
             margin=20,  # Minimum distance between text/image and edge of button
             inactiveColour=colors.GREY,
-            onClick=lambda: self.on_run()  # Function to call when clicked on
+            onClick=lambda: self.on_run(),  # Function to call when clicked on
+            borderThickness=1
         )
+
+        self.button_start_x_2 = self.slider_start_x + int(self.slider_width / 2)
+        self.stats_button = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.button_start_x_2,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Show Stats',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_run_stats(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
+    def on_run_stats(self):
+        self.show_stats = not self.show_stats
+        if self.show_stats:
+            self.stats_button.inactiveColour = colors.GREEN
+        else:
+            self.stats_button.inactiveColour = colors.GREY
 
     def on_run(self):
         self.is_paused = not self.is_paused
@@ -195,6 +224,7 @@ class ExperimentReplay:
         posy = self.posy[index][:, self.t]
         orientation = self.orientation[index][:, self.t]
         mode = self.agmodes[index][:, self.t]
+        coll_resc = self.coll_resc[index][:, self.t]
         radius = self.env["RADIUS_AGENT"]
 
         res_posx = self.res_pos_x[index][:, self.t]
@@ -204,7 +234,7 @@ class ExperimentReplay:
         resc_quality = self.resc_quality[index][:, self.t]
         res_radius = self.env["RADIUS_RESOURCE"]
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
-        self.draw_agents(posx, posy, orientation, mode, radius)
+        self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
 
     def draw_resources(self, posx, posy, max_units, resc_left, resc_quality, radius):
         """Drawing agents in arena according to data"""
@@ -225,28 +255,61 @@ class ExperimentReplay:
         pygame.draw.circle(
             image, colors.DARK_GREY, (radius, radius), new_radius
         )
-
-
         self.screen.blit(image, (posx, posy))
+        if self.show_stats:
+            font = pygame.font.Font(None, 16)
+            text = font.render(f"{resc_left:.2f}/{max_unit:.2f} Q:{resc_quality:.2f}", True, colors.BLACK)
+            self.screen.blit(text, (posx, posy))
 
-    def draw_agents(self, posx, posy, orientation, mode, radius):
+    def draw_agents(self, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing agents in arena according to data"""
         num_agents = len(posx)
         for ai in range(num_agents):
-            self.draw_agent(posx[ai], posy[ai], orientation[ai], mode[ai], radius)
+            self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], mode[ai], coll_resc[ai], radius)
+        if self.show_stats:
+            self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode, coll_resc)
 
-    def mode_to_color(self, mode):
+    def mode_to_color(self, mode, to_text=False):
         """transforming mode code to RGB color for visualization"""
         if mode == 0:
-            return colors.BLUE
+            if not to_text:
+                return colors.BLUE
+            else:
+                return "Explore"
         elif mode == 1:
-            return colors.GREEN
+            if not to_text:
+                return colors.GREEN
+            else:
+                return "Exploit"
         elif mode == 2:
-            return colors.PURPLE
+            if not to_text:
+                return colors.PURPLE
+            else:
+                return "Relocate"
         elif mode == 3:
-            return colors.RED
+            if not to_text:
+                return colors.RED
+            else:
+                return "Collide"
 
-    def draw_agent(self, posx, posy, orientation, mode, radius):
+    def draw_agent_stat_summary(self, ids,  posx, posy, orientation, mode, coll_resc):
+        """Showing the summary of agent data for given frame"""
+        font = pygame.font.Font(None, 16)
+        status = [
+            "AGENT SUMMARY:"
+        ]
+        line_count_before = len(status)
+        for ai in ids:
+            status.append(f"ID:{ai}, Units:{coll_resc[ai]:10.2f}, Mode:{self.mode_to_color(mode[ai], to_text=True):15}")
+        for i, stat_i in enumerate(status):
+            if i-line_count_before < 0 or i-line_count_before >= len(ids):
+                text_color = colors.BLACK
+            else:
+                text_color = self.mode_to_color(mode[i-line_count_before])
+            text = font.render(stat_i, True, text_color)
+            self.screen.blit(text, (self.window_pad, self.vis_area_end_height + i * 16))
+
+    def draw_agent(self, id, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing a single agent according to position and orientation"""
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
@@ -260,6 +323,11 @@ class ExperimentReplay:
         pygame.draw.line(image, colors.BACKGROUND, (radius, radius),
                          ((1 + np.cos(orientation)) * radius, (1 - np.sin(orientation)) * radius), 3)
         self.screen.blit(image, (posx, posy))
+
+        if self.show_stats:
+            font = pygame.font.Font(None, 16)
+            text = font.render(f"ID:{id}, R:{coll_resc:.2f}", True, colors.BLACK)
+            self.screen.blit(text, (posx-10, posy-10))
 
     def interact_with_event(self, event):
         """Carry out functionality according to user's interaction"""
@@ -302,6 +370,9 @@ class ExperimentReplay:
         # else:
         #     for ag in self.agents:
         #         ag.is_moved_with_cursor = False
+        if event.type == pygame.VIDEORESIZE:
+            # There's some code to add back window content here.
+            self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
 
     def start(self):
 

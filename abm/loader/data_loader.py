@@ -263,7 +263,6 @@ class ExperimentLoader:
                     data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
                     # clean empty strings
                     data = [float(d) if d != "" else -1.0 for d in data]
-                    print("max posy: ", np.max(data))
                     # clean empty strings as -1s
                     r_posy_array[ind] = data
 

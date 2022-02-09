@@ -233,8 +233,23 @@ class ExperimentReplay:
         max_units = np.max(self.resc_left[index], axis=1)
         resc_quality = self.resc_quality[index][:, self.t]
         res_radius = self.env["RADIUS_RESOURCE"]
+
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
+
+        num_agents = len(posx)
+        if self.show_stats:
+            time_dep_stats = []
+            time_dep_stats.append("HISTORY SUMMARY:")
+            mode_til_now = self.agmodes[index][:, 0:self.t]
+            mean_reloc = np.mean(np.mean((mode_til_now == 2).astype(int), axis=-1))
+            if np.isnan(mean_reloc):
+                mean_reloc = 0
+            std_reloc = np.std(np.mean((mode_til_now == 2).astype(int), axis=-1))
+            if np.isnan(std_reloc):
+                std_reloc = 0
+            time_dep_stats.append(f"Relocation Time (0-t): Mean:{mean_reloc:10.2f} ± {std_reloc:10.2f}")
+            self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode, coll_resc, previous_metrics=time_dep_stats)
 
     def draw_resources(self, posx, posy, max_units, resc_left, resc_quality, radius):
         """Drawing agents in arena according to data"""
@@ -266,8 +281,6 @@ class ExperimentReplay:
         num_agents = len(posx)
         for ai in range(num_agents):
             self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], mode[ai], coll_resc[ai], radius)
-        if self.show_stats:
-            self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode, coll_resc)
 
     def mode_to_color(self, mode, to_text=False):
         """transforming mode code to RGB color for visualization"""
@@ -292,15 +305,21 @@ class ExperimentReplay:
             else:
                 return "Collide"
 
-    def draw_agent_stat_summary(self, ids,  posx, posy, orientation, mode, coll_resc):
+    def draw_agent_stat_summary(self, ids,  posx, posy, orientation, mode, coll_resc, previous_metrics=None):
         """Showing the summary of agent data for given frame"""
         font = pygame.font.Font(None, 16)
-        status = [
-            "AGENT SUMMARY:"
-        ]
+        if previous_metrics is not None:
+            status = previous_metrics
+            status.append(" ")
+        status.append("AGENT SUMMARY:")
         line_count_before = len(status)
         for ai in ids:
-            status.append(f"ID:{ai}, Units:{coll_resc[ai]:10.2f}, Mode:{self.mode_to_color(mode[ai], to_text=True):15}")
+            status.append(f"ID:{ai:5}, Units:{coll_resc[ai]:10.2f}, Mode:{self.mode_to_color(mode[ai], to_text=True):15}")
+
+        status.append(" ")
+        status.append("CALCULATED METRICS (t):")
+        status.append(f"Collected resource: Mean:{np.mean(coll_resc):10.2f} ± {np.std(coll_resc):10.2f}")
+
         for i, stat_i in enumerate(status):
             if i-line_count_before < 0 or i-line_count_before >= len(ids):
                 text_color = colors.BLACK

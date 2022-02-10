@@ -101,6 +101,7 @@ class MetaProtocol:
     def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None):
         self.default_envconf = envconf
         self.tunables = []
+        self.tuned_pairs = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
         self.description = description
@@ -119,6 +120,28 @@ class MetaProtocol:
         print("---Added new criterion to MetaProtocol: ")
         criterion.print()
 
+    def add_tuned_pair(self, tuned_pair):
+        self.tuned_pairs.append(tuned_pair)
+        print("---Added new restrained pair: ")
+        tuned_pair.print()
+
+    def consider_tuned_pairs(self, combos):
+        """removing combinations from a list of combinations where a tuned pair criterion is not met"""
+        tunable_names = [t.name for t in self.tunables]
+        new_combos = combos.copy()
+        for tuned_pair in self.tuned_pairs:
+            for i, combo in enumerate(combos):
+                print("combo", combo)
+                product = 1
+                for j, value in enumerate(combo):
+                    name = tunable_names[j]
+                    if name in tuned_pair.get_vars():
+                        product *= value
+                if product != tuned_pair.product_restrain:
+                    print("POP")
+                    new_combos.remove(combo)
+        return new_combos
+
     def generate_temp_env_files(self):
         """generating a batch of env files that will describe the metaprotocol in a temporary folder"""
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -131,6 +154,8 @@ class MetaProtocol:
         tunable_names = [t.name for t in self.tunables]
         tunable_values = [t.get_values() for t in self.tunables]
         combos = list(itertools.product(*tunable_values))
+
+        combos = self.consider_tuned_pairs(combos)
 
         print(f"Generating {len(combos)} env files for simulations")
 

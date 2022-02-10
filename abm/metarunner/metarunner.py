@@ -42,6 +42,19 @@ class Constant:
         """printing method"""
         print(f"Constant {self.tunable.name} = {self.tunable.values[0]}")
 
+class TunedPairRestrain:
+    """Parameter pair to be restrained together"""
+    def __init__(self, var_name1, var_name2, restrained_product):
+        self.var1 = var_name1
+        self.var2 = var_name2
+        self.product_restrain = restrained_product
+
+    def get_vars(self):
+        return [self.var1, self.var2]
+
+    def print(self):
+        """printing method"""
+        print(f"Product of {self.var1} and {self.var2} should be {self.product_restrain}")
 
 class Tunable:
     """A parameter range in which we want to loop through (explore)"""

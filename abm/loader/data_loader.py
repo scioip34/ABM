@@ -374,6 +374,8 @@ class ExperimentLoader:
         self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"))
         with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
             self.env = json.loads(fixf.read())
+        print("Overwriting undersample ratio with the one read from env file...")
+        self.undersample = int(float(self.env["SUMMARY_UNDERSAMPLE"]))
         with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
             self.varying_params = json.loads(tunedf.read())
         print("Agent, resource and parameter data reloaded!")

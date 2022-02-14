@@ -133,8 +133,9 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False, with_plotting=False):
+    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False):
         # experiment data after summary
+        self.undersample = int(undersample)
         self.env = None
         self.description = None
         self.efficiency = None
@@ -183,7 +184,7 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading agent data batch {i}, run {j}")
-                agent_data, res_data, env_data = DataLoader(run).get_loaded_data()
+                agent_data, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
 
                 # finding out max depleted patches for next loop
                 num_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
@@ -196,7 +197,7 @@ class ExperimentLoader:
                     else:
                         print("Detected varying group size across runs, will use maximum agent number...")
                         num_agents = int(np.max(self.varying_params["N"]))
-                    num_timesteps = int(float(env_data['T']))
+                    num_timesteps = int(float(env_data['T'])/self.undersample)
                     axes_lens = []
                     for k in sorted(list(self.varying_params.keys())):
                         axes_lens.append(len(self.varying_params[k]))
@@ -229,6 +230,25 @@ class ExperimentLoader:
                     mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
                     expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
 
+        print("Datastructures initialized according to loaded data!")
+        print("Saving agent summary..." )
+        summary_path = os.path.join(self.experiment_path, "summary")
+        os.makedirs(summary_path, exist_ok=True)
+        np.savez(os.path.join(summary_path, "agent_summary.npz"),
+                 posx=posx_array,
+                 posy=posy_array,
+                 orientation=ori_array,
+                 velocity=vel_array,
+                 Ipriv=Ip_array,
+                 collresource=rew_array,
+                 w=w_array,
+                 u=u_array,
+                 mode=mode_array,
+                 explpatch=expl_patch_array)
+
+        del posx_array, posy_array, rew_array, ori_array, vel_array, \
+            w_array, u_array, Ip_array, mode_array, expl_patch_array
+
         for i, batch_path in enumerate(self.batch_folders):
             glob_pattern = os.path.join(batch_path, "*")
 
@@ -238,7 +258,7 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading resource data batch {i}, run {j}")
-                _, res_data, env_data = DataLoader(run).get_loaded_data()
+                _, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
 
                 if i == 0 and j == 0:
                     print("\nInitializing resource data structures")
@@ -280,27 +300,14 @@ class ExperimentLoader:
                     # clean empty strings as -1s
                     r_rescleft_array[ind] = data
 
-        print("Datastructures initialized according to loaded data!")
-        print("Saving summary..." )
-        summary_path = os.path.join(self.experiment_path, "summary")
-        os.makedirs(summary_path, exist_ok=True)
-        np.savez(os.path.join(summary_path, "agent_summary.npz"),
-                 posx=posx_array,
-                 posy=posy_array,
-                 orientation=ori_array,
-                 velocity=vel_array,
-                 Ipriv=Ip_array,
-                 collresource=rew_array,
-                 w=w_array,
-                 u=u_array,
-                 mode=mode_array,
-                 explpatch=expl_patch_array)
-
+        print("Saving resource summary...")
         np.savez(os.path.join(summary_path, "resource_summary.npz"),
                  posx=r_posx_array,
                  posy=r_posy_array,
                  quality=r_qual_array,
                  resc_left=r_rescleft_array)
+
+        del r_posx_array, r_posy_array, r_qual_array, r_rescleft_array
 
         with open(os.path.join(summary_path, "fixed_env.json"), "w") as fenvf:
             fixed_env = env_data

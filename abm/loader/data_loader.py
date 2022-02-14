@@ -40,7 +40,7 @@ class DataLoader:
     parameters
     """
 
-    def __init__(self, data_folder_path, only_env=False):
+    def __init__(self, data_folder_path, only_env=False, undersample=1):
         """
         Initalization method of main DataLoader class
 
@@ -51,6 +51,7 @@ class DataLoader:
                 the given data folder.
         """
         # Initializing DataLoader paths according to convention
+        self.undersample = undersample
         self.only_env = only_env
         self.data_folder_path = data_folder_path
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
@@ -65,8 +66,8 @@ class DataLoader:
     def load_files(self):
         """loading agent and resource data files into memory and make post-processing on time series"""
         if not self.only_env:
-            self.agent_data = dh.load_csv_file(self.agent_csv_path)
-            self.resource_data = dh.load_csv_file(self.resource_csv_path)
+            self.agent_data = dh.load_csv_file(self.agent_csv_path, undersample=self.undersample)
+            self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
         with open(self.env_json_path, "r") as file:
             self.env_data = json.load(file)
 
@@ -107,6 +108,7 @@ class DataLoader:
         self.env_data["SHOW_VISION_RANGE"] = bool(int(self.env_data["SHOW_VISION_RANGE"])),
         self.env_data["USE_IFDB_LOGGING"] = bool(int(self.env_data["USE_IFDB_LOGGING"])),
         self.env_data["SAVE_CSV_FILES"] = bool(int(self.env_data["SAVE_CSV_FILES"]))
+        self.env_data["SUMMARY_UNDERSAMPLE"] = float(self.undersample)
 
         for k, v in self.env_data.items():
             if isinstance(v, tuple):

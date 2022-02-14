@@ -3,8 +3,10 @@ helper.py : including helper functions for loading and handling data
 """
 import csv
 import numpy as np
+from itertools import islice
 
-def load_csv_file(path):
+
+def load_csv_file(path, undersample=100):
     """Loading csv files into memory (dictionaries)."""
     with open(path, mode='r') as infile:
         reader = csv.reader(infile)

@@ -295,8 +295,8 @@ class ExperimentReplay:
 
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         if self.show_paths:
-            self.draw_agent_paths(self.posx[index][:, max(0, self.t-self.path_length):self.t],
-                                  self.posy[index][:, max(0, self.t-self.path_length):self.t],
+            self.draw_agent_paths(self.posx[index][:, max(0, self.t - self.path_length):self.t],
+                                  self.posy[index][:, max(0, self.t - self.path_length):self.t],
                                   radius)
         self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
 
@@ -322,13 +322,11 @@ class ExperimentReplay:
         try:
             for ai in range(num_agents):
                 for t in range(1, path_length):
-                    point1 = (posx[ai, t-1] + radius, posy[ai, t-1] + radius)
+                    point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     pygame.draw.line(self.screen, colors.GREY, point1, point2, 3)
         except IndexError as e:
             pass
-
-
 
     def draw_resources(self, posx, posy, max_units, resc_left, resc_quality, radius):
         """Drawing agents in arena according to data"""
@@ -345,7 +343,7 @@ class ExperimentReplay:
         pygame.draw.circle(
             image, colors.GREY, (radius, radius), radius
         )
-        new_radius = int((resc_left/max_unit)*radius)
+        new_radius = int((resc_left / max_unit) * radius)
         pygame.draw.circle(
             image, colors.DARK_GREY, (radius, radius), new_radius
         )
@@ -354,13 +352,15 @@ class ExperimentReplay:
             font = pygame.font.Font(None, 16)
             text = font.render(f"RID: {id}", True, colors.BLACK)
             tbsize = text.get_size()
-            self.screen.blit(text, (int(posx+radius-tbsize[0]/2), int(posy+radius-tbsize[1]/2)))
+            self.screen.blit(text, (int(posx + radius - tbsize[0] / 2), int(posy + radius - tbsize[1] / 2)))
 
     def draw_agents(self, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing agents in arena according to data"""
         num_agents = len(posx)
         for ai in range(num_agents):
             self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], mode[ai], coll_resc[ai], radius)
+            if self.show_vfield:
+                self.draw_vfield(ai, posx[ai], posy[ai], orientation[ai], radius)
 
     def mode_to_color(self, mode, to_text=False):
         """transforming mode code to RGB color for visualization"""
@@ -385,7 +385,7 @@ class ExperimentReplay:
             else:
                 return "Collide"
 
-    def draw_agent_stat_summary(self, ids,  posx, posy, orientation, mode, coll_resc, previous_metrics=None):
+    def draw_agent_stat_summary(self, ids, posx, posy, orientation, mode, coll_resc, previous_metrics=None):
         """Showing the summary of agent data for given frame"""
         line_height = 16
         font = pygame.font.Font(None, line_height)
@@ -395,17 +395,18 @@ class ExperimentReplay:
         status.append("AGENT SUMMARY:")
         line_count_before = len(status)
         for ai in ids:
-            status.append(f"ID:{ai:5}, Units:{coll_resc[ai]:10.2f}, Mode:{self.mode_to_color(mode[ai], to_text=True):15}")
+            status.append(
+                f"ID:{ai:5}, Units:{coll_resc[ai]:10.2f}, Mode:{self.mode_to_color(mode[ai], to_text=True):15}")
 
         status.append(" ")
         status.append("CALCULATED METRICS (t):")
         status.append(f"Collected resource: Mean:{np.mean(coll_resc):10.2f} ± {np.std(coll_resc):10.2f}")
 
         for i, stat_i in enumerate(status):
-            if i-line_count_before < 0 or i-line_count_before >= len(ids):
+            if i - line_count_before < 0 or i - line_count_before >= len(ids):
                 text_color = colors.BLACK
             else:
-                text_color = self.mode_to_color(mode[i-line_count_before])
+                text_color = self.mode_to_color(mode[i - line_count_before])
             text = font.render(stat_i, True, text_color)
             self.screen.blit(text, (self.window_pad, self.vis_area_end_height + i * line_height))
             summary_end_position = (self.window_pad, self.vis_area_end_height + i * line_height)
@@ -425,7 +426,44 @@ class ExperimentReplay:
 
         for i, stat_i in enumerate(status):
             text = font.render(stat_i, True, colors.BLACK)
-            self.screen.blit(text, (start_position[0], start_position[1] + (i+1) * line_height))
+            self.screen.blit(text, (start_position[0], start_position[1] + (i + 1) * line_height))
+
+    def draw_vfield(self, id, posx, posy, orientation, radius):
+        """Drawing a single agent according to position and orientation"""
+        FOV_rat = float(self.env.get("AGENT_FOV", 1))
+        FOV = (-FOV_rat * np.pi, FOV_rat * np.pi)
+
+        # Show limits of FOV
+        if FOV[1] < np.pi:
+
+            # Center and radius of pie chart
+            cx, cy, r = posx + radius, posy + radius, self.env.get("VISION_RANGE", 3 * radius)
+            if r > self.WIDTH:
+                # showing unlimited visual range
+                r = 100
+                vfield_color = colors.GREEN
+            else:
+                vfield_color = colors.BLACK
+
+            angle = (2 * FOV[1]) / np.pi * 360
+            p = [(cx, cy)]
+            # Get points on arc
+            angles = [orientation + FOV[0], orientation + FOV[1]]
+            step_size = (angles[1] - angles[0]) / 50
+            angles_array = np.arange(angles[0], angles[1] + step_size, step_size)
+            for n in angles_array:
+                x = cx + int(r * np.cos(n))
+                y = cy + int(r * - np.sin(n))
+                p.append((x, y))
+            p.append((cx, cy))
+
+            image = pygame.Surface([self.vis_area_end_width, self.vis_area_end_height])
+            image.fill(colors.BACKGROUND)
+            image.set_colorkey(colors.BACKGROUND)
+            image.set_alpha(10)
+            pygame.draw.polygon(image, vfield_color, p)
+
+            self.screen.blit(image, (0, 0))
 
     def draw_agent(self, id, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing a single agent according to position and orientation"""

@@ -414,15 +414,14 @@ class ExperimentLoader:
 
         self.calculate_search_efficiency()
 
-        fig, ax = plt.subplots(1, 1)
-        plt.title("Search Efficiency")
-
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
         if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Search Efficiency")
             plt.plot(self.mean_efficiency)
             plt.plot(self.mean_efficiency + self.eff_std)
             plt.plot(self.mean_efficiency - self.eff_std)
@@ -432,15 +431,40 @@ class ExperimentLoader:
             ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
             ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
             plt.xlabel(list(self.varying_params.keys())[0])
+
         elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
             im = ax.imshow(self.mean_efficiency)
 
-            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-            plt.xlabel(list(self.varying_params.keys())[0])
-            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
-            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
-            plt.ylabel(list(self.varying_params.keys())[1])
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3:
+            num_plots = self.mean_efficiency.shape[0]
+            fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+            keys = sorted(list(self.varying_params.keys()))
+            for i in range(num_plots):
+                img = ax[i].imshow(self.mean_efficiency[i, :, :], vmin=0, vmax=2500)
+                ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                if i == 0:
+                    ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                    ax[i].set_yticklabels(self.varying_params[keys[1]])
+                    ax[i].set_ylabel(keys[1])
+
+                ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                ax[i].set_xticklabels(self.varying_params[keys[2]])
+                ax[i].set_xlabel(keys[2])
+
+            fig.subplots_adjust(right=0.8)
+            cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+            fig.colorbar(img, cax=cbar_ax)
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
@@ -456,14 +480,13 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        fig, ax = plt.subplots(1, 1)
-        plt.title("Mean (over agents and batches) relative relocation time")
-
         rel_reloc_matrix = np.mean((self.agent_summary["mode"] == 2).astype(int), axis=time_dim)
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
-        std_rel_reloc =  np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+        std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 
         if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Mean (over agents and batches) relative relocation time")
             plt.plot(mean_rel_reloc)
             plt.plot(mean_rel_reloc + std_rel_reloc)
             plt.plot(mean_rel_reloc - std_rel_reloc)
@@ -472,15 +495,40 @@ class ExperimentLoader:
             ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
             ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
             plt.xlabel(list(self.varying_params.keys())[0])
+
         elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
             im = ax.imshow(mean_rel_reloc)
 
-            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-            plt.xlabel(list(self.varying_params.keys())[0])
-            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
-            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
-            plt.ylabel(list(self.varying_params.keys())[1])
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3:
+            num_plots = mean_rel_reloc.shape[0]
+            fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+            keys = sorted(list(self.varying_params.keys()))
+            for i in range(num_plots):
+                img = ax[i].imshow(mean_rel_reloc[i, :, :], vmin=0, vmax=np.max(mean_rel_reloc))
+                ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                if i == 0:
+                    ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                    ax[i].set_yticklabels(self.varying_params[keys[1]])
+                    ax[i].set_ylabel(keys[1])
+
+                ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                ax[i].set_xticklabels(self.varying_params[keys[2]])
+                ax[i].set_xlabel(keys[2])
+
+            fig.subplots_adjust(right=0.8)
+            cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+            fig.colorbar(img, cax=cbar_ax)
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \

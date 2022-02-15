@@ -16,14 +16,15 @@ class ExperimentReplay:
         available for the experiment it will be summarized first
         the undersample parameter only matters if the data is not yet summarized, otherwise it is automatically
         read from the env file"""
-        self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=False,
+        self.show_vfield = False
+        self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=True,
                                            undersample=undersample)
         self.undersample = self.experiment.undersample
         print(self.undersample)
         # todo: this initialization will fail when we systematically change width and height in experiment
         self.WIDTH = int(float(self.experiment.env["ENV_WIDTH"]))
         self.HEIGHT = int(float(self.experiment.env["ENV_HEIGHT"]))
-        self.T = int(float(self.experiment.env["T"])/self.undersample)
+        self.T = int(float(self.experiment.env["T"]) / self.undersample)
         self.window_pad = 30
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
         self.vis_area_end_height = 2 * self.window_pad + self.HEIGHT
@@ -164,6 +165,30 @@ class ExperimentReplay:
             onClick=lambda: self.on_run_show_path(),  # Function to call when clicked on
             borderThickness=1
         )
+        # Creates the button with optional parameters
+        self.show_vfield_button = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.button_start_x_2,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Show V.Field',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_run_show_vfield(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
+    def on_run_show_vfield(self):
+        self.show_vfield = not self.show_vfield
+        if self.show_vfield:
+            self.show_vfield_button.inactiveColour = colors.GREEN
+        else:
+            self.show_vfield_button.inactiveColour = colors.GREY
 
     def on_run_show_path(self):
         self.show_paths = not self.show_paths

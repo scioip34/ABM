@@ -169,7 +169,7 @@ class ExperimentLoader:
         if with_plotting:
             self.plot_search_efficiency()
             self.plot_mean_relocation_time()
-            self.plot_mean_travelled_distances()
+            # self.plot_mean_travelled_distances()
 
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""

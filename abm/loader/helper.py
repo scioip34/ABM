@@ -32,7 +32,7 @@ def load_csv_file(path, undersample=100):
             else:
                 for ci, key in enumerate(dict_keys):
                     new_dict[key].append(row[ci])
-                [next(main_iter, None) for _ in range(undersample)]  # skip 5
+                [next(main_iter, None) for _ in range(undersample-1)]
         return new_dict
 
 

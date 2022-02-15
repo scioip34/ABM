@@ -57,7 +57,7 @@ class ExperimentReplay:
         self.num_batches = self.experiment.num_batches
         self.batch_id = 0
 
-        #self.experiment = None
+        # self.experiment = None
 
         # Initializing pygame
         self.quit_term = False
@@ -483,7 +483,7 @@ class ExperimentReplay:
         if self.show_stats:
             font = pygame.font.Font(None, 16)
             text = font.render(f"ID:{id}, R:{coll_resc:.2f}", True, colors.BLACK)
-            self.screen.blit(text, (posx-10, posy-10))
+            self.screen.blit(text, (posx - 10, posy - 10))
 
     def interact_with_event(self, event):
         """Carry out functionality according to user's interaction"""

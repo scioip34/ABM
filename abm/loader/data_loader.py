@@ -588,12 +588,20 @@ class ExperimentLoader:
                            f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
                            f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
         bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
-        annot = ax.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction', horizontalalignment='left',
-                            verticalalignment='top', bbox=bbox_props)
-        annot.set_visible(False)
-
-        fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
-        fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
+        try:
+            annot = ax.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction', horizontalalignment='left',
+                                verticalalignment='top', bbox=bbox_props)
+            annot.set_visible(False)
+            fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
+            fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
+        except AttributeError:
+            for axi in ax:
+                annot = axi.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction',
+                                    horizontalalignment='left',
+                                    verticalalignment='top', bbox=bbox_props)
+                annot.set_visible(False)
+                fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
+                fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
 
         if show:
             plt.show()

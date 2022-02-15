@@ -96,7 +96,8 @@ class ExperimentReplay:
         self.varying_textboxes = []
         self.varying_dimensions = {}
         vpi = 0
-        for k, v in self.varying_params.items():
+        for k in sorted(list(self.varying_params.keys())):
+            v = self.varying_params[k]
             self.varying_dimensions[vpi] = 0
             slider_start_y = (slider_i + vpi) * (self.slider_height + self.action_area_pad)
             self.varying_sliders.append(

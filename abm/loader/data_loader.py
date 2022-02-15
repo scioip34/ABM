@@ -403,7 +403,7 @@ class ExperimentLoader:
 
             collres = self.agent_summary["collresource"][..., -1]
             sum_distances = np.sum(self.distances, axis=time_dim)
-            self.efficiency = collres / sum_distances
+            self.efficiency = collres #/ sum_distances
 
             self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
             self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)

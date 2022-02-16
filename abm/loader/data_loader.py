@@ -133,7 +133,7 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False):
+    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None):
         # experiment data after summary
         self.undersample = int(undersample)
         self.env = None
@@ -145,6 +145,22 @@ class ExperimentLoader:
         self.agent_summary = None
         self.varying_params = {}
         self.distances = None
+        # COLLAPSE OF MULTIDIMENSIONAL PLOTS
+        # in case 3 variables are present and we kept a pair of variables changing together, we can collapse
+        # the visualization into 2 dimensions by taking only non-zero elements into considerations.
+        # this is equivalent defining a new variable that is a combination of 2 changed variables along simulations
+        # The string encodes how the collision should work:
+        # MIN/MAX/NONZERO-VARINDEXTHATISNOTCOLLAPSED
+        # example: MIN-0: the 0th variable will kept as a single axis and the data will be collapsed along the 1st
+        # and 2nd variables into a single axis, where each datapoint will be the Minimum of the collapsed datapoints
+        self.collapse_plot = collapse_plot
+        if self.collapse_plot is not None:
+            self.collapse_method = self.collapse_plot.split('-')[0]
+            if self.collapse_method == "MAX":
+                self.collapse_method = np.max
+            elif self.collapse_method == "MIN":
+                self.collapse_method = np.min
+            self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
         # path variables
         self.experiment_path = experiment_path
@@ -446,25 +462,60 @@ class ExperimentLoader:
             ax.set_xlabel(keys[1])
 
         elif num_var_params == 3:
-            num_plots = self.mean_efficiency.shape[0]
-            fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
-            keys = sorted(list(self.varying_params.keys()))
-            for i in range(num_plots):
-                img = ax[i].imshow(self.mean_efficiency[i, :, :], vmin=0, vmax=2500)
-                ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+            if self.collapse_plot is None:
+                num_plots = self.mean_efficiency.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_efficiency[i, :, :], vmin=0, vmax=2500)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
-                if i == 0:
-                    ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
-                    ax[i].set_yticklabels(self.varying_params[keys[1]])
-                    ax[i].set_ylabel(keys[1])
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
 
-                ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
-                ax[i].set_xticklabels(self.varying_params[keys[2]])
-                ax[i].set_xlabel(keys[2])
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
 
-            fig.subplots_adjust(right=0.8)
-            cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-            fig.colorbar(img, cax=cbar_ax)
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                shape_along_fixed_ind = self.mean_efficiency.shape[self.collapse_fixedvar_ind]
+                # collapsing data
+                for i in range(shape_along_fixed_ind):
+                    if self.collapse_fixedvar_ind == 0:
+                        collapsed_data_row = self.collapse_method(self.mean_efficiency[i, :, :], axis=0)
+                        max1_ind = 1
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 1:
+                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, i, :], axis=0)
+                        max1_ind = 0
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 2:
+                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, :, i], axis=0)
+                        max1_ind = 0
+                        max2_ind = 1
+
+                    if i == 0:
+                        collapsed_data = collapsed_data_row
+                    else:
+                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+
+                ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                # ax.set_xticks(range(len(labels)))
+                ax.set_xlabel(f"Combined Parameters\n"
+                              f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
+                              f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
@@ -510,25 +561,59 @@ class ExperimentLoader:
             ax.set_xlabel(keys[1])
 
         elif num_var_params == 3:
-            num_plots = mean_rel_reloc.shape[0]
-            fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
-            keys = sorted(list(self.varying_params.keys()))
-            for i in range(num_plots):
-                img = ax[i].imshow(mean_rel_reloc[i, :, :], vmin=0, vmax=np.max(mean_rel_reloc))
-                ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+            if self.collapse_plot is None:
+                num_plots = mean_rel_reloc.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(mean_rel_reloc[i, :, :], vmin=0, vmax=np.max(mean_rel_reloc))
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
-                if i == 0:
-                    ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
-                    ax[i].set_yticklabels(self.varying_params[keys[1]])
-                    ax[i].set_ylabel(keys[1])
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
 
-                ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
-                ax[i].set_xticklabels(self.varying_params[keys[2]])
-                ax[i].set_xlabel(keys[2])
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
 
-            fig.subplots_adjust(right=0.8)
-            cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-            fig.colorbar(img, cax=cbar_ax)
+                    fig.subplots_adjust(right=0.8)
+                    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                    fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                shape_along_fixed_ind = mean_rel_reloc.shape[self.collapse_fixedvar_ind]
+                # collapsing data
+                for i in range(shape_along_fixed_ind):
+                    if self.collapse_fixedvar_ind == 0:
+                        collapsed_data_row = self.collapse_method(mean_rel_reloc[i, :, :], axis=0)
+                        max1_ind = 1
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 1:
+                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, i, :], axis=0)
+                        max1_ind = 0
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 2:
+                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, :, i], axis=0)
+                        max1_ind = 0
+                        max2_ind = 1
+
+                    if i == 0:
+                        collapsed_data = collapsed_data_row
+                    else:
+                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+                ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                # ax.set_xticks(range(len(labels)))
+                ax.set_xlabel(f"Combined Parameters\n"
+                              f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
+                              f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \

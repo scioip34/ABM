@@ -13,6 +13,7 @@ INFLUX_PORT = "8086"
 INFLUX_USER = "monitoring"
 INFLUX_PSWD = "password"
 INFLUX_DB_NAME = "home"
+write_batch_size = 1000
 
 # SAVE_DIR is counted from the ABM parent directory.
 SAVE_DIR = envconf.get("SAVE_ROOT_DIR", "abm/data/simulation_data")

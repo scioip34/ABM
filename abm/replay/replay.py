@@ -17,7 +17,7 @@ class ExperimentReplay:
         the undersample parameter only matters if the data is not yet summarized, otherwise it is automatically
         read from the env file"""
         self.show_vfield = False
-        self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=True,
+        self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=False,
                                            undersample=undersample, collapse_plot=collapse)
         self.undersample = self.experiment.undersample
         # todo: this initialization will fail when we systematically change width and height in experiment
@@ -179,6 +179,24 @@ class ExperimentReplay:
             margin=20,  # Minimum distance between text/image and edge of button
             inactiveColour=colors.GREY,
             onClick=lambda: self.on_run_show_vfield(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
+        button_start_y += 2*self.button_height
+        self.plot_efficiency = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Plot Efficiency',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.experiment.plot_search_efficiency(),  # Function to call when clicked on
             borderThickness=1
         )
 
@@ -500,7 +518,8 @@ class ExperimentReplay:
         # # Pause on Space
         if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             print("Space pressed, quitting!")
-            self.quit_term = True
+            #self.quit_term = True
+            self.experiment.plot_mean_relocation_time()
         #
         # # Speed up on s and down on f. reset default framerate with d
         # if event.type == pygame.KEYDOWN and event.key == pygame.K_s:

@@ -188,6 +188,24 @@ class ExperimentLoader:
             self.plot_mean_relocation_time()
             # self.plot_mean_travelled_distances()
 
+    def set_collapse_param(self, collapse_plot):
+        # COLLAPSE OF MULTIDIMENSIONAL PLOTS
+        # in case 3 variables are present and we kept a pair of variables changing together, we can collapse
+        # the visualization into 2 dimensions by taking only non-zero elements into considerations.
+        # this is equivalent defining a new variable that is a combination of 2 changed variables along simulations
+        # The string encodes how the collision should work:
+        # MIN/MAX/NONZERO-VARINDEXTHATISNOTCOLLAPSED
+        # example: MIN-0: the 0th variable will kept as a single axis and the data will be collapsed along the 1st
+        # and 2nd variables into a single axis, where each datapoint will be the Minimum of the collapsed datapoints
+        self.collapse_plot = collapse_plot
+        if self.collapse_plot is not None:
+            self.collapse_method = self.collapse_plot.split('-')[0]
+            if self.collapse_method == "MAX":
+                self.collapse_method = np.max
+            elif self.collapse_method == "MIN":
+                self.collapse_method = np.min
+            self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
+
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
         print("Reading all experimental data first...")

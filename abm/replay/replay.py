@@ -246,13 +246,13 @@ class ExperimentReplay:
         """print mean relative relocation time"""
         if len(list(self.experiment.varying_params.keys())) == 3:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
-            self.experiment.plot_mean_relocation_time()
+        self.experiment.plot_mean_relocation_time()
 
     def on_print_efficiency(self):
         """print mean search efficiency"""
         if len(list(self.experiment.varying_params.keys())) == 3:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
-            self.experiment.plot_search_efficiency()
+        self.experiment.plot_search_efficiency()
 
     def on_run_show_vfield(self):
         self.show_vfield = not self.show_vfield

@@ -5,6 +5,7 @@ from abm.contrib import colors
 from pygame_widgets.slider import Slider
 from pygame_widgets.button import Button
 from pygame_widgets.textbox import TextBox
+from pygame_widgets.dropdown import Dropdown
 import pygame_widgets
 import pygame
 import numpy as np
@@ -196,9 +197,62 @@ class ExperimentReplay:
             fontSize=20,  # Size of font
             margin=20,  # Minimum distance between text/image and edge of button
             inactiveColour=colors.GREY,
-            onClick=lambda: self.experiment.plot_search_efficiency(),  # Function to call when clicked on
+            onClick=lambda: self.on_print_efficiency(),  # Function to call when clicked on
             borderThickness=1
         )
+        self.plot_rel_time = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.button_start_x_2,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Plot Rel. Time',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_print_reloc_time(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
+        if len(list(self.experiment.varying_params.keys())) == 3:
+            self.collapse_dropdown = Dropdown(
+                self.screen,
+                self.button_start_x_2 + int(self.slider_width / 2),
+                button_start_y,
+                int(self.slider_width / 2),
+                self.button_height,
+                name='Collapse Type',
+                choices=[
+                    'None',
+                    'MAX-0',
+                    'MAX-1',
+                    'MIN-0',
+                    'MIN-1'
+                ],
+                borderRadius=3,
+                colour=colors.LIGHT_BLUE,
+                values=[
+                    None,
+                    'MAX-0',
+                    'MAX-1',
+                    'MIN-0',
+                    'MIN-1'], direction='down', textHAlign='centre'
+            )
+
+    def on_print_reloc_time(self):
+        """print mean relative relocation time"""
+        if len(list(self.experiment.varying_params.keys())) == 3:
+            self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+            self.experiment.plot_mean_relocation_time()
+
+    def on_print_efficiency(self):
+        """print mean search efficiency"""
+        if len(list(self.experiment.varying_params.keys())) == 3:
+            self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+            self.experiment.plot_search_efficiency()
 
     def on_run_show_vfield(self):
         self.show_vfield = not self.show_vfield

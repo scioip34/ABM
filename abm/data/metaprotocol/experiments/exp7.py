@@ -1,4 +1,4 @@
-"""
+description_text = """
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment 1
@@ -67,7 +67,8 @@ criteria_exp = [
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment7", num_batches=10, parallel=True)
+mp = MetaProtocol(experiment_name="Experiment7", num_batches=10, parallel=True,
+                  description=description_text)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp:

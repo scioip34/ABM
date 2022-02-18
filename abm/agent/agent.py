@@ -95,6 +95,8 @@ class Agent(pygame.sprite.Sprite):
         self.g_u = decision_params.g_u
         self.B_u = decision_params.B_u
         self.u_max = decision_params.u_max
+        self.F_n = decision_params.F_N
+        self.F_r = decision_params.F_R
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -133,7 +135,7 @@ class Agent(pygame.sprite.Sprite):
         collected_unit = self.collected_r - self.collected_r_before
 
         # calculating private info by weighting these
-        self.I_priv = decision_params.F_N * np.max(self.novelty) + decision_params.F_R * collected_unit
+        self.I_priv = self.F_N * np.max(self.novelty) + self.F_R * collected_unit
 
     def move_with_mouse(self, mouse, left_state, right_state):
         """Moving the agent with the mouse cursor, and rotating"""

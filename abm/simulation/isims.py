@@ -79,14 +79,21 @@ class PlaygroundSimulation(Simulation):
                                        self.slider_height, min=0, max=1, step=0.05, initial=self.agent_fov[1]/np.pi)
         self.FOV_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+        slider_i = 5
+        slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
+        self.RESradius_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=10, max=100, step=5, initial=self.resc_radius)
+        self.RESradius_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
 
     def draw_frame(self, stats, stats_pos):
         """Overwritten method of sims drawframe adding possibility to update pygame widgets"""
         super().draw_frame(stats, stats_pos)
-        self.framerate_textbox.setText(f"framerate: {self.framerate}")
+        self.framerate_textbox.setText(f"Framerate: {self.framerate}")
         self.N_textbox.setText(f"N: {self.N}")
         self.NRES_textbox.setText(f"N_R: {self.N_resc}")
         self.FOV_textbox.setText(f"FOV: {int(self.fov_ratio*100)}%")
+        self.RESradius_textbox.setText(f"R_R: {int(self.resc_radius)}")
         self.framerate_textbox.draw()
         self.framerate_slider.draw()
         self.N_textbox.draw()
@@ -95,6 +102,8 @@ class PlaygroundSimulation(Simulation):
         self.NRES_slider.draw()
         self.FOV_textbox.draw()
         self.FOV_slider.draw()
+        self.RESradius_textbox.draw()
+        self.RESradius_slider.draw()
 
     def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
@@ -110,6 +119,21 @@ class PlaygroundSimulation(Simulation):
             self.act_on_NRES_mismatch()
         if self.fov_ratio != self.agent_fov[1]/np.pi:
             self.update_agent_fovs()
+        if self.resc_radius != self.RESradius_slider.getValue():
+            self.resc_radius = self.RESradius_slider.getValue()
+            self.update_res_radius()
+
+    def update_res_radius(self):
+        """Changing the resource patch radius according to slider value"""
+        # adjusting number of patches
+        for res in self.rescources:
+            # # update position
+            res.position[0] = res.center[0] - self.resc_radius
+            res.position[1] = res.center[1] - self.resc_radius
+            # self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
+            res.radius = self.resc_radius
+            res.rect.x = res.position[0]
+            res.rect.y = res.position[1]
 
     def update_agent_fovs(self):
         """Updateing the FOV of agents according to acquired value from slider"""
@@ -139,7 +163,16 @@ class PlaygroundSimulation(Simulation):
         if self.N_resc > len(self.rescources):
             diff = self.N_resc - len(self.rescources)
             for i in range(diff):
-                self.add_new_resource_patch()
+                sum_area = (len(self.rescources)+1) * self.resc_radius * self.resc_radius * np.pi
+                print(sum_area, 0.5 * self.WIDTH * self.HEIGHT)
+                if sum_area > 0.5 * self.WIDTH * self.HEIGHT:
+                    while sum_area > 0.5 * self.WIDTH * self.HEIGHT:
+                        self.resc_radius -= 5
+                        self.RESradius_slider.setValue(self.resc_radius)
+                        sum_area = (len(self.rescources)+1) * self.resc_radius * np.pi * np.pi
+                    self.update_res_radius()
+                else:
+                    self.add_new_resource_patch()
         else:
             while self.N_resc < len(self.rescources):
                 for i, res in enumerate(self.rescources):

@@ -65,8 +65,8 @@ class Rescource(pygame.sprite.Sprite):
         )
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect()
-        self.rect.x = self.position[0]
-        self.rect.y = self.position[1]
+        self.rect.centerx = self.center[0]
+        self.rect.centery = self.center[1]
         font = pygame.font.Font(None, 25)
         text = font.render(f"{self.radius}", True, colors.BLACK)
         self.image.blit(text, (0, 0))

@@ -2,7 +2,7 @@
 
 default_params = {
                 "N": 5,
-                "T": 1000,
+                "T": 100000,
                 "v_field_res": 1200,
                 "width": 500,
                 "height": 500,

@@ -60,3 +60,69 @@ class PlaygroundSimulation(Simulation):
                                        self.slider_height, min=5, max=60, step=1, initial=self.framerate)
         self.framerate_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+        slider_i = 2
+        slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
+        self.N_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=1, max=25, step=1, initial=self.N)
+        self.N_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+        slider_i = 3
+        slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
+        self.NRES_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=1, max=10, step=1, initial=self.N_resc)
+        self.NRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+
+    def draw_frame(self, stats, stats_pos):
+        """Overwritten method of sims drawframe adding possibility to update pygame widgets"""
+        super().draw_frame(stats, stats_pos)
+        self.framerate_textbox.setText(f"framerate: {self.framerate}")
+        self.N_textbox.setText(f"N: {self.N}")
+        self.NRES_textbox.setText(f"$N_R$: {self.N_resc}")
+        self.framerate_textbox.draw()
+        self.framerate_slider.draw()
+        self.N_textbox.draw()
+        self.N_slider.draw()
+        self.NRES_textbox.draw()
+        self.NRES_slider.draw()
+
+    def interact_with_event(self, events):
+        """Carry out functionality according to user's interaction"""
+        super().interact_with_event(events)
+        pygame_widgets.update(events)
+        self.framerate = self.framerate_slider.getValue()
+        self.N = self.N_slider.getValue()
+        self.N_resc = self.NRES_slider.getValue()
+        if self.N != len(self.agents):
+            self.act_on_N_mismatch()
+        if self.N_resc != len(self.rescources):
+            self.act_on_NRES_mismatch()
+
+    def act_on_N_mismatch(self):
+        """method is called if the requested amount of agents is not the same as what the playground already has"""
+        if self.N > len(self.agents):
+            diff = self.N - len(self.agents)
+            for i in range(diff):
+                ag_id = len(self.agents) - 1
+                x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
+                y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
+                orient = np.random.uniform(0, 2 * np.pi)
+                self.add_new_agent(ag_id, x, y, orient, with_proove=False)
+        else:
+            while self.N < len(self.agents):
+                for i, ag in enumerate(self.agents):
+                    if i == len(self.agents)-1:
+                        ag.kill()
+        self.stats, self.stats_pos = self.create_vis_field_graph()
+
+    def act_on_NRES_mismatch(self):
+        """method is called if the requested amount of patches is not the same as what the playground already has"""
+        if self.N_resc > len(self.rescources):
+            diff = self.N_resc - len(self.rescources)
+            for i in range(diff):
+                self.add_new_resource_patch()
+        else:
+            while self.N_resc < len(self.rescources):
+                for i, res in enumerate(self.rescources):
+                    if i == len(self.rescources)-1:
+                        res.kill()

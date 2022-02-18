@@ -346,7 +346,7 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def add_new_agent(self, id, x, y, orient):
+    def add_new_agent(self, id, x, y, orient, with_proove=True):
         """Adding a single new agent into agent sprites"""
         agent_proven = False
         while not agent_proven:
@@ -367,7 +367,11 @@ class Simulation:
                 visual_exclusion=self.visual_exclusion,
                 patchwise_exclusion=self.patchwise_exclusion
             )
-            if self.proove_sprite(agent):
+            if with_proove:
+                if self.proove_sprite(agent):
+                    self.agents.add(agent)
+                    agent_proven = True
+            else:
                 self.agents.add(agent)
                 agent_proven = True
 

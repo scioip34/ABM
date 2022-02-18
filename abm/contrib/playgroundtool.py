@@ -2,7 +2,7 @@
 
 default_params = {
                 "N": 5,
-                "T": 100,
+                "T": 1000,
                 "v_field_res": 1200,
                 "width": 500,
                 "height": 500,
@@ -14,12 +14,12 @@ default_params = {
                 "pooling_time": 0,
                 "pooling_prob":0,
                 "agent_radius": 10,
-                "N_resc": 10,
+                "N_resc": 3,
                 "min_resc_perpatch": 200,
                 "max_resc_perpatch": 201,
                 "min_resc_quality": 0.25,
                 "max_resc_quality": 0.25,
-                "patch_radius": 45,
+                "patch_radius": 30,
                 "regenerate_patches": True,
                 "agent_consumption": 1,
                 "teleport_exploit": False,

@@ -138,7 +138,8 @@ class Simulation:
         self.agent_consumption = agent_consumption
         self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
-        self.agent_fov = (-agent_fov * np.pi, agent_fov * np.pi)
+        self.fov_ratio = agent_fov
+        self.agent_fov = (-self.fov_ratio * np.pi, self.fov_ratio * np.pi)
         self.visual_exclusion = visual_exclusion
         self.ghost_mode = ghost_mode
         self.patchwise_exclusion = patchwise_exclusion

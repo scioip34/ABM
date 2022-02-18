@@ -54,6 +54,7 @@ class PlaygroundSimulation(Simulation):
         self.slider_start_x = self.vis_area_end_width + self.action_area_pad
         self.textbox_start_x = self.slider_start_x + self.slider_width + 15
 
+        ## First Slider column
         slider_i = 1
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.framerate_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
@@ -72,19 +73,28 @@ class PlaygroundSimulation(Simulation):
                                        self.slider_height, min=1, max=10, step=1, initial=self.N_resc)
         self.NRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+        slider_i = 4
+        slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
+        self.FOV_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=0, max=1, step=0.05, initial=self.agent_fov[1]/np.pi)
+        self.FOV_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
 
     def draw_frame(self, stats, stats_pos):
         """Overwritten method of sims drawframe adding possibility to update pygame widgets"""
         super().draw_frame(stats, stats_pos)
         self.framerate_textbox.setText(f"framerate: {self.framerate}")
         self.N_textbox.setText(f"N: {self.N}")
-        self.NRES_textbox.setText(f"$N_R$: {self.N_resc}")
+        self.NRES_textbox.setText(f"N_R: {self.N_resc}")
+        self.FOV_textbox.setText(f"FOV: {int(self.fov_ratio*100)}%")
         self.framerate_textbox.draw()
         self.framerate_slider.draw()
         self.N_textbox.draw()
         self.N_slider.draw()
         self.NRES_textbox.draw()
         self.NRES_slider.draw()
+        self.FOV_textbox.draw()
+        self.FOV_slider.draw()
 
     def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
@@ -93,10 +103,19 @@ class PlaygroundSimulation(Simulation):
         self.framerate = self.framerate_slider.getValue()
         self.N = self.N_slider.getValue()
         self.N_resc = self.NRES_slider.getValue()
+        self.fov_ratio = self.FOV_slider.getValue()
         if self.N != len(self.agents):
             self.act_on_N_mismatch()
         if self.N_resc != len(self.rescources):
             self.act_on_NRES_mismatch()
+        if self.fov_ratio != self.agent_fov[1]/np.pi:
+            self.update_agent_fovs()
+
+    def update_agent_fovs(self):
+        """Updateing the FOV of agents according to acquired value from slider"""
+        self.agent_fov = (-self.fov_ratio*np.pi, self.fov_ratio*np.pi)
+        for agent in self.agents:
+            agent.FOV = self.agent_fov
 
     def act_on_N_mismatch(self):
         """method is called if the requested amount of agents is not the same as what the playground already has"""

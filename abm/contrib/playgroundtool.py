@@ -23,7 +23,7 @@ default_params = {
                 "regenerate_patches": True,
                 "agent_consumption": 1,
                 "teleport_exploit": False,
-                "vision_range": 500,
+                "vision_range": 5000,
                 "agent_fov": 0.5,
                 "visual_exclusion": True,
                 "show_vision_range": False,

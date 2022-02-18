@@ -41,7 +41,7 @@ class Rescource(pygame.sprite.Sprite):
         self.position = np.array(position, dtype=np.float64)  # saved
         self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
         self.color = color
-        self.resc_left_color = (color[0]-20, color[1]-20, color[2]-20)
+        self.resc_left_color = colors.DARK_GREY
         self.unit_per_timestep = quality  # saved
 
         # Environment related parameters

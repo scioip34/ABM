@@ -150,8 +150,13 @@ class Simulation:
         self.max_resc_units = max_resc_perpatch
         self.min_resc_quality = min_resc_quality
         self.max_resc_quality = max_resc_quality
+        # possibility to provide single vaues instead of value
+        # ranges if the maximum values are negative for both
+        # quality and contained units
         if self.max_resc_quality < 0:
             self.max_resc_quality = self.min_resc_quality
+        if self.max_resc_units < 0:
+            self.max_resc_units = self.min_resc_units + 1
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
@@ -347,11 +352,12 @@ class Simulation:
         while i < self.N:
             x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
             y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
+            orient = np.random.uniform(0, 2*np.pi)
             agent = Agent(
                 id=i,
                 radius=self.agent_radii,
                 position=(x, y),
-                orientation=0,
+                orientation=orient,
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.BLUE,
                 v_field_res=self.v_field_res,

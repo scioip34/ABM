@@ -40,7 +40,7 @@ class DataLoader:
     parameters
     """
 
-    def __init__(self, data_folder_path, only_env=False):
+    def __init__(self, data_folder_path, only_env=False, undersample=1):
         """
         Initalization method of main DataLoader class
 
@@ -51,6 +51,7 @@ class DataLoader:
                 the given data folder.
         """
         # Initializing DataLoader paths according to convention
+        self.undersample = undersample
         self.only_env = only_env
         self.data_folder_path = data_folder_path
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
@@ -65,8 +66,8 @@ class DataLoader:
     def load_files(self):
         """loading agent and resource data files into memory and make post-processing on time series"""
         if not self.only_env:
-            self.agent_data = dh.load_csv_file(self.agent_csv_path)
-            self.resource_data = dh.load_csv_file(self.resource_csv_path)
+            self.agent_data = dh.load_csv_file(self.agent_csv_path, undersample=self.undersample)
+            self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
         with open(self.env_json_path, "r") as file:
             self.env_data = json.load(file)
 
@@ -107,6 +108,7 @@ class DataLoader:
         self.env_data["SHOW_VISION_RANGE"] = bool(int(self.env_data["SHOW_VISION_RANGE"])),
         self.env_data["USE_IFDB_LOGGING"] = bool(int(self.env_data["USE_IFDB_LOGGING"])),
         self.env_data["SAVE_CSV_FILES"] = bool(int(self.env_data["SAVE_CSV_FILES"]))
+        self.env_data["SUMMARY_UNDERSAMPLE"] = float(self.undersample)
 
         for k, v in self.env_data.items():
             if isinstance(v, tuple):
@@ -118,7 +120,8 @@ class DataLoader:
                 if k.find("vfield") == -1:
                     self.agent_data[k] = np.array([float(i) for i in v])
                 else:
-                    self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace("[ ", "[").replace(" ", ", ") for i in v], dtype=object)
+                    self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                        "[ ", "[").replace(" ", ", ") for i in v], dtype=object)
 
             for k, v in self.resource_data.items():
                 self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
@@ -131,8 +134,10 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False):
+    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None):
         # experiment data after summary
+        self.undersample = int(undersample)
+        self.env = None
         self.description = None
         self.efficiency = None
         self.eff_std = None
@@ -141,6 +146,22 @@ class ExperimentLoader:
         self.agent_summary = None
         self.varying_params = {}
         self.distances = None
+        # COLLAPSE OF MULTIDIMENSIONAL PLOTS
+        # in case 3 variables are present and we kept a pair of variables changing together, we can collapse
+        # the visualization into 2 dimensions by taking only non-zero elements into considerations.
+        # this is equivalent defining a new variable that is a combination of 2 changed variables along simulations
+        # The string encodes how the collision should work:
+        # MIN/MAX/NONZERO-VARINDEXTHATISNOTCOLLAPSED
+        # example: MIN-0: the 0th variable will kept as a single axis and the data will be collapsed along the 1st
+        # and 2nd variables into a single axis, where each datapoint will be the Minimum of the collapsed datapoints
+        self.collapse_plot = collapse_plot
+        if self.collapse_plot is not None:
+            self.collapse_method = self.collapse_plot.split('-')[0]
+            if self.collapse_method == "MAX":
+                self.collapse_method = np.max
+            elif self.collapse_method == "MIN":
+                self.collapse_method = np.min
+            self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
         # path variables
         self.experiment_path = experiment_path
@@ -162,9 +183,28 @@ class ExperimentLoader:
 
         # reloading previously saved numpy arrays
         self.reload_summarized_data()
-        self.plot_search_efficiency()
-        self.plot_mean_relocation_time()
-        self.plot_mean_travelled_distances()
+        if with_plotting:
+            self.plot_search_efficiency()
+            self.plot_mean_relocation_time()
+            # self.plot_mean_travelled_distances()
+
+    def set_collapse_param(self, collapse_plot):
+        # COLLAPSE OF MULTIDIMENSIONAL PLOTS
+        # in case 3 variables are present and we kept a pair of variables changing together, we can collapse
+        # the visualization into 2 dimensions by taking only non-zero elements into considerations.
+        # this is equivalent defining a new variable that is a combination of 2 changed variables along simulations
+        # The string encodes how the collision should work:
+        # MIN/MAX/NONZERO-VARINDEXTHATISNOTCOLLAPSED
+        # example: MIN-0: the 0th variable will kept as a single axis and the data will be collapsed along the 1st
+        # and 2nd variables into a single axis, where each datapoint will be the Minimum of the collapsed datapoints
+        self.collapse_plot = collapse_plot
+        if self.collapse_plot is not None:
+            self.collapse_method = self.collapse_plot.split('-')[0]
+            if self.collapse_method == "MAX":
+                self.collapse_method = np.max
+            elif self.collapse_method == "MIN":
+                self.collapse_method = np.min
+            self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
     def read_all_data(self):
         """reading all data in the experiment folder and storing them in the memory"""
@@ -179,7 +219,7 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading agent data batch {i}, run {j}")
-                agent_data, res_data, env_data = DataLoader(run).get_loaded_data()
+                agent_data, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
 
                 # finding out max depleted patches for next loop
                 num_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
@@ -192,7 +232,7 @@ class ExperimentLoader:
                     else:
                         print("Detected varying group size across runs, will use maximum agent number...")
                         num_agents = int(np.max(self.varying_params["N"]))
-                    num_timesteps = int(float(env_data['T']))
+                    num_timesteps = int(float(env_data['T']) / self.undersample)
                     axes_lens = []
                     for k in sorted(list(self.varying_params.keys())):
                         axes_lens.append(len(self.varying_params[k]))
@@ -225,59 +265,8 @@ class ExperimentLoader:
                     mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
                     expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
 
-        for i, batch_path in enumerate(self.batch_folders):
-            glob_pattern = os.path.join(batch_path, "*")
-
-            run_folders = [path for path in glob.iglob(glob_pattern)]
-            if i == 0:
-                self.num_runs = len(run_folders)
-
-            for j, run in enumerate(run_folders):
-                print(f"Reading resource data batch {i}, run {j}")
-                _, res_data, env_data = DataLoader(run).get_loaded_data()
-
-                if i == 0 and j == 0:
-                    print("\nInitializing resource data structures")
-                    # num_batches x criterion1 x criterion2 x ... x criterionN x max_num_resources x time
-                    # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
-                    # where the value is -1 the resource does not exist in time
-                    r_posx_array = -1 * np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_posy_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-
-                    index = [self.varying_params[k].index(float(env_data[k])) for k in
-                             sorted(list(self.varying_params.keys()))]
-                    num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
-
-                    for ri in range(num_res_in_run):
-                        ind = (i,) + tuple(index) + (ri,)
-                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_posx_array[ind] = data
-
-                        data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_posy_array[ind] = data
-
-                        data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_qual_array[ind] = data
-
-                        data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = [float(d) if d != "" else -1.0 for d in data]
-                        # clean empty strings as -1s
-                        r_rescleft_array[ind] = data
-
         print("Datastructures initialized according to loaded data!")
-        print("Saving summary..." )
+        print("Saving agent summary...")
         summary_path = os.path.join(self.experiment_path, "summary")
         os.makedirs(summary_path, exist_ok=True)
         np.savez(os.path.join(summary_path, "agent_summary.npz"),
@@ -292,11 +281,68 @@ class ExperimentLoader:
                  mode=mode_array,
                  explpatch=expl_patch_array)
 
+        del posx_array, posy_array, rew_array, ori_array, vel_array, \
+            w_array, u_array, Ip_array, mode_array, expl_patch_array
+
+        for i, batch_path in enumerate(self.batch_folders):
+            glob_pattern = os.path.join(batch_path, "*")
+
+            run_folders = [path for path in glob.iglob(glob_pattern)]
+            if i == 0:
+                self.num_runs = len(run_folders)
+
+            for j, run in enumerate(run_folders):
+                print(f"Reading resource data batch {i}, run {j}")
+                _, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
+
+                if i == 0 and j == 0:
+                    print("\nInitializing resource data structures")
+                    # num_batches x criterion1 x criterion2 x ... x criterionN x max_num_resources x time
+                    # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
+                    # where the value is -1 the resource does not exist in time
+                    r_posx_array = -1 * np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+
+                index = [self.varying_params[k].index(float(env_data[k])) for k in
+                         sorted(list(self.varying_params.keys()))]
+                num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+
+                for ri in range(num_res_in_run):
+                    ind = (i,) + tuple(index) + (ri,)
+                    data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_posx_array[ind] = data
+
+                    data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_posy_array[ind] = data
+
+                    data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_qual_array[ind] = data
+
+                    data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
+                    # clean empty strings
+                    data = [float(d) if d != "" else -1.0 for d in data]
+                    # clean empty strings as -1s
+                    r_rescleft_array[ind] = data
+
+        print("Saving resource summary...")
         np.savez(os.path.join(summary_path, "resource_summary.npz"),
                  posx=r_posx_array,
                  posy=r_posy_array,
                  quality=r_qual_array,
                  resc_left=r_rescleft_array)
+
+        del r_posx_array, r_posy_array, r_qual_array, r_rescleft_array
 
         with open(os.path.join(summary_path, "fixed_env.json"), "w") as fenvf:
             fixed_env = env_data
@@ -363,6 +409,8 @@ class ExperimentLoader:
         self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"))
         with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
             self.env = json.loads(fixf.read())
+        print("Overwriting undersample ratio with the one read from env file...")
+        self.undersample = int(float(self.env.get("SUMMARY_UNDERSAMPLE", "1")))
         with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
             self.varying_params = json.loads(tunedf.read())
         print("Agent, resource and parameter data reloaded!")
@@ -390,7 +438,7 @@ class ExperimentLoader:
 
             collres = self.agent_summary["collresource"][..., -1]
             sum_distances = np.sum(self.distances, axis=time_dim)
-            self.efficiency = collres / sum_distances
+            self.efficiency = collres  # / sum_distances
 
             self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
             self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
@@ -401,33 +449,101 @@ class ExperimentLoader:
 
         self.calculate_search_efficiency()
 
-        fig, ax = plt.subplots(1, 1)
-        plt.title("Search Efficiency")
-
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
         if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Search Efficiency")
             plt.plot(self.mean_efficiency)
             plt.plot(self.mean_efficiency + self.eff_std)
             plt.plot(self.mean_efficiency - self.eff_std)
-            print(self.efficiency.shape)
             for run_i in range(self.efficiency.shape[0]):
                 plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
             ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
             ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
             plt.xlabel(list(self.varying_params.keys())[0])
+
         elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
             im = ax.imshow(self.mean_efficiency)
 
-            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-            plt.xlabel(list(self.varying_params.keys())[0])
-            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
-            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
-            plt.ylabel(list(self.varying_params.keys())[1])
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3:
+            if self.collapse_plot is None:
+                num_plots = self.mean_efficiency.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_efficiency[i, :, :], vmin=0, vmax=2500)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                shape_along_fixed_ind = self.mean_efficiency.shape[self.collapse_fixedvar_ind]
+                labels = []
+                # collapsing data
+                for i in range(shape_along_fixed_ind):
+                    if self.collapse_fixedvar_ind == 0:
+                        collapsed_data_row = self.collapse_method(self.mean_efficiency[i, :, :], axis=0)
+                        ind = np.argmax(self.mean_efficiency[i, :, :], axis=0)
+                        max1_ind = 1
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 1:
+                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, i, :], axis=0)
+                        ind = np.argmax(self.mean_efficiency[:, i, :], axis=0)
+                        max1_ind = 0
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 2:
+                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, :, i], axis=0)
+                        ind = np.argmax(self.mean_efficiency[:, :, i], axis=0)
+                        max1_ind = 0
+                        max2_ind = 1
+
+                    if i == 0:
+                        collapsed_data = collapsed_data_row
+                    else:
+                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+                for j in range(len(ind)):
+                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
+                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
+                    labels.append(label)
+
+                ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+                # ax.set_xlabel(f"Combined Parameters\n"
+                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
+                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
@@ -443,14 +559,13 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        fig, ax = plt.subplots(1, 1)
-        plt.title("Mean (over agents and batches) relative relocation time")
-
         rel_reloc_matrix = np.mean((self.agent_summary["mode"] == 2).astype(int), axis=time_dim)
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
-        std_rel_reloc =  np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+        std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 
         if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Mean (over agents and batches) relative relocation time")
             plt.plot(mean_rel_reloc)
             plt.plot(mean_rel_reloc + std_rel_reloc)
             plt.plot(mean_rel_reloc - std_rel_reloc)
@@ -459,15 +574,85 @@ class ExperimentLoader:
             ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
             ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
             plt.xlabel(list(self.varying_params.keys())[0])
+
         elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
             im = ax.imshow(mean_rel_reloc)
 
-            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-            plt.xlabel(list(self.varying_params.keys())[0])
-            ax.set_yticks(range(len(self.varying_params[list(self.varying_params.keys())[1]])))
-            ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
-            plt.ylabel(list(self.varying_params.keys())[1])
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3:
+            if self.collapse_plot is None:
+                num_plots = mean_rel_reloc.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(mean_rel_reloc[i, :, :], vmin=0, vmax=np.max(mean_rel_reloc))
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                    fig.subplots_adjust(right=0.8)
+                    cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                    fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                shape_along_fixed_ind = mean_rel_reloc.shape[self.collapse_fixedvar_ind]
+                # collapsing data
+                labels = []
+                for i in range(shape_along_fixed_ind):
+                    if self.collapse_fixedvar_ind == 0:
+                        collapsed_data_row = self.collapse_method(mean_rel_reloc[i, :, :], axis=0)
+                        ind = np.argmax(mean_rel_reloc[i, :, :], axis=0)
+                        max1_ind = 1
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 1:
+                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, i, :], axis=0)
+                        ind = np.argmax(mean_rel_reloc[:, i, :], axis=0)
+                        max1_ind = 0
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 2:
+                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, :, i], axis=0)
+                        ind = np.argmax(mean_rel_reloc[:, :, i], axis=0)
+                        max1_ind = 0
+                        max2_ind = 1
+
+                    if i == 0:
+                        collapsed_data = collapsed_data_row
+                    else:
+                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+                for j in range(len(ind)):
+                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
+                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
+                    labels.append(label)
+
+                ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                # ax.set_xlabel(f"Combined Parameters\n"
+                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
+                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
@@ -527,12 +712,20 @@ class ExperimentLoader:
                            f"Q{self.env['MIN_RESOURCE_QUALITY']}-{self.env['MAX_RESOURCE_QUALITY']}, " \
                            f"U{self.env['MIN_RESOURCE_PER_PATCH']}-{self.env['MAX_RESOURCE_PER_PATCH']}"
         bbox_props = dict(boxstyle="round,pad=0.5", fc="w", ec="k", lw=2)
-        annot = ax.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction', horizontalalignment='left',
-                            verticalalignment='top', bbox=bbox_props)
-        annot.set_visible(False)
-
-        fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
-        fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
+        try:
+            annot = ax.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction', horizontalalignment='left',
+                                verticalalignment='top', bbox=bbox_props)
+            annot.set_visible(False)
+            fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
+            fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
+        except AttributeError:
+            for axi in ax:
+                annot = axi.annotate(description_text, xy=(0.05, 0.95), xycoords='axes fraction',
+                                     horizontalalignment='left',
+                                     verticalalignment='top', bbox=bbox_props)
+                annot.set_visible(False)
+                fig.canvas.mpl_connect('button_press_event', lambda event: show_plot_description(event, fig, annot))
+                fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
 
         if show:
             plt.show()
@@ -548,8 +741,8 @@ class ExperimentLoader:
             T = posx.shape[-1]
             x1s = posx[..., 1::]
             y1s = posy[..., 1::]
-            x2s = posx[..., 0:T-1]
-            y2s = posy[..., 0:T-1]
+            x2s = posx[..., 0:T - 1]
+            y2s = posy[..., 0:T - 1]
             self.distances = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
 
 
@@ -559,6 +752,7 @@ def show_plot_description(event, fig, annotation_box):
     summarized"""
     annotation_box.set_visible(True)
     fig.canvas.draw_idle()
+
 
 def hide_plot_description(event, fig, annotation_box):
     """Callback function for matplotlib figure.canvas.mpl_connect function to show some

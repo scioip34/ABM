@@ -12,6 +12,8 @@ import abm.contrib.ifdb_params as ifdbp
 
 import importlib
 
+batch_bodies_agents = []
+batch_bodies_resources = []
 
 def create_ifclient():
     """Connecting to the InfluxDB defined with environmental variables and returning a client instance.
@@ -49,6 +51,7 @@ def save_agent_data(ifclient, agents, exp_hash=""):
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
     """
+    global batch_bodies_agents
     measurement_name = f"agent_data{exp_hash}"
     fields = {}
     for agent in agents:
@@ -71,16 +74,17 @@ def save_agent_data(ifclient, agents, exp_hash=""):
         fields[f"vfield_up_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}"
         fields[f"vfield_down_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}"
 
-    body = [
-        {
+    body = {
             "measurement": measurement_name,
             "time": time,
             "fields": fields
         }
-    ]
 
-    # write the measurement
-    ifclient.write_points(body)
+    # write the measurement in batches
+    batch_bodies_agents.append(body)
+    if len(batch_bodies_agents) == ifdbp.write_batch_size:
+        ifclient.write_points(batch_bodies_agents)
+        batch_bodies_agents = []
 
 
 def mode_to_int(mode):
@@ -99,6 +103,7 @@ def save_resource_data(ifclient, resources, exp_hash=""):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
+    global batch_bodies_resources
     measurement_name = f"resource_data{exp_hash}"
     fields = {}
     for res in resources:
@@ -116,16 +121,17 @@ def save_resource_data(ifclient, resources, exp_hash=""):
         fields[f"resc_left_{res_name}"] = float(res.resc_left)
         fields[f"quality_{res_name}"] = float(res.unit_per_timestep)
 
-    body = [
-        {
+    body = {
             "measurement": measurement_name,
             "time": time,
             "fields": fields
         }
-    ]
 
-    # write the measurement
-    ifclient.write_points(body)
+    batch_bodies_resources.append(body)
+    # write the measurement in batches
+    if len(batch_bodies_resources) == ifdbp.write_batch_size:
+        ifclient.write_points(batch_bodies_resources)
+        batch_bodies_resources = []
 
 
 def save_simulation_params(ifclient, sim, exp_hash=""):

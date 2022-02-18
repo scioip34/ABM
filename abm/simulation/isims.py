@@ -211,3 +211,42 @@ class PlaygroundSimulation(Simulation):
                 for i, res in enumerate(self.rescources):
                     if i == len(self.rescources)-1:
                         res.kill()
+
+    def draw_visual_fields(self):
+        """Visualizing the range of vision for agents as opaque circles around the agents"""
+        for agent in self.agents:
+            FOV = agent.FOV
+
+            # Show limits of FOV
+            if 0 < FOV[1] < np.pi:
+
+                # Center and radius of pie chart
+                cx, cy, r = agent.position[0] + agent.radius, agent.position[1] + agent.radius, 100
+
+                angle = (2 * FOV[1]) / np.pi * 360
+                p = [(cx, cy)]
+                # Get points on arc
+                angles = [agent.orientation + FOV[0], agent.orientation + FOV[1]]
+                step_size = (angles[1] - angles[0]) / 50
+                angles_array = np.arange(angles[0], angles[1] + step_size, step_size)
+                for n in angles_array:
+                    x = cx + int(r * np.cos(n))
+                    y = cy + int(r * - np.sin(n))
+                    p.append((x, y))
+                p.append((cx, cy))
+
+                image = pygame.Surface([self.vis_area_end_width, self.vis_area_end_height])
+                image.fill(colors.BACKGROUND)
+                image.set_colorkey(colors.BACKGROUND)
+                image.set_alpha(10)
+                pygame.draw.polygon(image, colors.GREEN, p)
+                self.screen.blit(image, (0, 0))
+
+            elif FOV[1] == np.pi:
+                image = pygame.Surface([self.vis_area_end_width, self.vis_area_end_height])
+                image.fill(colors.BACKGROUND)
+                image.set_colorkey(colors.BACKGROUND)
+                image.set_alpha(10)
+                cx, cy, r = agent.position[0] + agent.radius, agent.position[1] + agent.radius, 100
+                pygame.draw.circle(image, colors.GREEN, (cx, cy), r)
+                self.screen.blit(image, (0, 0))

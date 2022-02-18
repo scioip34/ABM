@@ -6,7 +6,7 @@ setup(
     name='P34 ABM',
     description='Agent based model framework to simulate collectively foraging agents relying on their private and social'
                 'visual cues. Written in pygame and python 3.7+',
-    version='0.0.1',
+    version='1.1.1',
     url='https://github.com/scioip34/ABM',
     maintainer='David Mezey and Dominik Deffner @ SCIoI',
     packages=find_packages(exclude=['tests']),
@@ -33,6 +33,7 @@ setup(
     entry_points={
         'console_scripts': [
             'abm-start=abm.app:start',
+            'playground-start=abm.app:start_playground'
         ]
     },
     classifiers=[

@@ -1,4 +1,5 @@
 from abm.simulation.sims import Simulation
+from abm.simulation.isims import PlaygroundSimulation
 
 import os
 # loading env variables from dotenv file
@@ -40,4 +41,9 @@ def start(parallel=False):
                      save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
                      parallel=parallel
                      )
+    sim.start()
+
+
+def start_playground():
+    sim = PlaygroundSimulation()
     sim.start()

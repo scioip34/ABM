@@ -85,6 +85,13 @@ class PlaygroundSimulation(Simulation):
                                        self.slider_height, min=10, max=100, step=5, initial=self.resc_radius)
         self.RESradius_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+        slider_i = 6
+        slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
+        self.Eps_w = 2
+        self.Epsw_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=0, max=5, step=0.1, initial=self.Eps_w)
+        self.Epsw_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
 
     def draw_frame(self, stats, stats_pos):
         """Overwritten method of sims drawframe adding possibility to update pygame widgets"""
@@ -94,6 +101,7 @@ class PlaygroundSimulation(Simulation):
         self.NRES_textbox.setText(f"N_R: {self.N_resc}")
         self.FOV_textbox.setText(f"FOV: {int(self.fov_ratio*100)}%")
         self.RESradius_textbox.setText(f"R_R: {int(self.resc_radius)}")
+        self.Epsw_textbox.setText(f"E_w: {self.Eps_w:.2f}")
         self.framerate_textbox.draw()
         self.framerate_slider.draw()
         self.N_textbox.draw()
@@ -104,6 +112,8 @@ class PlaygroundSimulation(Simulation):
         self.FOV_slider.draw()
         self.RESradius_textbox.draw()
         self.RESradius_slider.draw()
+        self.Epsw_textbox.draw()
+        self.Epsw_slider.draw()
 
     def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
@@ -122,6 +132,14 @@ class PlaygroundSimulation(Simulation):
         if self.resc_radius != self.RESradius_slider.getValue():
             self.resc_radius = self.RESradius_slider.getValue()
             self.update_res_radius()
+        if self.Eps_w != self.Epsw_slider.getValue():
+            self.Eps_w = self.Epsw_slider.getValue()
+            self.update_agent_decision_params()
+
+    def update_agent_decision_params(self):
+        """Updateing agent decision parameters according to changed slider values"""
+        for ag in self.agents:
+            ag.Eps_w = self.Eps_w
 
     def update_res_radius(self):
         """Changing the resource patch radius according to slider value"""
@@ -151,6 +169,8 @@ class PlaygroundSimulation(Simulation):
                 y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
                 orient = np.random.uniform(0, 2 * np.pi)
                 self.add_new_agent(ag_id, x, y, orient, with_proove=False)
+            self.update_agent_decision_params()
+            self.update_agent_fovs()
         else:
             while self.N < len(self.agents):
                 for i, ag in enumerate(self.agents):

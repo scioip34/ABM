@@ -95,8 +95,8 @@ class Agent(pygame.sprite.Sprite):
         self.g_u = decision_params.g_u
         self.B_u = decision_params.B_u
         self.u_max = decision_params.u_max
-        self.F_n = decision_params.F_N
-        self.F_r = decision_params.F_R
+        self.F_N = decision_params.F_N
+        self.F_R = decision_params.F_R
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes

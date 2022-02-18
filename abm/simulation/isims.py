@@ -164,7 +164,6 @@ class PlaygroundSimulation(Simulation):
             diff = self.N_resc - len(self.rescources)
             for i in range(diff):
                 sum_area = (len(self.rescources)+1) * self.resc_radius * self.resc_radius * np.pi
-                print(sum_area, 0.5 * self.WIDTH * self.HEIGHT)
                 if sum_area > 0.5 * self.WIDTH * self.HEIGHT:
                     while sum_area > 0.5 * self.WIDTH * self.HEIGHT:
                         self.resc_radius -= 5

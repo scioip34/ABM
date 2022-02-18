@@ -406,46 +406,47 @@ class Simulation:
         stats_pos = (int(self.window_pad), int(self.window_pad))
         return stats, stats_pos
 
-    def interact_with_event(self, event):
+    def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
-        # Exit if requested
-        if event.type == pygame.QUIT:
-            sys.exit()
+        for event in events:
+            # Exit if requested
+            if event.type == pygame.QUIT:
+                sys.exit()
 
-        # Change orientation with mouse wheel
-        if event.type == pygame.MOUSEWHEEL:
-            if event.y == -1:
-                event.y = 0
-            for ag in self.agents:
-                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
-
-        # Pause on Space
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            self.is_paused = not self.is_paused
-
-        # Speed up on s and down on f. reset default framerate with d
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-            self.framerate -= 1
-            if self.framerate < 1:
-                self.framerate = 1
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-            self.framerate += 1
-            if self.framerate > 35:
-                self.framerate = 35
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-            self.framerate = self.framerate_orig
-
-        # Continuous mouse events (move with cursor)
-        if pygame.mouse.get_pressed()[0]:
-            try:
+            # Change orientation with mouse wheel
+            if event.type == pygame.MOUSEWHEEL:
+                if event.y == -1:
+                    event.y = 0
                 for ag in self.agents:
-                    ag.move_with_mouse(event.pos, 0, 0)
-            except AttributeError:
+                    ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
+
+            # Pause on Space
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.is_paused = not self.is_paused
+
+            # Speed up on s and down on f. reset default framerate with d
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                self.framerate -= 1
+                if self.framerate < 1:
+                    self.framerate = 1
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                self.framerate += 1
+                if self.framerate > 35:
+                    self.framerate = 35
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                self.framerate = self.framerate_orig
+
+            # Continuous mouse events (move with cursor)
+            if pygame.mouse.get_pressed()[0]:
+                try:
+                    for ag in self.agents:
+                        ag.move_with_mouse(event.pos, 0, 0)
+                except AttributeError:
+                    for ag in self.agents:
+                        ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
+            else:
                 for ag in self.agents:
-                    ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
-        else:
-            for ag in self.agents:
-                ag.is_moved_with_cursor = False
+                    ag.is_moved_with_cursor = False
 
     def decide_on_vis_field_visibility(self, turned_on_vfield):
         """Deciding f the visual field needs to be shown or not"""
@@ -519,7 +520,7 @@ class Simulation:
         self.create_resources()
 
         # Creating surface to show visual fields
-        stats, stats_pos = self.create_vis_field_graph()
+        self.stats, self.stats_pos = self.create_vis_field_graph()
 
         # local var to decide when to show visual fields
         turned_on_vfield = 0
@@ -527,9 +528,9 @@ class Simulation:
         # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 
-            for event in pygame.event.get():
-                # Carry out interaction according to user activity
-                self.interact_with_event(event)
+            events = pygame.event.get()
+            # Carry out interaction according to user activity
+            self.interact_with_event(events)
 
             # deciding if vis field needs to be shown in this timestep
             turned_on_vfield = self.decide_on_vis_field_visibility(turned_on_vfield)
@@ -655,7 +656,7 @@ class Simulation:
 
             # Draw environment and agents
             if self.with_visualization:
-                self.draw_frame(stats, stats_pos)
+                self.draw_frame(self.stats, self.stats_pos)
                 pygame.display.flip()
 
             # Monitoring with IFDB

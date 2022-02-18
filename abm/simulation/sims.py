@@ -346,15 +346,12 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def create_agents(self):
-        """Creating agents according to how the simulation class was initialized"""
-        i = 0
-        while i < self.N:
-            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
-            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
-            orient = np.random.uniform(0, 2*np.pi)
+    def add_new_agent(self, id, x, y, orient):
+        """Adding a single new agent into agent sprites"""
+        agent_proven = False
+        while not agent_proven:
             agent = Agent(
-                id=i,
+                id=id,
                 radius=self.agent_radii,
                 position=(x, y),
                 orientation=orient,
@@ -372,7 +369,16 @@ class Simulation:
             )
             if self.proove_sprite(agent):
                 self.agents.add(agent)
-                i += 1
+                agent_proven = True
+
+    def create_agents(self):
+        """Creating agents according to how the simulation class was initialized"""
+        for i in range(self.N):
+            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
+            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
+            orient = np.random.uniform(0, 2*np.pi)
+            self.add_new_agent(i, x, y, orient)
+
 
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""

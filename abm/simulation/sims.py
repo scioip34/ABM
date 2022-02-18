@@ -379,7 +379,6 @@ class Simulation:
             orient = np.random.uniform(0, 2*np.pi)
             self.add_new_agent(i, x, y, orient)
 
-
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""
         for i in range(self.N_resc):
@@ -504,8 +503,6 @@ class Simulation:
         if self.show_vis_field:
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
-
-        pygame.display.flip()
 
     def start(self):
 
@@ -655,6 +652,7 @@ class Simulation:
             # Draw environment and agents
             if self.with_visualization:
                 self.draw_frame(stats, stats_pos)
+                pygame.display.flip()
 
             # Monitoring with IFDB
             if self.save_in_ifd:

@@ -3,6 +3,7 @@
 import pygame
 import numpy as np
 import sys
+from math import floor, ceil
 
 from abm.agent import supcalc
 from abm.agent.agent import Agent
@@ -99,6 +100,27 @@ class PlaygroundSimulation(Simulation):
                                        self.slider_height, min=0, max=5, step=0.1, initial=self.Eps_u)
         self.Epsu_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+        slider_i = 8
+        slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
+        self.SUM_res = self.get_total_resource()
+        self.SUMR_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=0, max=self.SUM_res+200, step=100, initial=self.SUM_res)
+        self.SUMR_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                         self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
+
+
+    def update_SUMR(self):
+        self.SUM_res = self.get_total_resource()
+        self.SUMR_slider.min = self.N_resc
+        self.SUMR_slider.max = 2 * self.SUM_res
+        self.SUMR_slider.setValue(self.SUM_res)
+
+    def get_total_resource(self):
+        """Calculating the total number of resource units in the arena"""
+        SUMR = 0
+        for res in self.rescources:
+            SUMR += res.resc_units
+        return SUMR
 
     def draw_frame(self, stats, stats_pos):
         """Overwritten method of sims drawframe adding possibility to update pygame widgets"""
@@ -110,6 +132,9 @@ class PlaygroundSimulation(Simulation):
         self.RESradius_textbox.setText(f"R_R: {int(self.resc_radius)}")
         self.Epsw_textbox.setText(f"E_w: {self.Eps_w:.2f}")
         self.Epsu_textbox.setText(f"E_u: {self.Eps_u:.2f}")
+        if self.SUM_res == 0:
+            self.update_SUMR()
+        self.SUMR_textbox.setText(f"SUM R: {self.SUM_res:.2f}")
         self.framerate_textbox.draw()
         self.framerate_slider.draw()
         self.N_textbox.draw()
@@ -124,6 +149,8 @@ class PlaygroundSimulation(Simulation):
         self.Epsw_slider.draw()
         self.Epsu_textbox.draw()
         self.Epsu_slider.draw()
+        self.SUMR_textbox.draw()
+        self.SUMR_slider.draw()
 
     def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
@@ -148,6 +175,28 @@ class PlaygroundSimulation(Simulation):
         if self.Eps_u != self.Epsu_slider.getValue():
             self.Eps_u = self.Epsu_slider.getValue()
             self.update_agent_decision_params()
+        if self.SUM_res != self.SUMR_slider.getValue():
+            self.SUM_res = self.SUMR_slider.getValue()
+            self.distribute_sumR()
+
+    def distribute_sumR(self):
+        """If the amount of requestedtotal amount changes we decrease the amount of resource of all resources in a way that
+        the original resource ratios remain the same"""
+        resource_ratios = []
+        remaining_pecents=[]
+        current_sum_res = self.get_total_resource()
+        for ri, res in enumerate(self.rescources):
+            resource_ratios.append(res.resc_units/current_sum_res)
+            remaining_pecents.append(res.resc_left/res.resc_units)
+
+        # now changing the amount of all and remaining resources according to new sumres
+        for ri, res in enumerate(self.rescources):
+            res.resc_units = resource_ratios[ri] * self.SUM_res
+            res.resc_left = remaining_pecents[ri] * res.resc_units
+            res.update()
+
+        self.min_resc_units = floor(self.SUM_res / self.N_resc)
+        self.max_resc_units = max(ceil(self.SUM_res / self.N_resc), floor(self.SUM_res / self.N_resc)+1)
 
     def update_agent_decision_params(self):
         """Updateing agent decision parameters according to changed slider values"""
@@ -155,9 +204,22 @@ class PlaygroundSimulation(Simulation):
             ag.Eps_w = self.Eps_w
             ag.Eps_u = self.Eps_u
 
+    def pop_resource(self):
+        for res in self.rescources:
+            res.kill()
+            break
+        self.N_resc = len(self.rescources)
+        self.NRES_slider.setValue(self.N_resc)
+
     def update_res_radius(self):
         """Changing the resource patch radius according to slider value"""
         # adjusting number of patches
+        sum_area = len(self.rescources) * self.resc_radius * self.resc_radius * np.pi
+        if sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+            while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+                self.pop_resource()
+                sum_area = len(self.rescources) * self.resc_radius * self.resc_radius * np.pi
+
         for res in self.rescources:
             # # update position
             res.position[0] = res.center[0] - self.resc_radius
@@ -166,6 +228,7 @@ class PlaygroundSimulation(Simulation):
             res.radius = self.resc_radius
             res.rect.x = res.position[0]
             res.rect.y = res.position[1]
+            res.update()
 
     def update_agent_fovs(self):
         """Updateing the FOV of agents according to acquired value from slider"""
@@ -202,7 +265,7 @@ class PlaygroundSimulation(Simulation):
                     while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
                         self.resc_radius -= 5
                         self.RESradius_slider.setValue(self.resc_radius)
-                        sum_area = (len(self.rescources)+1) * self.resc_radius * np.pi * np.pi
+                        sum_area = (len(self.rescources)+1) * self.resc_radius * self.resc_radius * np.pi
                     self.update_res_radius()
                 else:
                     self.add_new_resource_patch()
@@ -211,6 +274,7 @@ class PlaygroundSimulation(Simulation):
                 for i, res in enumerate(self.rescources):
                     if i == len(self.rescources)-1:
                         res.kill()
+        self.update_SUMR()
 
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""

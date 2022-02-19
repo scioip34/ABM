@@ -70,7 +70,7 @@ class PlaygroundSimulation(Simulation):
         slider_i = 3
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.NRES_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                       self.slider_height, min=1, max=10, step=1, initial=self.N_resc)
+                                       self.slider_height, min=1, max=100, step=1, initial=self.N_resc)
         self.NRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
         slider_i = 4
@@ -198,8 +198,8 @@ class PlaygroundSimulation(Simulation):
             diff = self.N_resc - len(self.rescources)
             for i in range(diff):
                 sum_area = (len(self.rescources)+1) * self.resc_radius * self.resc_radius * np.pi
-                if sum_area > 0.5 * self.WIDTH * self.HEIGHT:
-                    while sum_area > 0.5 * self.WIDTH * self.HEIGHT:
+                if sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+                    while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
                         self.resc_radius -= 5
                         self.RESradius_slider.setValue(self.resc_radius)
                         sum_area = (len(self.rescources)+1) * self.resc_radius * np.pi * np.pi

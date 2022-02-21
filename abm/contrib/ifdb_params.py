@@ -3,6 +3,7 @@ import datetime
 from dotenv import dotenv_values
 
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
+WRITE_EACH_POINT = os.getenv("WRITE_EACH_POINT")
 
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
@@ -14,13 +15,16 @@ INFLUX_USER = "monitoring"
 INFLUX_PSWD = "password"
 INFLUX_DB_NAME = "home"
 
-T = float(int(envconf["T"]))
-if T <= 1000:
-    write_batch_size = T
+if WRITE_EACH_POINT is not None:
+    write_batch_size = 1
 else:
-    if T % 1000 != 0:
-        raise Exception("Simulation time (T) must be dividable by 1000 or smaller than 1000!")
-    write_batch_size = 1000
+    T = float(int(envconf["T"]))
+    if T <= 1000:
+        write_batch_size = T
+    else:
+        if T % 1000 != 0:
+            raise Exception("Simulation time (T) must be dividable by 1000 or smaller than 1000!")
+        write_batch_size = 1000
 
 # SAVE_DIR is counted from the ABM parent directory.
 SAVE_DIR = envconf.get("SAVE_ROOT_DIR", "abm/data/simulation_data")

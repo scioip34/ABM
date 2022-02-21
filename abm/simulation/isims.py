@@ -286,7 +286,7 @@ class PlaygroundSimulation(Simulation):
         status = []
         self.overall_col_r = np.sum([ag.collected_r for ag in self.agents])
         status.append(f"Total collected units: {self.overall_col_r:.2f} U")
-        status.append(f"Exploitation Rate: {self.overall_coll_r - self.prev_overall_col_r:.2f} U/timestep")
+        status.append(f"Exploitation Rate: {self.overall_col_r - self.prev_overall_coll_r:.2f} U/timestep")
         for i, stat_i in enumerate(status):
             text_color = colors.BLACK
             text = font.render(stat_i, True, text_color)

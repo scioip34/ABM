@@ -33,3 +33,30 @@ default_params = {
                 "patchwise_exclusion": True,
                 "parallel": False
 }
+
+help_messages = {
+    'framerate': '''
+    
+                    Framerate [fps]: 
+    
+                    The framerate is a parameter that defines how often 
+                    (per second) is the state of the simulation is
+                    updated. In case the simulation has many agents/resources 
+                    it might happen that the requested
+                    framerate is impossible to keep with the given hardware. 
+                    In that case the maximal possible framerate
+                    will be kept. 
+    
+    ''',
+    'N':'''
+    
+                    Number of agents, N [pcs]: 
+    
+                    The number of agent controls how many individuals the
+                    group consists of in terms of foraging agents visualized
+                    as colorful circles with a white line showing their ori-
+                    entations. The field of view of the agents are shown
+                    with a green circle slice.
+    
+    '''
+}

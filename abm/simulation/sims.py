@@ -268,7 +268,7 @@ class Simulation:
             for agent in self.agents:
                 status = [
                     f"ID: {agent.id}",
-                    f"res.: {agent.collected_r}",
+                    f"res.: {agent.collected_r:.2f}",
                     f"ori.: {agent.orientation:.2f}",
                     f"w: {agent.w:.2f}"
                 ]

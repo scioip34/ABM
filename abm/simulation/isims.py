@@ -1,26 +1,22 @@
 """Implementing an interactive Playground Simulation class where the model parameters can be tuned real time"""
+import shutil
 
 import pygame
 import numpy as np
-import sys
 from math import floor, ceil
 
-from abm.agent import supcalc
-from abm.agent.agent import Agent
-from abm.environment.rescource import Rescource
 from abm.contrib import colors, ifdb_params
 from abm.contrib import playgroundtool as pgt
 from abm.simulation.sims import Simulation
 from pygame_widgets.slider import Slider
 from pygame_widgets.button import Button
 from pygame_widgets.textbox import TextBox
-from pygame_widgets.dropdown import Dropdown
+from abm.monitoring.ifdb import pad_to_n_digits
+
 import pygame_widgets
-from abm.monitoring import ifdb
-from abm.monitoring import env_saver
-from math import atan2
 import os
-import uuid
+import cv2
+
 
 from datetime import datetime
 
@@ -41,8 +37,15 @@ class PlaygroundSimulation(Simulation):
         self.overall_col_r = 0
         self.help_message = ""
         self.is_help_shown = False
+        self.is_recording = False
+        self.save_video = False
+        self.video_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR)
+        self.image_save_path = os.path.join(self.video_save_path, "tmp")
+        shutil.rmtree(self.image_save_path)
+        os.makedirs(self.image_save_path, exist_ok=True)
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
         self.vis_area_end_height = 2 * self.window_pad + self.HEIGHT
+        self.global_stats_start = self.vis_area_end_height
         self.action_area_width = 400
         self.action_area_height = 800
         self.full_width = self.WIDTH + self.action_area_width + 2 * self.window_pad
@@ -57,12 +60,29 @@ class PlaygroundSimulation(Simulation):
         self.textbox_height = 20
         self.help_height = self.textbox_height
         self.help_width = self.help_height
+        self.function_button_width = 100
+        self.function_button_height = 20
+        self.function_button_pad = 20
         self.action_area_pad = 40
         self.textbox_width = 100
         self.slider_width = self.action_area_width - 2 * self.action_area_pad - self.textbox_width - 15
         self.slider_start_x = self.vis_area_end_width + self.action_area_pad
         self.textbox_start_x = self.slider_start_x + self.slider_width + 15
         self.help_start_x = self.textbox_start_x + self.textbox_width + 15
+
+        ## Function Button Row
+        self.function_buttons = []
+        function_button_start = self.window_pad
+        self.start_button = Button(self.screen, function_button_start, self.vis_area_end_height, self.function_button_width,
+                                   self.function_button_height, text='Start/Stop', fontSize=self.function_button_height - 2,
+                                   inactiveColour=colors.GREEN, borderThickness=1, onClick=lambda: self.start_stop())
+        self.function_buttons.append(self.start_button)
+        function_button_start += self.function_button_width + self.function_button_pad
+        self.record_button = Button(self.screen, function_button_start, self.vis_area_end_height, self.function_button_width,
+                                   self.function_button_height, text='Record', fontSize=self.function_button_height - 2,
+                                   inactiveColour=colors.GREY, borderThickness=1, onClick=lambda: self.start_stop_record())
+        self.function_buttons.append(self.record_button)
+        self.global_stats_start += self.function_button_height + self.window_pad
 
         ## First Slider column
         slider_i = 1
@@ -201,6 +221,26 @@ class PlaygroundSimulation(Simulation):
         self.SUMR_help.onRelease = lambda: self.unshow_help(self.SUMR_help)
         self.help_buttons.append(self.SUMR_help)
 
+    def start_stop_record(self):
+        """Start or stop the recording of the simulation into a vdieo"""
+        if not self.is_recording:
+            self.is_recording = True
+            self.record_button.inactiveColour = colors.RED
+        else:
+            self.is_recording = False
+            self.save_video = True
+            self.record_button.inactiveColour = colors.GREY
+            self.help_message = "SAVING VIDEO..."
+            self.draw_help_message()
+
+
+    def start_stop(self):
+        self.is_paused = not self.is_paused
+        if self.start_button.inactiveColour != colors.GREY:
+            self.start_button.inactiveColour = colors.GREY
+        else:
+            self.start_button.inactiveColour = colors.GREEN
+
     def show_help(self, help_decide_str, pressed_button):
         for hb in self.help_buttons:
             hb.inactiveColour = colors.GREY
@@ -217,7 +257,6 @@ class PlaygroundSimulation(Simulation):
         if self.is_paused:
             self.is_paused = False
         pressed_button.inactiveColour = colors.GREY
-
 
     def update_SUMR(self):
         self.SUM_res = self.get_total_resource()
@@ -269,9 +308,17 @@ class PlaygroundSimulation(Simulation):
         self.SWU_slider.draw()
         for hb in self.help_buttons:
             hb.draw()
+        for fb in self.function_buttons:
+            fb.draw()
         if self.is_help_shown:
             self.draw_help_message()
         self.draw_global_stats()
+        if self.save_video:
+            self.help_message = "\n\n\n      SAVING VIDEO, PLEASE WAIT!"
+            self.draw_help_message()
+            pygame.display.flip()
+            self.saved_images_to_video()
+            self.save_video = False
 
     def draw_framerate(self):
         pass
@@ -290,7 +337,7 @@ class PlaygroundSimulation(Simulation):
         for i, stat_i in enumerate(status):
             text_color = colors.BLACK
             text = font.render(stat_i, True, text_color)
-            image.blit(text, (self.window_pad, self.vis_area_end_height + i * line_height))
+            image.blit(text, (self.window_pad, self.global_stats_start + i * line_height))
         self.screen.blit(image, (0, 0))
         self.prev_overall_coll_r = self.overall_col_r
 
@@ -339,6 +386,10 @@ class PlaygroundSimulation(Simulation):
         if self.S_wu != self.SWU_slider.getValue():
             self.S_wu = self.SWU_slider.getValue()
             self.update_agent_decision_params()
+        if self.is_recording:
+            filename = f"{pad_to_n_digits(self.t, n=6)}.jpeg"
+            path = os.path.join(self.image_save_path, filename)
+            pygame.image.save(self.screen, path)
 
     def distribute_sumR(self):
         """If the amount of requestedtotal amount changes we decrease the amount of resource of all resources in a way that
@@ -477,3 +528,23 @@ class PlaygroundSimulation(Simulation):
                 cx, cy, r = agent.position[0] + agent.radius, agent.position[1] + agent.radius, 100
                 pygame.draw.circle(image, colors.GREEN, (cx, cy), r)
                 self.screen.blit(image, (0, 0))
+
+    def saved_images_to_video(self):
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        image_folder = self.image_save_path
+        video_name = os.path.join(self.video_save_path, f'recording_{timestamp}.mp4')
+
+        images = sorted([img for img in os.listdir(image_folder) if img.endswith(".jpeg")])
+        frame = cv2.imread(os.path.join(image_folder, images[0]))
+        height, width, layers = frame.shape
+
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        video = cv2.VideoWriter(video_name, fourcc, self.framerate, (width, height))
+
+        for image in images:
+            video.write(cv2.imread(os.path.join(image_folder, image)))
+
+        cv2.destroyAllWindows()
+        video.release()
+        shutil.rmtree(self.image_save_path)
+        os.makedirs(self.image_save_path, exist_ok=True)

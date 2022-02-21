@@ -163,6 +163,12 @@ class PlaygroundSimulation(Simulation):
                                  self.slider_height, min=0, max=2, step=0.1, initial=self.S_wu)
         self.SWU_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
+        self.SWU_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                     borderThickness=1, )
+        self.SWU_help.onClick = lambda: self.show_help('SWU', self.SWU_help)
+        self.SWU_help.onRelease = lambda: self.unshow_help(self.SWU_help)
+        self.help_buttons.append(self.SWU_help)
 
         slider_i = 9
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -171,6 +177,13 @@ class PlaygroundSimulation(Simulation):
                                  self.slider_height, min=0, max=2, step=0.1, initial=self.S_uw)
         self.SUW_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
+        self.SUW_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                     borderThickness=1, )
+        self.SUW_help.onClick = lambda: self.show_help('SUW', self.SUW_help)
+        self.SUW_help.onRelease = lambda: self.unshow_help(self.SUW_help)
+        self.help_buttons.append(self.SUW_help)
+
 
         slider_i = 10
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -179,6 +192,12 @@ class PlaygroundSimulation(Simulation):
                                   self.slider_height, min=0, max=self.SUM_res + 200, step=100, initial=self.SUM_res)
         self.SUMR_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
+        self.SUMR_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                     borderThickness=1, )
+        self.SUMR_help.onClick = lambda: self.show_help('SUMR', self.SUMR_help)
+        self.SUMR_help.onRelease = lambda: self.unshow_help(self.SUMR_help)
+        self.help_buttons.append(self.SUMR_help)
 
     def show_help(self, help_decide_str, pressed_button):
         for hb in self.help_buttons:

@@ -139,7 +139,7 @@ class PlaygroundSimulation(Simulation):
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.SUM_res = self.get_total_resource()
         self.SUMR_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                       self.slider_height, min=0, max=self.SUM_res+200, step=100, initial=self.SUM_res)
+                                  self.slider_height, min=0, max=self.SUM_res + 200, step=100, initial=self.SUM_res)
         self.SUMR_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
 

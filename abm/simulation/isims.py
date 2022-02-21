@@ -37,6 +37,8 @@ envconf = dotenv_values(env_path)
 class PlaygroundSimulation(Simulation):
     def __init__(self):
         super().__init__(**pgt.default_params)
+        self.prev_overall_coll_r = 0
+        self.overall_col_r = 0
         self.help_message = ""
         self.is_help_shown = False
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
@@ -269,9 +271,28 @@ class PlaygroundSimulation(Simulation):
             hb.draw()
         if self.is_help_shown:
             self.draw_help_message()
+        self.draw_global_stats()
 
     def draw_framerate(self):
         pass
+
+    def draw_global_stats(self):
+        image = pygame.Surface([self.vis_area_end_width, self.full_height])
+        image.fill(colors.BACKGROUND)
+        image.set_colorkey(colors.BACKGROUND)
+        image.set_alpha(200)
+        line_height = 20
+        font = pygame.font.Font(None, line_height)
+        status = []
+        self.overall_col_r = np.sum([ag.collected_r for ag in self.agents])
+        status.append(f"Total collected units: {self.overall_col_r:.2f} U")
+        status.append(f"Exploitation Rate: {self.prev_overall_coll_r - self.overall_col_r:.2f} U/timestep")
+        for i, stat_i in enumerate(status):
+            text_color = colors.BLACK
+            text = font.render(stat_i, True, text_color)
+            image.blit(text, (self.window_pad, self.vis_area_end_height + i * line_height))
+        self.screen.blit(image, (0, 0))
+        self.prev_overall_coll_r = self.overall_col_r
 
     def draw_help_message(self):
         image = pygame.Surface([self.vis_area_end_width, self.vis_area_end_height])

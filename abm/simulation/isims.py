@@ -270,6 +270,9 @@ class PlaygroundSimulation(Simulation):
         if self.is_help_shown:
             self.draw_help_message()
 
+    def draw_framerate(self):
+        pass
+
     def draw_help_message(self):
         image = pygame.Surface([self.vis_area_end_width, self.vis_area_end_height])
         image.fill(colors.BACKGROUND)

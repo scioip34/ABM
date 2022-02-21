@@ -1,5 +1,7 @@
 """parameters for interactive playground simulations"""
 
+VIDEO_SAVE_DIR = "abm/data/videos"
+
 default_params = {
                 "N": 5,
                 "T": 100000,
@@ -27,7 +29,7 @@ default_params = {
                 "agent_fov": 0.5,
                 "visual_exclusion": True,
                 "show_vision_range": True,
-                "use_ifdb_logging": False,
+                "use_ifdb_logging": True,
                 "save_csv_files": False,
                 "ghost_mode": True,
                 "patchwise_exclusion": True,

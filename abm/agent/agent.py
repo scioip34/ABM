@@ -52,6 +52,7 @@ class Agent(pygame.sprite.Sprite):
         self.position = np.array(position, dtype=np.float64) # saved
         self.orientation = orientation # saved
         self.color = color
+        self.selected_color = colors.LIGHT_BLUE
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
@@ -266,9 +267,15 @@ class Agent(pygame.sprite.Sprite):
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)
         self.image.set_colorkey(colors.BACKGROUND)
-        pygame.draw.circle(
-            self.image, self.color, (self.radius, self.radius), self.radius
-        )
+        if self.is_moved_with_cursor:
+            pygame.draw.circle(
+                self.image, self.selected_color, (self.radius, self.radius), self.radius
+            )
+        else:
+            pygame.draw.circle(
+                self.image, self.color, (self.radius, self.radius), self.radius
+            )
+
         # showing agent orientation with a line towards agent orientation
         pygame.draw.line(self.image, colors.BACKGROUND, (self.radius, self.radius),
                          ((1 + np.cos(self.orientation)) * self.radius, (1 - np.sin(self.orientation)) * self.radius),

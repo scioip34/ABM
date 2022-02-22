@@ -96,17 +96,18 @@ class PlaygroundSimulation(Simulation):
         function_button_start_x += self.function_button_width + self.function_button_pad
         self.record_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
                                     self.function_button_width,
-                                    self.function_button_height, text='Record',
+                                    self.function_button_height, text='Record Video',
                                     fontSize=self.function_button_height - 2,
                                     inactiveColour=colors.GREY, borderThickness=1,
                                     onClick=lambda: self.start_stop_record())
         self.function_buttons.append(self.record_button)
         function_button_start_x += self.function_button_width + self.function_button_pad
         self.fix_SUM_res_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
-                                  self.function_button_width,
-                                  self.function_button_height, text='Fix Total Units',
-                                  fontSize=self.function_button_height - 2,
-                                  inactiveColour=colors.GREY, borderThickness=1, onClick=lambda: self.fix_SUM_res())
+                                         self.function_button_width,
+                                         self.function_button_height, text='Fix Total Units',
+                                         fontSize=self.function_button_height - 2,
+                                         inactiveColour=colors.GREEN, borderThickness=1,
+                                         onClick=lambda: self.fix_SUM_res())
         self.function_buttons.append(self.fix_SUM_res_button)
         self.global_stats_start += self.function_button_height + self.window_pad
 
@@ -278,10 +279,16 @@ class PlaygroundSimulation(Simulation):
         if not self.is_recording:
             self.is_recording = True
             self.record_button.inactiveColour = colors.RED
+            self.record_button.string = "Stop Recording"
+            self.record_button.text = self.record_button.font.render(self.record_button.string, True,
+                                                                     self.record_button.textColour)
         else:
             self.is_recording = False
             self.save_video = True
             self.record_button.inactiveColour = colors.GREY
+            self.record_button.string = "Record Video"
+            self.record_button.text = self.record_button.font.render(self.record_button.string, True,
+                                                                     self.record_button.textColour)
             self.help_message = "SAVING VIDEO..."
             self.draw_help_message()
 
@@ -352,6 +359,8 @@ class PlaygroundSimulation(Simulation):
         if self.is_help_shown:
             self.draw_help_message()
         self.draw_global_stats()
+        if self.is_recording:
+            self.draw_record_circle()
         if self.save_video:
             # Showing the help message before the screen freezes
             self.help_message = "\n\n\n      Saving video, please wait..."
@@ -360,6 +369,18 @@ class PlaygroundSimulation(Simulation):
             # Save video (freezes update process for a while)
             self.saved_images_to_video()
             self.save_video = False
+
+    def draw_record_circle(self):
+        """Drawing a red circle to show that the frame is recording"""
+        if self.t % 60 < 30:
+            circle_rad = int(self.window_pad / 4)
+            image = pygame.Surface([2 * circle_rad, 2 * circle_rad])
+            image.fill(colors.BACKGROUND)
+            image.set_colorkey(colors.BACKGROUND)
+            pygame.draw.circle(
+                image, colors.RED, (circle_rad, circle_rad), circle_rad
+            )
+            self.screen.blit(image, (circle_rad, circle_rad))
 
     def draw_framerate(self):
         pass

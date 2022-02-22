@@ -456,7 +456,7 @@ class PlaygroundSimulation(Simulation):
         if self.N > len(self.agents):
             diff = self.N - len(self.agents)
             for i in range(diff):
-                ag_id = len(self.agents) - 1
+                ag_id = len(self.agents)
                 x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
                 y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
                 orient = np.random.uniform(0, 2 * np.pi)

@@ -43,6 +43,7 @@ class PlaygroundSimulation(Simulation):
         self.save_video = False  # trigger to save video from screenshots
         self.video_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR)  # path to save video
         self.image_save_path = os.path.join(self.video_save_path, "tmp")  # path from collect screenshots
+        self.show_all_stats = False
         # enabling paths
         if os.path.isdir(self.image_save_path):
             shutil.rmtree(self.image_save_path)
@@ -109,6 +110,14 @@ class PlaygroundSimulation(Simulation):
                                          inactiveColour=colors.GREEN, borderThickness=1,
                                          onClick=lambda: self.fix_SUM_res())
         self.function_buttons.append(self.fix_SUM_res_button)
+        function_button_start_x += self.function_button_width + self.function_button_pad
+        self.show_all_stats_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+                                            self.function_button_width,
+                                            self.function_button_height, text='Show All',
+                                            fontSize=self.function_button_height - 2,
+                                            inactiveColour=colors.GREY, borderThickness=1,
+                                            onClick=lambda: self.show_hide_all_stats())
+        self.function_buttons.append(self.show_all_stats_button)
         self.global_stats_start += self.function_button_height + self.window_pad
 
         ## First Slider column
@@ -265,6 +274,22 @@ class PlaygroundSimulation(Simulation):
         self.help_buttons.append(self.SUMR_help)
         self.sliders.append(self.SUMR_slider)
         self.slider_texts.append(self.SUMR_textbox)
+
+    def show_hide_all_stats(self):
+        """Show or hide all information"""
+        self.show_all_stats = not self.show_all_stats
+        if self.show_all_stats:
+            self.show_all_stats_button.inactiveColour = colors.GREEN
+            for ag in self.agents:
+                ag.show_stats = True
+            for res in self.rescources:
+                res.show_stats = True
+        else:
+            self.show_all_stats_button.inactiveColour = colors.GREY
+            for ag in self.agents:
+                ag.show_stats = False
+            for res in self.rescources:
+                res.show_stats = False
 
     def fix_SUM_res(self):
         """Fixing total amount of possible resources so it will not change with changing the number of patches"""
@@ -529,6 +554,9 @@ class PlaygroundSimulation(Simulation):
                 for i, ag in enumerate(self.agents):
                     if i == len(self.agents) - 1:
                         ag.kill()
+        if self.show_all_stats:
+            for ag in self.agents:
+                ag.show_stats = True
         self.stats, self.stats_pos = self.create_vis_field_graph()
 
     def act_on_NRES_mismatch(self):
@@ -554,6 +582,9 @@ class PlaygroundSimulation(Simulation):
             self.update_SUMR()
         else:
             self.distribute_sumR()
+        if self.show_all_stats:
+            for res in self.rescources:
+                res.show_stats = True
 
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""

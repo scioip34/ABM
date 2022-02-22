@@ -266,7 +266,7 @@ class Simulation:
         # if self.is_paused:
         font = pygame.font.Font(None, font_size)
         for agent in self.agents:
-            if agent.is_moved_with_cursor:
+            if agent.is_moved_with_cursor or agent.show_stats:
                 status = [
                     f"ID: {agent.id}",
                     f"res.: {agent.collected_r:.2f}",
@@ -281,7 +281,11 @@ class Simulation:
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
         if self.regenerate_resources:
-            self.add_new_resource_patch()
+            rid = self.add_new_resource_patch()
+            if resource.show_stats:
+                for res in self.rescources:
+                    if res.id == rid:
+                        res.show_stats = True
         resource.kill()
 
     def add_new_resource_patch(self):
@@ -302,6 +306,7 @@ class Simulation:
                                  quality)
             resource_proven = self.proove_sprite(resource)
         self.rescources.add(resource)
+        return resource.id
 
     def agent_agent_collision(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one

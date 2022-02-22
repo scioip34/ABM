@@ -60,6 +60,7 @@ class Agent(pygame.sprite.Sprite):
         self.vision_range = vision_range
         self.visual_exclusion = visual_exclusion
         self.FOV = FOV
+        self.show_stats = False
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity  # saved

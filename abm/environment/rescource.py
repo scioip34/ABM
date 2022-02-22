@@ -45,6 +45,7 @@ class Rescource(pygame.sprite.Sprite):
         self.resc_left_color = colors.DARK_GREY
         self.unit_per_timestep = quality  # saved
         self.is_clicked = False
+        self.show_stats = False
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -99,7 +100,7 @@ class Rescource(pygame.sprite.Sprite):
         self.rect.centerx = self.center[0]
         self.rect.centery = self.center[1]
         self.mask = pygame.mask.from_surface(self.image)
-        if self.is_clicked:
+        if self.is_clicked or self.show_stats:
             font = pygame.font.Font(None, 18)
             text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
             self.image.blit(text, (0, 0))

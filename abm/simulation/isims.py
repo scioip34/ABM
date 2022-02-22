@@ -17,7 +17,6 @@ import pygame_widgets
 import os
 import cv2
 
-
 from datetime import datetime
 
 # loading env variables from dotenv file
@@ -33,28 +32,43 @@ envconf = dotenv_values(env_path)
 class PlaygroundSimulation(Simulation):
     def __init__(self):
         super().__init__(**pgt.default_params)
-        self.prev_overall_coll_r = 0
-        self.overall_col_r = 0
+        # fixing the total number of possible resources, so it is redistributed with changing NR
+        self.SUM_res_fixed = True
+        self.prev_overall_coll_r = 0  # total collected resources in previous step
+        self.overall_col_r = 0  # total collected resources by all agents
+        self.SUM_res = self.get_total_resource()  # total possible amount of resources
         self.help_message = ""
         self.is_help_shown = False
         self.is_recording = False
-        self.save_video = False
-        self.video_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR)
-        self.image_save_path = os.path.join(self.video_save_path, "tmp")
+        self.save_video = False  # trigger to save video from screenshots
+        self.video_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR)  # path to save video
+        self.image_save_path = os.path.join(self.video_save_path, "tmp")  # path from collect screenshots
+        # enabling paths
         if os.path.isdir(self.image_save_path):
             shutil.rmtree(self.image_save_path)
         os.makedirs(self.image_save_path, exist_ok=True)
+        # GUI parameters
+        # visualization area of the simulation
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
         self.vis_area_end_height = 2 * self.window_pad + self.HEIGHT
+        # starting global statistics text
         self.global_stats_start = self.vis_area_end_height
+        # start of sliders
         self.action_area_width = 400
         self.action_area_height = 800
+        # full window parameters
         self.full_width = self.WIDTH + self.action_area_width + 2 * self.window_pad
         self.full_height = self.action_area_height
 
         self.quit_term = False
         self.screen = pygame.display.set_mode([self.full_width, self.full_height], pygame.RESIZABLE)
+
+        # button groups
         self.help_buttons = []
+        self.function_buttons = []
+        # sliders and other gui elements
+        self.sliders = []
+        self.slider_texts = []
 
         # pygame widgets
         self.slider_height = 10
@@ -72,17 +86,28 @@ class PlaygroundSimulation(Simulation):
         self.help_start_x = self.textbox_start_x + self.textbox_width + 15
 
         ## Function Button Row
-        self.function_buttons = []
-        function_button_start = self.window_pad
-        self.start_button = Button(self.screen, function_button_start, self.vis_area_end_height, self.function_button_width,
-                                   self.function_button_height, text='Start/Stop', fontSize=self.function_button_height - 2,
+        function_button_start_x = self.window_pad
+        self.start_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+                                   self.function_button_width,
+                                   self.function_button_height, text='Start/Stop',
+                                   fontSize=self.function_button_height - 2,
                                    inactiveColour=colors.GREEN, borderThickness=1, onClick=lambda: self.start_stop())
         self.function_buttons.append(self.start_button)
-        function_button_start += self.function_button_width + self.function_button_pad
-        self.record_button = Button(self.screen, function_button_start, self.vis_area_end_height, self.function_button_width,
-                                   self.function_button_height, text='Record', fontSize=self.function_button_height - 2,
-                                   inactiveColour=colors.GREY, borderThickness=1, onClick=lambda: self.start_stop_record())
+        function_button_start_x += self.function_button_width + self.function_button_pad
+        self.record_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+                                    self.function_button_width,
+                                    self.function_button_height, text='Record',
+                                    fontSize=self.function_button_height - 2,
+                                    inactiveColour=colors.GREY, borderThickness=1,
+                                    onClick=lambda: self.start_stop_record())
         self.function_buttons.append(self.record_button)
+        function_button_start_x += self.function_button_width + self.function_button_pad
+        self.fix_SUM_res_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+                                  self.function_button_width,
+                                  self.function_button_height, text='Fix Total Units',
+                                  fontSize=self.function_button_height - 2,
+                                  inactiveColour=colors.GREY, borderThickness=1, onClick=lambda: self.fix_SUM_res())
+        self.function_buttons.append(self.fix_SUM_res_button)
         self.global_stats_start += self.function_button_height + self.window_pad
 
         ## First Slider column
@@ -98,6 +123,8 @@ class PlaygroundSimulation(Simulation):
         self.framerate_help.onClick = lambda: self.show_help('framerate', self.framerate_help)
         self.framerate_help.onRelease = lambda: self.unshow_help(self.framerate_help)
         self.help_buttons.append(self.framerate_help)
+        self.sliders.append(self.framerate_slider)
+        self.slider_texts.append(self.framerate_textbox)
 
         slider_i = 2
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -106,11 +133,13 @@ class PlaygroundSimulation(Simulation):
         self.N_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                  self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.N_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                             text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                             borderThickness=1, )
         self.N_help.onClick = lambda: self.show_help('N', self.N_help)
         self.N_help.onRelease = lambda: self.unshow_help(self.N_help)
         self.help_buttons.append(self.N_help)
+        self.sliders.append(self.N_slider)
+        self.slider_texts.append(self.N_textbox)
 
         slider_i = 3
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -119,11 +148,13 @@ class PlaygroundSimulation(Simulation):
         self.NRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.NRES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                borderThickness=1, )
         self.NRES_help.onClick = lambda: self.show_help('N_res', self.NRES_help)
         self.NRES_help.onRelease = lambda: self.unshow_help(self.NRES_help)
         self.help_buttons.append(self.NRES_help)
+        self.sliders.append(self.NRES_slider)
+        self.slider_texts.append(self.NRES_textbox)
 
         slider_i = 4
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -132,11 +163,13 @@ class PlaygroundSimulation(Simulation):
         self.FOV_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.FOV_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                               text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                               borderThickness=1, )
         self.FOV_help.onClick = lambda: self.show_help('FOV', self.FOV_help)
         self.FOV_help.onRelease = lambda: self.unshow_help(self.FOV_help)
         self.help_buttons.append(self.FOV_help)
+        self.sliders.append(self.FOV_slider)
+        self.slider_texts.append(self.FOV_textbox)
 
         slider_i = 5
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -145,11 +178,13 @@ class PlaygroundSimulation(Simulation):
         self.RESradius_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.RES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                               text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                               borderThickness=1, )
         self.RES_help.onClick = lambda: self.show_help('RES', self.RES_help)
         self.RES_help.onRelease = lambda: self.unshow_help(self.RES_help)
         self.help_buttons.append(self.RES_help)
+        self.sliders.append(self.RESradius_slider)
+        self.slider_texts.append(self.RESradius_textbox)
 
         slider_i = 6
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -159,11 +194,13 @@ class PlaygroundSimulation(Simulation):
         self.Epsw_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.Epsw_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                borderThickness=1, )
         self.Epsw_help.onClick = lambda: self.show_help('Epsw', self.Epsw_help)
         self.Epsw_help.onRelease = lambda: self.unshow_help(self.Epsw_help)
         self.help_buttons.append(self.Epsw_help)
+        self.sliders.append(self.Epsw_slider)
+        self.slider_texts.append(self.Epsw_textbox)
 
         slider_i = 7
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -173,11 +210,13 @@ class PlaygroundSimulation(Simulation):
         self.Epsu_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.Epsu_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                borderThickness=1, )
         self.Epsu_help.onClick = lambda: self.show_help('Epsu', self.Epsu_help)
         self.Epsu_help.onRelease = lambda: self.unshow_help(self.Epsu_help)
         self.help_buttons.append(self.Epsu_help)
+        self.sliders.append(self.Epsu_slider)
+        self.slider_texts.append(self.Epsu_textbox)
 
         slider_i = 8
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -187,11 +226,13 @@ class PlaygroundSimulation(Simulation):
         self.SWU_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.SWU_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                               text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                               borderThickness=1, )
         self.SWU_help.onClick = lambda: self.show_help('SWU', self.SWU_help)
         self.SWU_help.onRelease = lambda: self.unshow_help(self.SWU_help)
         self.help_buttons.append(self.SWU_help)
+        self.sliders.append(self.SWU_slider)
+        self.slider_texts.append(self.SWU_textbox)
 
         slider_i = 9
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -201,26 +242,36 @@ class PlaygroundSimulation(Simulation):
         self.SUW_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.SUW_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                               text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                               borderThickness=1, )
         self.SUW_help.onClick = lambda: self.show_help('SUW', self.SUW_help)
         self.SUW_help.onRelease = lambda: self.unshow_help(self.SUW_help)
         self.help_buttons.append(self.SUW_help)
-
+        self.sliders.append(self.SUW_slider)
+        self.slider_texts.append(self.SUW_textbox)
 
         slider_i = 10
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
-        self.SUM_res = self.get_total_resource()
         self.SUMR_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
                                   self.slider_height, min=0, max=self.SUM_res + 200, step=100, initial=self.SUM_res)
         self.SUMR_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.SUMR_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                                     text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                                     borderThickness=1, )
+                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                borderThickness=1, )
         self.SUMR_help.onClick = lambda: self.show_help('SUMR', self.SUMR_help)
         self.SUMR_help.onRelease = lambda: self.unshow_help(self.SUMR_help)
         self.help_buttons.append(self.SUMR_help)
+        self.sliders.append(self.SUMR_slider)
+        self.slider_texts.append(self.SUMR_textbox)
+
+    def fix_SUM_res(self):
+        """Fixing total amount of possible resources so it will not change with changing the number of patches"""
+        self.SUM_res_fixed = not self.SUM_res_fixed
+        if self.SUM_res_fixed:
+            self.fix_SUM_res_button.inactiveColour = colors.GREEN
+        else:
+            self.fix_SUM_res_button.inactiveColour = colors.GREY
 
     def start_stop_record(self):
         """Start or stop the recording of the simulation into a vdieo"""
@@ -234,8 +285,8 @@ class PlaygroundSimulation(Simulation):
             self.help_message = "SAVING VIDEO..."
             self.draw_help_message()
 
-
     def start_stop(self):
+        """Switch to start or stop the simulation"""
         self.is_paused = not self.is_paused
         if self.start_button.inactiveColour != colors.GREY:
             self.start_button.inactiveColour = colors.GREY
@@ -243,6 +294,7 @@ class PlaygroundSimulation(Simulation):
             self.start_button.inactiveColour = colors.GREEN
 
     def show_help(self, help_decide_str, pressed_button):
+        """Switch to show help message"""
         for hb in self.help_buttons:
             hb.inactiveColour = colors.GREY
         if not self.is_paused:
@@ -252,6 +304,7 @@ class PlaygroundSimulation(Simulation):
         pressed_button.inactiveColour = colors.GREEN
 
     def unshow_help(self, pressed_button):
+        """Switch to erease help message from screen"""
         for hb in self.help_buttons:
             hb.inactiveColour = colors.GREY
         self.is_help_shown = False
@@ -260,6 +313,7 @@ class PlaygroundSimulation(Simulation):
         pressed_button.inactiveColour = colors.GREY
 
     def update_SUMR(self):
+        """Updating the total possible resource units if necessary"""
         self.SUM_res = self.get_total_resource()
         self.SUMR_slider.min = self.N_resc
         self.SUMR_slider.max = 2 * self.SUM_res
@@ -287,26 +341,10 @@ class PlaygroundSimulation(Simulation):
         if self.SUM_res == 0:
             self.update_SUMR()
         self.SUMR_textbox.setText(f"SUM R: {self.SUM_res:.2f}")
-        self.framerate_textbox.draw()
-        self.framerate_slider.draw()
-        self.N_textbox.draw()
-        self.N_slider.draw()
-        self.NRES_textbox.draw()
-        self.NRES_slider.draw()
-        self.FOV_textbox.draw()
-        self.FOV_slider.draw()
-        self.RESradius_textbox.draw()
-        self.RESradius_slider.draw()
-        self.Epsw_textbox.draw()
-        self.Epsw_slider.draw()
-        self.Epsu_textbox.draw()
-        self.Epsu_slider.draw()
-        self.SUMR_textbox.draw()
-        self.SUMR_slider.draw()
-        self.SUW_slider.draw()
-        self.SUW_textbox.draw()
-        self.SWU_textbox.draw()
-        self.SWU_slider.draw()
+        for sl in self.sliders:
+            sl.draw()
+        for slt in self.slider_texts:
+            slt.draw()
         for hb in self.help_buttons:
             hb.draw()
         for fb in self.function_buttons:
@@ -315,9 +353,11 @@ class PlaygroundSimulation(Simulation):
             self.draw_help_message()
         self.draw_global_stats()
         if self.save_video:
-            self.help_message = "\n\n\n      SAVING VIDEO, PLEASE WAIT!"
+            # Showing the help message before the screen freezes
+            self.help_message = "\n\n\n      Saving video, please wait..."
             self.draw_help_message()
             pygame.display.flip()
+            # Save video (freezes update process for a while)
             self.saved_images_to_video()
             self.save_video = False
 
@@ -489,7 +529,10 @@ class PlaygroundSimulation(Simulation):
                 for i, res in enumerate(self.rescources):
                     if i == len(self.rescources) - 1:
                         res.kill()
-        self.update_SUMR()
+        if not self.SUM_res_fixed:
+            self.update_SUMR()
+        else:
+            self.distribute_sumR()
 
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""

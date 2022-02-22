@@ -41,7 +41,8 @@ class PlaygroundSimulation(Simulation):
         self.save_video = False
         self.video_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR)
         self.image_save_path = os.path.join(self.video_save_path, "tmp")
-        shutil.rmtree(self.image_save_path)
+        if os.path.isdir(self.image_save_path):
+            shutil.rmtree(self.image_save_path)
         os.makedirs(self.image_save_path, exist_ok=True)
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
         self.vis_area_end_height = 2 * self.window_pad + self.HEIGHT

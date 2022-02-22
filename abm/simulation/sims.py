@@ -263,9 +263,10 @@ class Simulation:
 
     def draw_agent_stats(self, font_size=15, spacing=0):
         """Showing agent information when paused"""
-        if self.is_paused:
-            font = pygame.font.Font(None, font_size)
-            for agent in self.agents:
+        # if self.is_paused:
+        font = pygame.font.Font(None, font_size)
+        for agent in self.agents:
+            if agent.is_moved_with_cursor:
                 status = [
                     f"ID: {agent.id}",
                     f"res.: {agent.collected_r:.2f}",
@@ -442,12 +443,18 @@ class Simulation:
                 try:
                     for ag in self.agents:
                         ag.move_with_mouse(event.pos, 0, 0)
+                    for res in self.rescources:
+                        res.update_clicked_status(event.pos)
                 except AttributeError:
                     for ag in self.agents:
                         ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
             else:
                 for ag in self.agents:
                     ag.is_moved_with_cursor = False
+                    ag.draw_update()
+                for res in self.rescources:
+                    res.is_clicked = False
+                    res.update()
 
     def decide_on_vis_field_visibility(self, turned_on_vfield):
         """Deciding f the visual field needs to be shown or not"""

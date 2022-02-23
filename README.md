@@ -7,12 +7,13 @@ This repository hold the code base for the agent based model framework implement
 ### Requirements
 To run the simulations you will need python 3.8 or 3.9 and pip correspondingly. It is worth to set up a virtualenvironment using pipenv or venv for the project so that your global workspace is not polluted.
 
-### Test
-To test the code:
+### Test Requirements
+To test if all the requirements are ready to use:
   1. Clone the repo
   2. Activate your virtual environment (pipenv, venv) if you are using one
   3. Move into the cloned repo where `setup.py` is located and run `pip install -e .` with that you installed the simulation package
-  4. run the start entrypoint of the simulation package by running `abm-start`
+  4. run the start entrypoint of the simulation package by running `playground-start` or `abm-start`
+  5. If you also would like to save data you will need an InfluxDB instance. To setup one, please follow the instructions below.
 
 ## Install Grafana and InfluxDB
 To monitor individual agents real time and save simulation data (i.e. write simulation data real time and save upon request at the end) we use InfluxDB and a grafana server for visualization. For this purpose you will need to install influx and grafana. If you don't do these steps you are still going to be able to run simulations, but you won't be able to save the resulting data or visualize the agent's parameters. This installation guide is only tested on Ubuntu. If you decide to use another op.system or you don't want to monitor and save simulation data, set `USE_IFDB_LOGGING` and `SAVE_CSV_FILES` parameters in the `.env` file to `0`.
@@ -231,3 +232,22 @@ EXPERIMENT_NAME=exp4 python home/ABM/abm/data/metarunner/experiments/exp4.py
 where we assume you have a `exp4.env` file in the root project folder (`home/ABM`) and you store an experiment file `exp4.py` under a dedicated path, in the example, this path is `home/ABM/abm/data/metarunner/experiments/`.
 
 Note that the env variable `EXPERIMENT_NAME` is used to show the given `MetaProtocol` instance which `.env` file it needs to use (and replace during runs). Therefore it must have a scope ONLY for the given command. If you set this varaible globally on your OS then all `MetaProtocol` instances will try to use and replace the same `.env` file and therefore during parallel runs unwanted behavior and corrupted data states can occur. The given commands are only to be used on Linux.
+
+### Interactive Exploration Tool
+To allow users quick-and-dirty experimentation with the model framework, an interactive playground tool has been implemented. This can be started with `playground-start` after preparing the environment as described above.
+
+Once the playground tool has been started a window will pop up with a simulation arena on the upper right part with a given number of agnets and resources. Parameters are initialized according to the `contrib` package. These parameters can be tuned with interactive sliders on the right side of the window. To get some insights of these parameters see the env variable descriptions above or click and hold the `?` buttons next to the sliders.
+
+#### Resource number and radius
+When changing the number of resource patches and their radii, the tool automatically adjusts these to each other so that the total covered area in the arena will not exceed 30% of the arena surface. This is necessary as resources are initialized in a way that no overlap is present.
+
+#### Fixed Overall Resource Units
+When starting the tool the overall amount of resource units (summed over all patches of the arena) is fixed and can be controlled with the `SUM_R` slider. Changing this value will redistribute the amount of units between the patches in a way that the ratio of units in between tha patches will not change, and the depletion level of the patches also stays the same. In case this feature is turned off with the corresponding action button below the simulation arena, increasing the number of resource patches will increase the overall number of resources in the environment.
+
+#### Detailed Information
+To get more detailed information about resource patches and agents, click and hold them with the left mouse button. Note that this alos moves the agents. Other interactions such as rotating agents, pausing the simulation, etc. are the same as in the original simulation class. In case you would like to get an insight about all agents and resources use the corresponding action button under the simulation area. Note that this can slow down the simulation significantly due to the amount of text to be rendered on the screen.
+
+#### Video Recording
+To show the effect of parameter combinations and make experiments reproducable, you can also record a short video of particularly interesting phenomena. To do so, use the `Record Video` action button under the simulation arena. When the recording is started, the button turns red as well as a red "Rec" dot will pop up in the upper left corner. When you stop the recording with the same action button, the tool will save and compress the resulting video and save in the data folder of the package. Please note that this might take a few minutes for longer videos.
+
+### Replay Tool

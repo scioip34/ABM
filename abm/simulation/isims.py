@@ -7,6 +7,7 @@ from math import floor, ceil
 
 from abm.contrib import colors, ifdb_params
 from abm.contrib import playgroundtool as pgt
+from abm.monitoring import ifdb
 from abm.simulation.sims import Simulation
 from pygame_widgets.slider import Slider
 from pygame_widgets.button import Button
@@ -138,6 +139,14 @@ class PlaygroundSimulation(Simulation):
                                         inactiveColour=colors.GREEN, borderThickness=1,
                                         onClick=lambda: self.change_ghost_mode())
         self.function_buttons.append(self.ghost_mode_button)
+        function_button_start_x += self.function_button_width + self.function_button_pad
+        self.IFDB_button = Button(self.screen, function_button_start_x, function_button_start_y,
+                                  self.function_button_width,
+                                  self.function_button_height, text='IFDB Log',
+                                  fontSize=self.function_button_height - 2,
+                                  inactiveColour=colors.GREY, borderThickness=1,
+                                  onClick=lambda: self.start_stop_IFDB_logging())
+        self.function_buttons.append(self.IFDB_button)
 
         self.global_stats_start += 2 * self.function_button_height + self.function_button_pad + self.window_pad
 
@@ -295,6 +304,20 @@ class PlaygroundSimulation(Simulation):
         self.help_buttons.append(self.SUMR_help)
         self.sliders.append(self.SUMR_slider)
         self.slider_texts.append(self.SUMR_textbox)
+
+    def start_stop_IFDB_logging(self):
+        """Start or stop IFDB logging in case of grafana interface is used"""
+        print(self.save_in_ifd)
+        self.save_in_ifd = not self.save_in_ifd
+        if self.save_in_ifd:
+            if self.ifdb_client is None:
+                self.ifdb_client = ifdb.create_ifclient()
+                self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
+            self.write_batch_size = 2
+            self.IFDB_button.inactiveColour = colors.GREEN
+        else:
+            self.write_batch_size = None
+            self.IFDB_button.inactiveColour = colors.GREY
 
     def change_ghost_mode(self):
         """Changing ghost mdoe during exploutation"""

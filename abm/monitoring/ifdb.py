@@ -46,7 +46,7 @@ def pad_to_n_digits(number, n=3):
         return str(number)
 
 
-def save_agent_data(ifclient, agents, exp_hash=""):
+def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
@@ -82,7 +82,9 @@ def save_agent_data(ifclient, agents, exp_hash=""):
 
     # write the measurement in batches
     batch_bodies_agents.append(body)
-    if len(batch_bodies_agents) == ifdbp.write_batch_size:
+    if batch_size is None:
+        batch_size = ifdbp.write_batch_size
+    if len(batch_bodies_agents) == batch_size:
         ifclient.write_points(batch_bodies_agents)
         batch_bodies_agents = []
 
@@ -99,7 +101,7 @@ def mode_to_int(mode):
         return int(3)
 
 
-def save_resource_data(ifclient, resources, exp_hash=""):
+def save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -129,7 +131,9 @@ def save_resource_data(ifclient, resources, exp_hash=""):
 
     batch_bodies_resources.append(body)
     # write the measurement in batches
-    if len(batch_bodies_resources) == ifdbp.write_batch_size:
+    if batch_size is None:
+        batch_size = ifdbp.write_batch_size
+    if len(batch_bodies_resources) == batch_size:
         ifclient.write_points(batch_bodies_resources)
         batch_bodies_resources = []
 

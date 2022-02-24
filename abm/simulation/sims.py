@@ -171,6 +171,7 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
+        self.write_batch_size = None
         self.parallel = parallel
         if self.parallel:
             self.ifdb_hash = uuid.uuid4().hex
@@ -184,6 +185,8 @@ class Simulation:
                 self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
             self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
             ifdb.save_simulation_params(self.ifdb_client, self, exp_hash=self.ifdb_hash)
+        else:
+            self.ifdb_client = None
 
         # by default we parametrize with the .env file in root folder
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -674,8 +677,10 @@ class Simulation:
 
             # Monitoring with IFDB
             if self.save_in_ifd:
-                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash)
-                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash)
+                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash,
+                                     batch_size=self.write_batch_size)
+                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash,
+                                        batch_size=self.write_batch_size)
 
             # Moving time forward
             self.clock.tick(self.framerate)

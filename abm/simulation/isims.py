@@ -86,16 +86,17 @@ class PlaygroundSimulation(Simulation):
         self.textbox_start_x = self.slider_start_x + self.slider_width + 15
         self.help_start_x = self.textbox_start_x + self.textbox_width + 15
 
-        ## Function Button Row
+        ## Function Button 1st Row
         function_button_start_x = self.window_pad
-        self.start_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+        function_button_start_y = self.vis_area_end_height
+        self.start_button = Button(self.screen, function_button_start_x, function_button_start_y,
                                    self.function_button_width,
                                    self.function_button_height, text='Start/Stop',
                                    fontSize=self.function_button_height - 2,
                                    inactiveColour=colors.GREEN, borderThickness=1, onClick=lambda: self.start_stop())
         self.function_buttons.append(self.start_button)
         function_button_start_x += self.function_button_width + self.function_button_pad
-        self.record_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+        self.record_button = Button(self.screen, function_button_start_x, function_button_start_y,
                                     self.function_button_width,
                                     self.function_button_height, text='Record Video',
                                     fontSize=self.function_button_height - 2,
@@ -103,7 +104,7 @@ class PlaygroundSimulation(Simulation):
                                     onClick=lambda: self.start_stop_record())
         self.function_buttons.append(self.record_button)
         function_button_start_x += self.function_button_width + self.function_button_pad
-        self.fix_SUM_res_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+        self.fix_SUM_res_button = Button(self.screen, function_button_start_x, function_button_start_y,
                                          self.function_button_width,
                                          self.function_button_height, text='Fix Total Units',
                                          fontSize=self.function_button_height - 2,
@@ -111,14 +112,34 @@ class PlaygroundSimulation(Simulation):
                                          onClick=lambda: self.fix_SUM_res())
         self.function_buttons.append(self.fix_SUM_res_button)
         function_button_start_x += self.function_button_width + self.function_button_pad
-        self.show_all_stats_button = Button(self.screen, function_button_start_x, self.vis_area_end_height,
+        self.show_all_stats_button = Button(self.screen, function_button_start_x, function_button_start_y,
                                             self.function_button_width,
                                             self.function_button_height, text='Show All',
                                             fontSize=self.function_button_height - 2,
                                             inactiveColour=colors.GREY, borderThickness=1,
                                             onClick=lambda: self.show_hide_all_stats())
         self.function_buttons.append(self.show_all_stats_button)
-        self.global_stats_start += self.function_button_height + self.window_pad
+
+        ## Function Button Second Row
+        function_button_start_x = self.window_pad
+        function_button_start_y = self.vis_area_end_height + self.function_button_height + self.function_button_pad
+        self.visual_exclusion_button = Button(self.screen, function_button_start_x, function_button_start_y,
+                                              self.function_button_width,
+                                              self.function_button_height, text='Visual Occl.',
+                                              fontSize=self.function_button_height - 2,
+                                              inactiveColour=colors.GREEN, borderThickness=1,
+                                              onClick=lambda: self.change_visual_occlusion())
+        self.function_buttons.append(self.visual_exclusion_button)
+        function_button_start_x += self.function_button_width + self.function_button_pad
+        self.ghost_mode_button = Button(self.screen, function_button_start_x, function_button_start_y,
+                                        self.function_button_width,
+                                        self.function_button_height, text='Ghost Mode',
+                                        fontSize=self.function_button_height - 2,
+                                        inactiveColour=colors.GREEN, borderThickness=1,
+                                        onClick=lambda: self.change_ghost_mode())
+        self.function_buttons.append(self.ghost_mode_button)
+
+        self.global_stats_start += 2 * self.function_button_height + self.function_button_pad + self.window_pad
 
         ## First Slider column
         slider_i = 1
@@ -274,6 +295,24 @@ class PlaygroundSimulation(Simulation):
         self.help_buttons.append(self.SUMR_help)
         self.sliders.append(self.SUMR_slider)
         self.slider_texts.append(self.SUMR_textbox)
+
+    def change_ghost_mode(self):
+        """Changing ghost mdoe during exploutation"""
+        self.ghost_mode = not self.ghost_mode
+        if self.ghost_mode:
+            self.ghost_mode_button.inactiveColour = colors.GREEN
+        else:
+            self.ghost_mode_button.inactiveColour = colors.GREY
+
+    def change_visual_occlusion(self):
+        """Changing visual occlusion parameter"""
+        self.visual_exclusion = not self.visual_exclusion
+        for ag in self.agents:
+            ag.visual_exclusion = self.visual_exclusion
+        if self.visual_exclusion:
+            self.visual_exclusion_button.inactiveColour = colors.GREEN
+        else:
+            self.visual_exclusion_button.inactiveColour = colors.GREY
 
     def show_hide_all_stats(self):
         """Show or hide all information"""

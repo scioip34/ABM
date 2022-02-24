@@ -307,7 +307,6 @@ class PlaygroundSimulation(Simulation):
 
     def start_stop_IFDB_logging(self):
         """Start or stop IFDB logging in case of grafana interface is used"""
-        print(self.save_in_ifd)
         self.save_in_ifd = not self.save_in_ifd
         if self.save_in_ifd:
             if self.ifdb_client is None:

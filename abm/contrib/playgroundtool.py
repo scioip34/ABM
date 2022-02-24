@@ -119,9 +119,9 @@ help_messages = {
 
             W to U Cross-inhibition strength, S_wu [a.U.]: 
 
-            The parameter controls how much socially guided behvaior and
+            The parameter controls how much socially guided behavior and
             integration of social cues inhibit individual exploitation
-            behavior. Note, that thsi inhibition is only present if the
+            behavior. Note, that this inhibition is only present if the
             social integrator w is above it's decision threshold.
 
     ''',
@@ -129,18 +129,22 @@ help_messages = {
 
             U to W Cross-inhibition strength, S_uw [a.U.]: 
 
-            The parameter controls how much individual exploitation behvaior and
+            The parameter controls how much individual exploitation behavior and
             integration of individual information inhibits social
-            behavior. Note, that thsi inhibition is only present if the
+            behavior. Note, that this inhibition is only present if the
             individual integrator u is above it's decision threshold.
 
     ''',
     'SUMR': '''
 
-            Total number of resource units, SUM_r [pcs]: 
+            Total number of resource units, SUM_r [a.U.]: 
 
             The parameter controls how many resource units should be overall
-            distributed in the environment.
+            distributed in the environment. This number can be fixed with the
+            "Fix Total Units" action button. In this case changing the number 
+            of patches will redistribute the units between the patches so
+            that although the ratio between patches stays the same, the
+            number of units per patch will change.
 
     '''
 }

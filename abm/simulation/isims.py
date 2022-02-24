@@ -169,7 +169,7 @@ class PlaygroundSimulation(Simulation):
         slider_i = 2
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.N_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                               self.slider_height, min=1, max=25, step=1, initial=self.N)
+                               self.slider_height, min=1, max=35, step=1, initial=self.N)
         self.N_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                  self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.N_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,

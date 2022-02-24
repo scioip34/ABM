@@ -79,6 +79,9 @@ class Rescource(pygame.sprite.Sprite):
         """Checking if the resource patch was clicked on a mouse event"""
         if self.rect.collidepoint(mouse):
             self.is_clicked = True
+            self.position[0] = mouse[0] - self.radius
+            self.position[1] = mouse[1] - self.radius
+            self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
             self.update()
         else:
             self.is_clicked = False

@@ -3,12 +3,12 @@
 VIDEO_SAVE_DIR = "abm/data/videos"
 
 default_params = {
-                "N": 5,
-                "T": 100000,
+                "N": 5,  # interactive
+                "T": 100000,  # interactive
                 "v_field_res": 1200,
                 "width": 500,
                 "height": 500,
-                "framerate": 30,
+                "framerate": 30,  # interactive
                 "window_pad": 30,
                 "with_visualization": True,
                 "show_vis_field": False,
@@ -16,22 +16,22 @@ default_params = {
                 "pooling_time": 0,
                 "pooling_prob":0,
                 "agent_radius": 10,
-                "N_resc": 3,
+                "N_resc": 3,  # interactive
                 "min_resc_perpatch": 200,
                 "max_resc_perpatch": 201,
                 "min_resc_quality": 0.25,
                 "max_resc_quality": 0.25,
-                "patch_radius": 30,
+                "patch_radius": 30,  # interactive
                 "regenerate_patches": True,
                 "agent_consumption": 1,
                 "teleport_exploit": False,
                 "vision_range": 5000,
-                "agent_fov": 0.5,
-                "visual_exclusion": True,
+                "agent_fov": 0.5,  # interactive
+                "visual_exclusion": True,  # interactive
                 "show_vision_range": True,
-                "use_ifdb_logging": True,
+                "use_ifdb_logging": False,  # interactive
                 "save_csv_files": False,
-                "ghost_mode": True,
+                "ghost_mode": True,  # interactive
                 "patchwise_exclusion": True,
                 "parallel": False
 }

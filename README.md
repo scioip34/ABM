@@ -14,6 +14,7 @@ To test if all the requirements are ready to use:
   3. Move into the cloned repo where `setup.py` is located and run `pip install -e .` with that you installed the simulation package
   4. run the start entrypoint of the simulation package by running `playground-start` or `abm-start`
   5. If you also would like to save data you will need an InfluxDB instance. To setup one, please follow the instructions below.
+  6. If you would like to run simulations in headless mode (without graphics) you will need to install xvfb first (only tested on Ubuntu) with `sudo apt-get install xvfb`.
 
 ## Install Grafana and InfluxDB
 To monitor individual agents real time and save simulation data (i.e. write simulation data real time and save upon request at the end) we use InfluxDB and a grafana server for visualization. For this purpose you will need to install influx and grafana. If you don't do these steps you are still going to be able to run simulations, but you won't be able to save the resulting data or visualize the agent's parameters. This installation guide is only tested on Ubuntu. If you decide to use another op.system or you don't want to monitor and save simulation data, set `USE_IFDB_LOGGING` and `SAVE_CSV_FILES` parameters in the `.env` file to `0`.

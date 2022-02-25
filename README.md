@@ -251,6 +251,12 @@ To get more detailed information about resource patches and agents, click and ho
 #### Video Recording
 To show the effect of parameter combinations and make experiments reproducable, you can also record a short video of particularly interesting phenomena. To do so, use the `Record Video` action button under the simulation arena. When the recording is started, the button turns red as well as a red "Rec" dot will pop up in the upper left corner. When you stop the recording with the same action button, the tool will save and compress the resulting video and save in the data folder of the package. Please note that this might take a few minutes for longer videos.
 
+#### Other Function Buttons
+Some boolean parameters can be turned on and off with the help of additional function buttons (below the visualization area). These are
+  * Turn on Ghost Mode: overalpping on the patches are allowed
+  * Turn on IFDB logging: in case a visualization through the grafana interface is required one can start IFDB logging with this button. By default it is turned off so that we can avoid a database writing overhead and the tool can be aslo started without IFDB installed on the system.
+  * Turn on Visual Occlusion: in case it is turned on, agents can occlude visual cues from farther away agants. 
+
 ### Replay Tool
 To visualize large batches of data generated as experiment folders with the metarunner tool, one can use the replay tool. A demonstrative script has been provided in the repo to show how one can start such a replay of experiment.
 

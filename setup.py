@@ -34,6 +34,7 @@ setup(
     entry_points={
         'console_scripts': [
             'abm-start=abm.app:start',
+            'headless-abm-start=abm.app:start_headless',
             'playground-start=abm.app:start_playground'
         ]
     },

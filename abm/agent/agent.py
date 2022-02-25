@@ -52,6 +52,7 @@ class Agent(pygame.sprite.Sprite):
         self.position = np.array(position, dtype=np.float64) # saved
         self.orientation = orientation # saved
         self.color = color
+        self.selected_color = colors.LIGHT_BLUE
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
@@ -59,6 +60,7 @@ class Agent(pygame.sprite.Sprite):
         self.vision_range = vision_range
         self.visual_exclusion = visual_exclusion
         self.FOV = FOV
+        self.show_stats = False
 
         # Non-initialisable private attributes
         self.velocity = 0  # agent absolute velocity  # saved
@@ -95,6 +97,8 @@ class Agent(pygame.sprite.Sprite):
         self.g_u = decision_params.g_u
         self.B_u = decision_params.B_u
         self.u_max = decision_params.u_max
+        self.F_N = decision_params.F_N
+        self.F_R = decision_params.F_R
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -133,7 +137,7 @@ class Agent(pygame.sprite.Sprite):
         collected_unit = self.collected_r - self.collected_r_before
 
         # calculating private info by weighting these
-        self.I_priv = decision_params.F_N * np.max(self.novelty) + decision_params.F_R * collected_unit
+        self.I_priv = self.F_N * np.max(self.novelty) + self.F_R * collected_unit
 
     def move_with_mouse(self, mouse, left_state, right_state):
         """Moving the agent with the mouse cursor, and rotating"""
@@ -264,9 +268,15 @@ class Agent(pygame.sprite.Sprite):
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)
         self.image.set_colorkey(colors.BACKGROUND)
-        pygame.draw.circle(
-            self.image, self.color, (self.radius, self.radius), self.radius
-        )
+        if self.is_moved_with_cursor:
+            pygame.draw.circle(
+                self.image, self.selected_color, (self.radius, self.radius), self.radius
+            )
+        else:
+            pygame.draw.circle(
+                self.image, self.color, (self.radius, self.radius), self.radius
+            )
+
         # showing agent orientation with a line towards agent orientation
         pygame.draw.line(self.image, colors.BACKGROUND, (self.radius, self.radius),
                          ((1 + np.cos(self.orientation)) * self.radius, (1 - np.sin(self.orientation)) * self.radius),

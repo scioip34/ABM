@@ -138,7 +138,8 @@ class Simulation:
         self.agent_consumption = agent_consumption
         self.teleport_exploit = teleport_exploit
         self.vision_range = vision_range
-        self.agent_fov = (-agent_fov * np.pi, agent_fov * np.pi)
+        self.fov_ratio = agent_fov
+        self.agent_fov = (-self.fov_ratio * np.pi, self.fov_ratio * np.pi)
         self.visual_exclusion = visual_exclusion
         self.ghost_mode = ghost_mode
         self.patchwise_exclusion = patchwise_exclusion
@@ -170,6 +171,7 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
+        self.write_batch_size = None
         self.parallel = parallel
         if self.parallel:
             self.ifdb_hash = uuid.uuid4().hex
@@ -183,6 +185,8 @@ class Simulation:
                 self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
             self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
             ifdb.save_simulation_params(self.ifdb_client, self, exp_hash=self.ifdb_hash)
+        else:
+            self.ifdb_client = None
 
         # by default we parametrize with the .env file in root folder
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -262,12 +266,13 @@ class Simulation:
 
     def draw_agent_stats(self, font_size=15, spacing=0):
         """Showing agent information when paused"""
-        if self.is_paused:
-            font = pygame.font.Font(None, font_size)
-            for agent in self.agents:
+        # if self.is_paused:
+        font = pygame.font.Font(None, font_size)
+        for agent in self.agents:
+            if agent.is_moved_with_cursor or agent.show_stats:
                 status = [
                     f"ID: {agent.id}",
-                    f"res.: {agent.collected_r}",
+                    f"res.: {agent.collected_r:.2f}",
                     f"ori.: {agent.orientation:.2f}",
                     f"w: {agent.w:.2f}"
                 ]
@@ -279,7 +284,11 @@ class Simulation:
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
         if self.regenerate_resources:
-            self.add_new_resource_patch()
+            rid = self.add_new_resource_patch()
+            if resource.show_stats:
+                for res in self.rescources:
+                    if res.id == rid:
+                        res.show_stats = True
         resource.kill()
 
     def add_new_resource_patch(self):
@@ -300,6 +309,7 @@ class Simulation:
                                  quality)
             resource_proven = self.proove_sprite(resource)
         self.rescources.add(resource)
+        return resource.id
 
     def agent_agent_collision(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
@@ -346,15 +356,12 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def create_agents(self):
-        """Creating agents according to how the simulation class was initialized"""
-        i = 0
-        while i < self.N:
-            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
-            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
-            orient = np.random.uniform(0, 2*np.pi)
+    def add_new_agent(self, id, x, y, orient, with_proove=True):
+        """Adding a single new agent into agent sprites"""
+        agent_proven = False
+        while not agent_proven:
             agent = Agent(
-                id=i,
+                id=id,
                 radius=self.agent_radii,
                 position=(x, y),
                 orientation=orient,
@@ -370,9 +377,21 @@ class Simulation:
                 visual_exclusion=self.visual_exclusion,
                 patchwise_exclusion=self.patchwise_exclusion
             )
-            if self.proove_sprite(agent):
+            if with_proove:
+                if self.proove_sprite(agent):
+                    self.agents.add(agent)
+                    agent_proven = True
+            else:
                 self.agents.add(agent)
-                i += 1
+                agent_proven = True
+
+    def create_agents(self):
+        """Creating agents according to how the simulation class was initialized"""
+        for i in range(self.N):
+            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
+            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
+            orient = np.random.uniform(0, 2*np.pi)
+            self.add_new_agent(i, x, y, orient)
 
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""
@@ -397,46 +416,53 @@ class Simulation:
         stats_pos = (int(self.window_pad), int(self.window_pad))
         return stats, stats_pos
 
-    def interact_with_event(self, event):
+    def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
-        # Exit if requested
-        if event.type == pygame.QUIT:
-            sys.exit()
+        for event in events:
+            # Exit if requested
+            if event.type == pygame.QUIT:
+                sys.exit()
 
-        # Change orientation with mouse wheel
-        if event.type == pygame.MOUSEWHEEL:
-            if event.y == -1:
-                event.y = 0
-            for ag in self.agents:
-                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
-
-        # Pause on Space
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            self.is_paused = not self.is_paused
-
-        # Speed up on s and down on f. reset default framerate with d
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-            self.framerate -= 1
-            if self.framerate < 1:
-                self.framerate = 1
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-            self.framerate += 1
-            if self.framerate > 35:
-                self.framerate = 35
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-            self.framerate = self.framerate_orig
-
-        # Continuous mouse events (move with cursor)
-        if pygame.mouse.get_pressed()[0]:
-            try:
+            # Change orientation with mouse wheel
+            if event.type == pygame.MOUSEWHEEL:
+                if event.y == -1:
+                    event.y = 0
                 for ag in self.agents:
-                    ag.move_with_mouse(event.pos, 0, 0)
-            except AttributeError:
+                    ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
+
+            # Pause on Space
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.is_paused = not self.is_paused
+
+            # Speed up on s and down on f. reset default framerate with d
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                self.framerate -= 1
+                if self.framerate < 1:
+                    self.framerate = 1
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                self.framerate += 1
+                if self.framerate > 35:
+                    self.framerate = 35
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                self.framerate = self.framerate_orig
+
+            # Continuous mouse events (move with cursor)
+            if pygame.mouse.get_pressed()[0]:
+                try:
+                    for ag in self.agents:
+                        ag.move_with_mouse(event.pos, 0, 0)
+                    for res in self.rescources:
+                        res.update_clicked_status(event.pos)
+                except AttributeError:
+                    for ag in self.agents:
+                        ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
+            else:
                 for ag in self.agents:
-                    ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
-        else:
-            for ag in self.agents:
-                ag.is_moved_with_cursor = False
+                    ag.is_moved_with_cursor = False
+                    ag.draw_update()
+                for res in self.rescources:
+                    res.is_clicked = False
+                    res.update()
 
     def decide_on_vis_field_visibility(self, turned_on_vfield):
         """Deciding f the visual field needs to be shown or not"""
@@ -499,8 +525,6 @@ class Simulation:
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
 
-        pygame.display.flip()
-
     def start(self):
 
         start_time = datetime.now()
@@ -512,7 +536,7 @@ class Simulation:
         self.create_resources()
 
         # Creating surface to show visual fields
-        stats, stats_pos = self.create_vis_field_graph()
+        self.stats, self.stats_pos = self.create_vis_field_graph()
 
         # local var to decide when to show visual fields
         turned_on_vfield = 0
@@ -520,9 +544,9 @@ class Simulation:
         # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 
-            for event in pygame.event.get():
-                # Carry out interaction according to user activity
-                self.interact_with_event(event)
+            events = pygame.event.get()
+            # Carry out interaction according to user activity
+            self.interact_with_event(events)
 
             # deciding if vis field needs to be shown in this timestep
             turned_on_vfield = self.decide_on_vis_field_visibility(turned_on_vfield)
@@ -648,12 +672,15 @@ class Simulation:
 
             # Draw environment and agents
             if self.with_visualization:
-                self.draw_frame(stats, stats_pos)
+                self.draw_frame(self.stats, self.stats_pos)
+                pygame.display.flip()
 
             # Monitoring with IFDB
             if self.save_in_ifd:
-                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash)
-                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash)
+                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash,
+                                     batch_size=self.write_batch_size)
+                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash,
+                                        batch_size=self.write_batch_size)
 
             # Moving time forward
             self.clock.tick(self.framerate)

@@ -86,9 +86,12 @@ class ExperimentReplay:
         self.time_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
         slider_i = 3
+        slider_max_val = self.num_batches - 1
+        if slider_max_val <= 0:
+            slider_max_val = 1
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.batch_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                   self.slider_height, min=0, max=self.num_batches - 1, step=1, initial=0)
+                                   self.slider_height, min=0, max=slider_max_val, step=1, initial=0)
         self.batch_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                      self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
 

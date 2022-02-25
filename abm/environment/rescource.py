@@ -5,6 +5,7 @@ import pygame
 import numpy as np
 from abm.contrib import colors
 
+
 class Rescource(pygame.sprite.Sprite):
     """
         Rescource class that includes all private parameters of the rescource patch and all methods necessary to exploit
@@ -43,6 +44,8 @@ class Rescource(pygame.sprite.Sprite):
         self.color = color
         self.resc_left_color = colors.DARK_GREY
         self.unit_per_timestep = quality  # saved
+        self.is_clicked = False
+        self.show_stats = False
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -65,11 +68,24 @@ class Rescource(pygame.sprite.Sprite):
         )
         self.mask = pygame.mask.from_surface(self.image)
         self.rect = self.image.get_rect()
-        self.rect.x = self.position[0]
-        self.rect.y = self.position[1]
-        font = pygame.font.Font(None, 25)
-        text = font.render(f"{self.radius}", True, colors.BLACK)
-        self.image.blit(text, (0, 0))
+        self.rect.centerx = self.center[0]
+        self.rect.centery = self.center[1]
+        if self.is_clicked:
+            font = pygame.font.Font(None, 25)
+            text = font.render(f"{self.radius}", True, colors.BLACK)
+            self.image.blit(text, (0, 0))
+
+    def update_clicked_status(self, mouse):
+        """Checking if the resource patch was clicked on a mouse event"""
+        if self.rect.collidepoint(mouse):
+            self.is_clicked = True
+            self.position[0] = mouse[0] - self.radius
+            self.position[1] = mouse[1] - self.radius
+            self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
+            self.update()
+        else:
+            self.is_clicked = False
+            self.update()
 
     def update(self):
         # Initial Visualization of rescource
@@ -87,10 +103,11 @@ class Rescource(pygame.sprite.Sprite):
         self.rect.centerx = self.center[0]
         self.rect.centery = self.center[1]
         self.mask = pygame.mask.from_surface(self.image)
-        font = pygame.font.Font(None, 18)
-        text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
-        self.image.blit(text, (0, 0))
-        text_rect = text.get_rect(center=self.rect.center)
+        if self.is_clicked or self.show_stats:
+            font = pygame.font.Font(None, 18)
+            text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
+            self.image.blit(text, (0, 0))
+            text_rect = text.get_rect(center=self.rect.center)
 
     def deplete(self, rescource_units):
         """depeting the given patch with given rescource units"""
@@ -101,11 +118,10 @@ class Rescource(pygame.sprite.Sprite):
         if self.resc_left >= rescource_units:
             self.resc_left -= rescource_units
             depleted_units = rescource_units
-        else: # can not deplete more than what is left
+        else:  # can not deplete more than what is left
             depleted_units = self.resc_left
             self.resc_left = 0
         if self.resc_left > 0:
             return depleted_units, False
         else:
             return depleted_units, True
-

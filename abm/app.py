@@ -13,9 +13,11 @@ EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 
 
 def start(parallel=False, headless=False):
-    with ExitStack() if not headless else Xvfb(width=1280, height=740) as xvfb:
-        root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
+    root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
+    vscreen_width = int(float(envconf["ENV_WIDTH"])) + 100
+    vscreen_height = int(float(envconf["ENV_HEIGHT"])) + 100
+    with ExitStack() if not headless else Xvfb(width=vscreen_width, height=vscreen_height) as xvfb:
         sim = Simulation(N=int(float(envconf["N"])),
                          T=int(float(envconf["T"])),
                          v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),

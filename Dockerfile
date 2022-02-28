@@ -22,7 +22,7 @@ RUN systemctl unmask influxdb.service && \
 # Preparing headless mode requirements
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Europe/Berlin
-RUN apt-get install -y xvfb libglib2.0-0 libsm6 libxrender1 libxext6
+RUN apt-get install -y xvfb libglib2.0-0 libsm6 libxrender1 libxext6 sudo
 
 # Install package base requirements
 RUN pip install virtualenv pip
@@ -30,11 +30,22 @@ RUN pip install virtualenv pip
 # Copy package to docker and install it
 COPY . /app
 WORKDIR /app
-RUN ls -a
+# Create entrypoint
+RUN chmod +x ./docker_entrypoint.sh
 
 # Install p34ABM
 RUN pip install -e .
 
-# Create entrypoint
-RUN chmod +x ./docker_entrypoint.sh
+# Add a non-root user so that the generated data can be easily handled on host
+RUN groupadd --gid 1000 appgroup && \
+    useradd -r -d /app -g appgroup -G root,sudo -u 1000 appuser
+
+RUN adduser appuser sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Change the owner of the application folder to new user
+RUN chown -R appuser:appgroup /app
+
+# Change user to new user (from this on, we need to use sudo for root methods)
+USER appuser
 CMD ["./docker_entrypoint.sh"]

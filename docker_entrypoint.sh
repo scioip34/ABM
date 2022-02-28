@@ -1,7 +1,7 @@
 #!/bin/bash
 
-systemctl unmask influxdb.service && \
-systemctl start influxdb && \
-systemctl enable influxdb.service
+sudo systemctl unmask influxdb.service && \
+sudo systemctl start influxdb && \
+sudo systemctl enable influxdb.service
 
-headless-abm-start
+EXPERIMENT_NAME=docker_exp python3 -u /app/abm/data/metaprotocol/experiments/docker_exp.py

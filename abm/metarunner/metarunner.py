@@ -98,13 +98,14 @@ class Tunable:
 class MetaProtocol:
     """Metaprotocol class that is initialized with Tunables and runs through the desired simulations accordingly"""
 
-    def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None):
+    def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None, headless=False):
         self.default_envconf = envconf
         self.tunables = []
         self.tuned_pairs = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
         self.description = description
+        self.headless = headless
         # in case we want to run multiple experiemnts in different terminals set this to True
         if experiment_name is None and parallel==True:
             raise Exception("Can't run multiple experiments parallely without experiment name!")
@@ -199,7 +200,7 @@ class MetaProtocol:
         os.remove(default_env_path)
         os.rename(env_path, default_env_path)
         # here we run the simulation
-        app.start(self.parallel_run)
+        app.start(parallel=self.parallel_run, headless=self.headless)
         os.remove(default_env_path)
         shutil.copyfile(backup_default_env, default_env_path)
         sleep(2)

@@ -3,9 +3,9 @@
 GAM = 0.1
 V0 = 1
 # todo: why does it work fine with negative sign instead of positive one?
-ALP0 = 0
-ALP1 = 0.09
+ALP0 = 0.2
+ALP1 = 0.0006
 ALP2 = 0
-BET0 = 0.01
-BET1 = 0.1
+BET0 = 0.12
+BET1 = 0.001
 BET2 = 0

@@ -35,6 +35,7 @@ setup(
     entry_points={
         'console_scripts': [
             'abm-start=abm.app:start',
+            'pred-prey-start=abm.app:start_pred_prey',
             'headless-abm-start=abm.app:start_headless',
             'playground-start=abm.app:start_playground'
         ]

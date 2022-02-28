@@ -198,7 +198,8 @@ class MetaProtocol:
         if os.path.isfile(default_env_path) and not os.path.isfile(backup_default_env):
             shutil.copyfile(default_env_path, backup_default_env)
         os.remove(default_env_path)
-        os.rename(env_path, default_env_path)
+        shutil.copy(env_path, default_env_path)
+        os.remove(env_path)
         # here we run the simulation
         app.start(parallel=self.parallel_run, headless=self.headless)
         os.remove(default_env_path)

@@ -356,7 +356,7 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def add_new_agent(self, id, x, y, orient, with_proove=True):
+    def add_new_agent(self, id, x, y, orient, with_proove=False):
         """Adding a single new agent into agent sprites"""
         agent_proven = False
         while not agent_proven:
@@ -683,6 +683,8 @@ class Simulation:
                                         batch_size=self.write_batch_size)
 
             # Moving time forward
+            if self.t % 500 == 0:
+                print(f"t={self.t}")
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()

@@ -61,7 +61,7 @@ class ExperimentReplay:
 
         # Initializing pygame
         self.quit_term = False
-        pygame.init()
+        pygame.display.init()
         self.screen = pygame.display.set_mode([self.full_width, self.full_height], pygame.RESIZABLE)
         self.clock = pygame.time.Clock()
 

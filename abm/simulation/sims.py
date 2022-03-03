@@ -161,7 +161,7 @@ class Simulation:
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
-        pygame.init()
+        pygame.display.init()
 
         # pygame related class attributes
         self.agents = pygame.sprite.Group()
@@ -684,11 +684,11 @@ class Simulation:
 
             # Moving time forward
             if self.t % 500 == 0:
-                print(f"t={self.t}")
+                print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
-        print("Total simulation time: ", (end_time - start_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ", (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
@@ -701,6 +701,6 @@ class Simulation:
                                 " or turn off CSV saving feature.")
 
         end_save_time = datetime.now()
-        print("Total saving time:", (end_save_time - end_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:", (end_save_time - end_time).total_seconds())
 
         pygame.quit()

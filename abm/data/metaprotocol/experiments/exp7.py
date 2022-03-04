@@ -1,9 +1,13 @@
 description_text = """
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
-Title:      Experiment 1
-Goal:       Understand the balance of social vs individual excitablility in fixed environment
-Defined by: mezdahun and DominikDeffner @ github
+Title:      Experiment 7
+Date:       02.03.2022
+Goal:       In this experiment we compare Experiment 5 and 6 with the current one, where no visual occlusion is present.
+            We suspect that with no visual occlusion there will be a drop in global efficiency for patchy
+            environments that was not present in Experiment 5 or 6 as visual occlusion (and limited FOV) masked
+            social cues for far-away agents according to the laws of optics
+Defined by: mezdahun
 """
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 
@@ -25,8 +29,8 @@ fixed_criteria = [
     Constant("ENV_WIDTH", 500),
     Constant("ENV_HEIGHT", 500),
     Constant("VISUAL_FIELD_RESOLUTION", 1200),
-    Constant("VISUAL_EXCLUSION", 1),
-    Constant("VISION_RANGE", 1000),
+    Constant("VISUAL_EXCLUSION", 0),
+    Constant("VISION_RANGE", 2000),
     Constant("AGENT_CONSUMPTION", 1),
     Constant("RADIUS_AGENT", 10),
     Constant("RADIUS_RESOURCE", 40),
@@ -67,8 +71,8 @@ criteria_exp = [
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment7", num_batches=10, parallel=True,
-                  description=description_text)
+mp = MetaProtocol(experiment_name="Experiment7", num_batches=10, parallel=False,
+                  description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp:
@@ -84,4 +88,3 @@ mp.generate_temp_env_files()
 
 # Running the simulations
 mp.run_protocols()
-

@@ -366,6 +366,14 @@ class ExperimentReplay:
         max_units = np.max(self.resc_left[index], axis=1)
         resc_quality = self.resc_quality[index][:, self.t]
         res_radius = self.env["RADIUS_RESOURCE"]
+        if res_radius == "----TUNED----":
+            # in case the patch size was changed during the simulations we
+            # read the radius from the corresponding slider
+            var_keys = sorted(list(self.varying_params.keys()))
+            dimnum = var_keys.index("RADIUS_RESOURCE")
+            slider = self.varying_sliders[dimnum]
+            indexalongdim = slider.getValue()
+            res_radius = self.varying_params["RADIUS_RESOURCE"][indexalongdim]
 
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         if self.show_paths:

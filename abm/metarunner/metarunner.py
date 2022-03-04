@@ -43,7 +43,7 @@ class Constant:
         print(f"Constant {self.tunable.name} = {self.tunable.values[0]}")
 
 class TunedPairRestrain:
-    """Parameter pair to be restrained together"""
+    """Parameter pair to be restrained together with multiplication"""
     def __init__(self, var_name1, var_name2, restrained_product):
         self.var1 = var_name1
         self.var2 = var_name2

@@ -161,7 +161,10 @@ class Simulation:
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
-        pygame.display.init()
+        if self.with_visualization:
+            pygame.init()
+        else:
+            pygame.display.init()
 
         # pygame related class attributes
         self.agents = pygame.sprite.Group()

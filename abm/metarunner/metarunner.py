@@ -102,6 +102,7 @@ class MetaProtocol:
         self.default_envconf = envconf
         self.tunables = []
         self.tuned_pairs = []
+        self.q_tuned_pairs = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
         self.description = description
@@ -126,6 +127,11 @@ class MetaProtocol:
         print("---Added new restrained pair: ")
         tuned_pair.print()
 
+    def add_quadratic_tuned_pair(self, tuned_pair):
+        self.q_tuned_pairs.append(tuned_pair)
+        print("---Added new restrained *quadratic* pair: ")
+        tuned_pair.print()
+
     def consider_tuned_pairs(self, combos):
         """removing combinations from a list of combinations where a tuned pair criterion is not met"""
         tunable_names = [t.name for t in self.tunables]
@@ -141,6 +147,22 @@ class MetaProtocol:
                 if product != tuned_pair.product_restrain:
                     print("POP")
                     new_combos.remove(combo)
+        for tuned_pair in self.q_tuned_pairs:
+            for i, combo in enumerate(combos):
+                print("combo", combo)
+                product = 1
+                for j, value in enumerate(combo):
+                    name = tunable_names[j]
+                    if name == tuned_pair.get_vars()[0]:
+                        product *= value
+                    elif name == tuned_pair.get_vars()[1]:
+                        product *= value * value
+                if not np.isclose(product,tuned_pair.product_restrain):
+                    print("POP")
+                    try:
+                        new_combos.remove(combo)
+                    except ValueError:
+                        print("combo already removed")
         return new_combos
 
     def generate_temp_env_files(self):

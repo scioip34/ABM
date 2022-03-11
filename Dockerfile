@@ -38,7 +38,7 @@ RUN pip install -e .
 
 # Add a non-root user so that the generated data can be easily handled on host
 ENV GID 1000
-ENV UID 1002
+ENV UID 1000
 RUN groupadd --gid $GID appgroup && \
     useradd -r -d /app -g appgroup -G root,sudo -u $UID appuser
 

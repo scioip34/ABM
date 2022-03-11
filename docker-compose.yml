@@ -1,8 +1,15 @@
 # docker-compose installation: https://docs.docker.com/compose/install/
+# Instructions:
+# 1. cd into root ABM folder
+# 2. docker-compose up
+# 3. after finish do: docker-compose down -v
 version: "3.9"
 services:
   p34abm:
-    build: .
+    ## In case of DockerHub build use image (default)
+    image: mezdahun/scioip34abm:latest
+    ## In case of local build comment out image and uncomment build
+    # build: .
     # The main volume to save data will be the data directory of the repo attached to the data directory
     # of the container repo. This way we can
     #  - add experiment files and run in the container so we don't have to rebuild all the time

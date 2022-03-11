@@ -527,7 +527,15 @@ class ExperimentLoader:
             ax.set_xticklabels(self.varying_params[keys[1]])
             ax.set_xlabel(keys[1])
 
-        elif num_var_params == 3:
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_efficiency.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_efficiency = np.zeros((self.mean_efficiency.shape[0:3]))
+                print(self.new_mean_efficiency.shape)
+                for j in range(self.mean_efficiency.shape[0]):
+                    for i in range(self.mean_efficiency.shape[1]):
+                        self.new_mean_efficiency[j, i, :] = self.mean_efficiency[j, i, :, i]
+                self.mean_efficiency = self.new_mean_efficiency
             if self.collapse_plot is None:
                 num_plots = self.mean_efficiency.shape[0]
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)

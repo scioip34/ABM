@@ -220,7 +220,7 @@ class ExperimentReplay:
             borderThickness=1
         )
 
-        if len(list(self.experiment.varying_params.keys())) == 3:
+        if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.collapse_dropdown = Dropdown(
                 self.screen,
                 self.button_start_x_2 + int(self.slider_width / 2),
@@ -247,13 +247,13 @@ class ExperimentReplay:
 
     def on_print_reloc_time(self):
         """print mean relative relocation time"""
-        if len(list(self.experiment.varying_params.keys())) == 3:
+        if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_mean_relocation_time()
 
     def on_print_efficiency(self):
         """print mean search efficiency"""
-        if len(list(self.experiment.varying_params.keys())) == 3:
+        if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_search_efficiency()
 

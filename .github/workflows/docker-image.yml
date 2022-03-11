@@ -21,6 +21,6 @@ jobs:
       run: |
         docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag mezdahun/scioip34abm:$(date +%s)
+      run: docker build . --file Dockerfile --tag  ${{secrets.DOCKER_USER}}/scioip34abm:latest
     - name: Push Docker image to DockerHub
-      run: docker push ${{secrets.DOCKER_USER}}/scioip34abm
+      run: docker push ${{secrets.DOCKER_USER}}/scioip34abm:latest

@@ -4,8 +4,31 @@ Agent based model framework to simulate collective foraging with visual private 
 ## Running the Application
 This repository hold the code base for the agent based model framework implemented in python/pygame to model and simualate agents collectively foraging in the environment.
 
-### (No GUI) Runnning with docker and docker-compose
-The application is fully dockerized (only in headless/no gui mode) so that your only requirement is a docker-compose compatible system, with installed `docker` and `docker-compose`. Then simply navigate to the repo, initialize the experiment you would like to carry out in `abm/data/metaprotocol/experiments/docker_exp.py` then run the simulation in headless mode with `docker-compose up`. The saved data will appear in the `abm/data/simulation_data`. After running the container remove it with the attached volumes with `docker-compose down -v`.
+### (No GUI) Runnning with docker or docker-compose
+The application is fully dockerized (only in headless/no gui mode) so that your only requirement is a docker/docker-compose compatible system, with installed `docker` and `docker-compose`. 
+
+#### docker-compose
+Then simply navigate to the repo, initialize the experiment you would like to carry out in `abm/data/metaprotocol/experiments/docker_exp.py` then run the simulation in headless mode with `docker-compose up`. 
+The saved data will appear in the `abm/data/simulation_data`. After running the container remove it with the attached volumes with `docker-compose down -v`. You can decide
+if you want to build the image locally or use the latest stable (refelcting state on develop) image from DockerHub.
+To switch between these follow the instructions (in comment) in the `docker-compose.yml` file.
+
+#### docker
+If `docker-compose` is not available you can use the following pure docker commands instead:
+Be sure, that you are in the root ABM folder (in which e.g. `.env` file is present) then (pull and) run the application
+as follows:
+```bash
+docker run -it --mount type=bind,source="/$(pwd)/abm/data",target=/app/abm/data --name scioip34abmcontainer mezdahun/scioip34abm:latest
+```
+In case the image has not yet been pulled on your system (from DockerHub) it will be now. Then the host machine's
+`abm/data` folder will be bind-mounted to the container's corresponding folder so that the experiment to be run
+can be changed from the host, and the generated data will be visible on the host.
+
+After running the container don't forget to cleanup. Remove the container and the image (if you don't want to use it anymore):
+```bash
+docker rm scioip34abmcontainer -v
+docker rmi mezdahun/scioip34abm:latest
+```
 
 ### (With GUI) Running without docker
 In case you would like to interact with the filesystem or the application (with GUI) while runnning it, first install it's requirements and run the application as follows 

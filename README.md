@@ -1,13 +1,19 @@
 # ABM
 Agent based model framework to simulate collective foraging with visual private and social cues
 
-## Introduction
+## Running the Application
 This repository hold the code base for the agent based model framework implemented in python/pygame to model and simualate agents collectively foraging in the environment.
 
-### Requirements
+### (No GUI) Runnning with docker and docker-compose
+The application is fully dockerized (only in headless/no gui mode) so that your only requirement is a docker-compose compatible system, with installed `docker` and `docker-compose`. Then simply navigate to the repo, initialize the experiment you would like to carry out in `abm/data/metaprotocol/experiments/docker_exp.py` then run the simulation in headless mode with `docker-compose up`. The saved data will appear in the `abm/data/simulation_data`. After running the container remove it with the attached volumes with `docker-compose down -v`.
+
+### (With GUI) Running without docker
+In case you would like to interact with the filesystem or the application (with GUI) while runnning it, first install it's requirements and run the application as follows 
+
+#### Requirements
 To run the simulations you will need python 3.8 or 3.9 and pip correspondingly. It is worth to set up a virtualenvironment using pipenv or venv for the project so that your global workspace is not polluted.
 
-### Test Requirements
+#### Test Requirements
 To test if all the requirements are ready to use:
   1. Clone the repo
   2. Activate your virtual environment (pipenv, venv) if you are using one
@@ -16,12 +22,12 @@ To test if all the requirements are ready to use:
   5. If you also would like to save data you will need an InfluxDB instance. To setup one, please follow the instructions below.
   6. If you would like to run simulations in headless mode (without graphics) you will need to install xvfb first (only tested on Ubuntu) with `sudo apt-get install xvfb`. After this, you can start the simulation in headless mode by calling the `headless-abm-start` entrypoint instead of the normal `abm-start` entrypoint.
 
-## Install Grafana and InfluxDB
+#### Install Grafana and InfluxDB
 To monitor individual agents real time and save simulation data (i.e. write simulation data real time and save upon request at the end) we use InfluxDB and a grafana server for visualization. For this purpose you will need to install influx and grafana. If you don't do these steps you are still going to be able to run simulations, but you won't be able to save the resulting data or visualize the agent's parameters. This installation guide is only tested on Ubuntu. If you decide to use another op.system or you don't want to monitor and save simulation data, set `USE_IFDB_LOGGING` and `SAVE_CSV_FILES` parameters in the `.env` file to `0`.
 <details>
   <summary>Click to expand for Grafana and InfluxDB installation details!</summary>
   
-### Install Grafana
+##### Install Grafana
 1. run the following commands to add the grafana APT repository and install grafana
 ```bash
 wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
@@ -47,7 +53,7 @@ sudo /bin/systemctl start grafana-server
 6. Log in to Grafana with the default username `admin`, and the default `password` admin.
 7. Change the password for the admin user when asked.
 
-### Install influxdb:
+##### Install influxdb:
 1. Use the following commands to add InfluxDB APT repository and install InfluxDB
 ```bash
 wget -qO- https://repos.influxdata.com/influxdb.key | sudo apt-key add -
@@ -75,7 +81,7 @@ influx --execute "show users"
 > ---- -----
 > grafana true
 
-### Connect Grafana with Influx
+##### Connect Grafana with Influx
 (the following instructions were copied from Step4. of [this source](https://simonhearne.com/2020/pi-influx-grafana/#step-4-add-influx-as-a-grafana-data-source))
 
 > Now we have both Influx and Grafana running, we can stitch them together. Log in to your Grafana instance and head to “Data Sources”. Select “Add new Data Source” and find InfluxDB under “Timeseries Databases”.
@@ -90,7 +96,7 @@ influx --execute "show users"
 > 
 > That’s all we need! Now go ahead and hit “Save & Test” to connect everything together. You will see a "Data source is working" message
 
-### Import Dashboard from repo
+##### Import Dashboard from repo
 1. Open your grafana app from the browser and on the left menu bar click on the "+" button and the on the "Import button"
 2. Upload the json file (that holds the blueprint of the grafana dashboard) from the repo under the path `abm/data/grafana_dashboard.json`
   
@@ -209,6 +215,9 @@ python path_to_exp_file.py
 ```
 
 Note that an initial `.env` file must exist under the root `ABM` folder.
+
+#### Connected Tunables
+It can happen that during an experiment one would like to change parameters together, e.g. such that they keep their product as a fixed number. For example, one might want that the total number of resources (number of patches X unit per patch) soulf remain the same for all runs and batches. To fix the product of parameters one can define `TunedPairRestrain` criterion, initializing with `parameter1`, `parameter2` and `product`. During initialization of the metarunner all env files where this criterion does not hold will be deleted. If the relationship is quadratic, i.e. we want `param1` x `param2` ** 2  to be fixed as `product` we can use the `add_quadratic_tuned_pair` method instead of the `add_tuned_pair` method of the `MetaProtocol` class. You can see an example in the experiment file `exp8.py`.
 
 #### Parallel Run of MetaProtocols
 To carry out simulations parallel to each other (so that we can increase simulation speed) one needs to pay attention how the simulations (defined in experiment files) are started. In case we run multiple `MetaProtocol` instances at the same time, we have to set the attribute `parallel` of the `MetaProtocol` class instance to `True`, as well as we must define an experiment name (`experiment_name` attribute of `MetaProtocol` class). Furthermore, as now we need to initialize different metaprotocol classes with different `.env` files we also need to define how this happens. To do so here is a general recipe:

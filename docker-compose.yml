@@ -1,0 +1,11 @@
+# docker-compose installation: https://docs.docker.com/compose/install/
+version: "3.9"
+services:
+  p34abm:
+    build: .
+    # The main volume to save data will be the data directory of the repo attached to the data directory
+    # of the container repo. This way we can
+    #  - add experiment files and run in the container so we don't have to rebuild all the time
+    #  - automatically fetch generated simulatiion data on host
+    volumes:
+      - ./abm/data:/app/abm/data

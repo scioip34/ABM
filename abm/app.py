@@ -15,8 +15,12 @@ EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 def start(parallel=False, headless=False):
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
-    vscreen_width = int(float(envconf["ENV_WIDTH"])) + 100
-    vscreen_height = int(float(envconf["ENV_HEIGHT"])) + 100
+    window_pad = 30
+    vscreen_width = int(float(envconf["ENV_WIDTH"])) + 2 * window_pad + 10
+    vscreen_height = int(float(envconf["ENV_HEIGHT"])) + 2 * window_pad + 10
+    if headless:
+        # required to start pygame in headless mode
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'
     with ExitStack() if not headless else Xvfb(width=vscreen_width, height=vscreen_height) as xvfb:
         sim = Simulation(N=int(float(envconf["N"])),
                          T=int(float(envconf["T"])),
@@ -47,13 +51,15 @@ def start(parallel=False, headless=False):
                          show_vision_range=bool(int(float(envconf["SHOW_VISION_RANGE"]))),
                          use_ifdb_logging=bool(int(float(envconf["USE_IFDB_LOGGING"]))),
                          save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
-                         parallel=parallel
+                         parallel=parallel,
+                         window_pad=window_pad
                          )
         sim.write_batch_size = 100
         sim.start()
 
 
 def start_headless():
+    print("Start ABM in Headless Mode...")
     start(headless=True)
 
 

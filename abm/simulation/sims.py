@@ -161,7 +161,10 @@ class Simulation:
         self.regenerate_resources = regenerate_patches
 
         # Initializing pygame
-        pygame.init()
+        if self.with_visualization:
+            pygame.init()
+        else:
+            pygame.display.init()
 
         # pygame related class attributes
         self.agents = pygame.sprite.Group()
@@ -356,7 +359,7 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def add_new_agent(self, id, x, y, orient, with_proove=True):
+    def add_new_agent(self, id, x, y, orient, with_proove=False):
         """Adding a single new agent into agent sprites"""
         agent_proven = False
         while not agent_proven:
@@ -683,10 +686,12 @@ class Simulation:
                                         batch_size=self.write_batch_size)
 
             # Moving time forward
+            if self.t % 500 == 0:
+                print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
-        print("Total simulation time: ", (end_time - start_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ", (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
@@ -699,6 +704,6 @@ class Simulation:
                                 " or turn off CSV saving feature.")
 
         end_save_time = datetime.now()
-        print("Total saving time:", (end_save_time - end_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:", (end_save_time - end_time).total_seconds())
 
         pygame.quit()

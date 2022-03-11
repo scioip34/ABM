@@ -43,7 +43,7 @@ class Constant:
         print(f"Constant {self.tunable.name} = {self.tunable.values[0]}")
 
 class TunedPairRestrain:
-    """Parameter pair to be restrained together"""
+    """Parameter pair to be restrained together with multiplication"""
     def __init__(self, var_name1, var_name2, restrained_product):
         self.var1 = var_name1
         self.var2 = var_name2
@@ -98,13 +98,15 @@ class Tunable:
 class MetaProtocol:
     """Metaprotocol class that is initialized with Tunables and runs through the desired simulations accordingly"""
 
-    def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None):
+    def __init__(self, experiment_name=None, num_batches=1, parallel=False, description=None, headless=False):
         self.default_envconf = envconf
         self.tunables = []
         self.tuned_pairs = []
+        self.q_tuned_pairs = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
         self.description = description
+        self.headless = headless
         # in case we want to run multiple experiemnts in different terminals set this to True
         if experiment_name is None and parallel==True:
             raise Exception("Can't run multiple experiments parallely without experiment name!")
@@ -125,6 +127,11 @@ class MetaProtocol:
         print("---Added new restrained pair: ")
         tuned_pair.print()
 
+    def add_quadratic_tuned_pair(self, tuned_pair):
+        self.q_tuned_pairs.append(tuned_pair)
+        print("---Added new restrained *quadratic* pair: ")
+        tuned_pair.print()
+
     def consider_tuned_pairs(self, combos):
         """removing combinations from a list of combinations where a tuned pair criterion is not met"""
         tunable_names = [t.name for t in self.tunables]
@@ -140,6 +147,22 @@ class MetaProtocol:
                 if product != tuned_pair.product_restrain:
                     print("POP")
                     new_combos.remove(combo)
+        for tuned_pair in self.q_tuned_pairs:
+            for i, combo in enumerate(combos):
+                print("combo", combo)
+                product = 1
+                for j, value in enumerate(combo):
+                    name = tunable_names[j]
+                    if name == tuned_pair.get_vars()[0]:
+                        product *= value
+                    elif name == tuned_pair.get_vars()[1]:
+                        product *= value * value
+                if not np.isclose(product,tuned_pair.product_restrain):
+                    print("POP")
+                    try:
+                        new_combos.remove(combo)
+                    except ValueError:
+                        print("combo already removed")
         return new_combos
 
     def generate_temp_env_files(self):
@@ -197,9 +220,10 @@ class MetaProtocol:
         if os.path.isfile(default_env_path) and not os.path.isfile(backup_default_env):
             shutil.copyfile(default_env_path, backup_default_env)
         os.remove(default_env_path)
-        os.rename(env_path, default_env_path)
+        shutil.copy(env_path, default_env_path)
+        os.remove(env_path)
         # here we run the simulation
-        app.start(self.parallel_run)
+        app.start(parallel=self.parallel_run, headless=self.headless)
         os.remove(default_env_path)
         shutil.copyfile(backup_default_env, default_env_path)
         sleep(2)

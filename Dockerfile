@@ -31,10 +31,10 @@ RUN pip install virtualenv pip
 COPY . /app
 WORKDIR /app
 # Create entrypoint
-RUN chmod +x ./docker_entrypoint.sh
+RUN chmod +x /app/docker_entrypoint.sh
 
 # Install p34ABM
-RUN pip install -e .
+RUN pip install -e /app
 
 # Add a non-root user so that the generated data can be easily handled on host
 ENV GID 1187722

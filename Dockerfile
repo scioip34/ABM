@@ -37,8 +37,8 @@ RUN chmod +x ./docker_entrypoint.sh
 RUN pip install -e .
 
 # Add a non-root user so that the generated data can be easily handled on host
-ENV GID 1000
-ENV UID 1000
+ENV GID 1187722
+ENV UID 1187722
 RUN groupadd --gid $GID appgroup && \
     useradd -r -d /app -g appgroup -G root,sudo -u $UID appuser
 

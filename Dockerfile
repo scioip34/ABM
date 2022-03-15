@@ -50,4 +50,4 @@ RUN chown -R appuser:appgroup /app
 
 # Change user to new user (from this on, we need to use sudo for root methods)
 USER appuser
-CMD ["./docker_entrypoint.sh"]
+CMD ["/app/docker_entrypoint.sh"]

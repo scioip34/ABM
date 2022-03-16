@@ -24,4 +24,4 @@ influx --execute "show users"
 EXPERIMENT_NAME=$EXPERIMENT_NAME python3 -u /app/abm/data/metaprotocol/experiments/docker_exp.py
 
 # So to start an experiment in a given singularity instance use
-# e.g.: singularity exec instance://<instance name> "EXPERIMENT_NAME=<experiment name> sh /app/singularity_entrypoint.sh"
+# e.g.: env SINGULARITYENV_EXPERIMENT_NAME=docker_exp singularity exec instance://<instance name> sh /app/singularity_entrypoint.sh

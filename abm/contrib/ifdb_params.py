@@ -9,7 +9,7 @@ root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(
 env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 envconf = dotenv_values(env_path)
 
-INFLUX_HOST = "127.0.0.1"
+INFLUX_HOST = "localhost"
 INFLUX_PORT = "8086"
 INFLUX_USER = "monitoring"
 INFLUX_PSWD = "password"

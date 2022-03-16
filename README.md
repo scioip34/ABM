@@ -257,7 +257,7 @@ To carry out simulations parallel to each other (so that we can increase simulat
 EXPERIMENT_NAME=exp<i> python <path_to_exp_file_folder>/exp<i>.py
 ```
 Note that the parantheses denote variable indices and paths according to where you store your experiment files and which terminal you are at.
-A more concrete example could be:
+A concrete example could be:
 
 ```bash
 EXPERIMENT_NAME=exp4 python home/ABM/abm/data/metarunner/experiments/exp4.py

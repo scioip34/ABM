@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # BEHAVIOR:
-# Parses the abm/data/metarunner/experiments folder and runs each experiment in the folder on the HPC cluster.
+# Parses the abm/data/metarunner/experiments folder and runs each experiment py file in the folder on the HPC cluster.
+# Each experiment will be run on a different node.
 # Prepares the environment on the gateway such es env files, empty folders for logging and errors of the jobs, etc.
 
 # Initializing SLURM logging structure
@@ -10,6 +11,7 @@ if [ ! -d "slurm_log" ]; then
   echo "Directory for job logs initialized..."
 fi
 
+# Parsing experiment files
 search_dir=./abm/data/metaprotocol/experiments
 if [ ! -d "$search_dir" ]; then
   echo "Can not find experiments folder..."

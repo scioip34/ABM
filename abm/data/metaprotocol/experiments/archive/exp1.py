@@ -31,8 +31,7 @@ fixed_criteria = [
     Constant("AGENT_CONSUMPTION", 1),
     Constant("RADIUS_AGENT", 10),
     Constant("RADIUS_RESOURCE", 40),
-    Constant("MIN_RESOURCE_QUALITY", 0.1),
-    Constant("MAX_RESOURCE_QUALITY", 0.1),
+    Constant("MAX_RESOURCE_QUALITY", -10),
     Constant("MIN_RESOURCE_PER_PATCH", 100),
     Constant("MAX_RESOURCE_PER_PATCH", 101),
     Constant("MOV_EXP_TH_MIN", -0.25),
@@ -40,12 +39,11 @@ fixed_criteria = [
     Constant("MOV_REL_TH_MAX", 0.5),
     Constant("CONS_STOP_RATIO", 0.1),
     Constant("REGENERATE_PATCHES", 1),
-    Constant("REGENERATE_PATCHES", 5000),
     Constant("DEC_FN", 0.5),
     Constant("DEC_FR", 0.5),
     Constant("DEC_TAU", 10),
     Constant("DEC_BW", 0),
-    Constant("DEC_WMAX", 0),
+    Constant("DEC_WMAX", 1),
     Constant("DEC_BU", 0),
     Constant("DEC_UMAX", 1),
     Constant("DEC_GW", 0.085),
@@ -57,43 +55,17 @@ fixed_criteria = [
 
 # Defining decision param
 criteria_exp1 = [
-    Constant("N", 1),
-    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
-    Constant("DEC_SWU", 0),
-    Constant("DEC_SUW", 0),
-    Constant("N_RESOURCES", 5),
-]
-
-criteria_exp2 = [
-    Constant("N", 3),
-    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
-    Constant("DEC_SWU", 0),
-    Constant("DEC_SUW", 0),
-    Constant("N_RESOURCES", 5),
-]
-
-criteria_exp3 = [
     Constant("N", 5),
-    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
+    Constant("DEC_EPSW", 0),
+    Tunable("DEC_EPSU", values_override=[i*0.1 for i in range(11)]),
+    Tunable("MIN_RESOURCE_QUALITY", values_override=[i*0.1 for i in range(11)]),
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Constant("N_RESOURCES", 5),
-]
-
-criteria_exp_changing = [
-    Constant("N", 3),
-    Tunable("DEC_EPSW", values_override=[0, 0.1, 0.25, 0.5, 1, 2, 5]),
-    Tunable("DEC_EPSU", values_override=[0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.5, 3]),
-    Constant("DEC_SWU", 0),
-    Constant("DEC_SUW", 0),
-    Constant("N_RESOURCES", 1)
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment1", num_batches=3)
+mp = MetaProtocol(experiment_name="Experiment1", num_batches=3, parallel=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp1:

@@ -125,6 +125,27 @@ influx --execute "show users"
   
 </details>
 
+### (HPC) Using singularity on HPC
+To run experiments on cluster nodes of the HPC we need to use singularity, as docker is not directly allowed on cluster nodes. To do so, first we need to transform the automatically built docker image on DockerHub to an immutable singularity image (SIF file). This can be done on any linux based host computer with `sudo` privileges and installed singularity (v3.7.0).
+
+Choose a local host machine with sudo right.
+
+1. Install singularity on host with this: https://github.com/apptainer/singularity/issues/5099#issuecomment-814563244 method
+or https://github.com/sylabs/singularity/blob/master/INSTALL.md
+2. Pull and build docker image to sif file: `sudo singularity build scioip34abm.sif docker://mezdahun/scioip34abm`. Note that the container always represents the develop branch and only rebuilt when another branch is merged on push event is carried out on develop.
+3. Use sshfs to create a mount between your linux system and the HPC gateway
+4. Then upload your sif image into the mount (copy)
+
+After this point you will have a SIF file on the home folder of your user gateway and from this point you will work on the gateway.
+
+5. Now you have to clone the codebase (this repo) to the home directory of user gateway.
+6. Copy the SIF file from the home folder of the gateway into this new cloned `ABM` folder and `cd` into it.
+7. As we will bind the data codebase to the singularity containers (so that we can dynamically define new experiments without rebuilding the base image) we can now prepare these experiments as experiment `<eperiment name>.py` files under `abm/data/metaprotocol/experiments`. Corresponding `.env` files will be generated automatically later on. Only keep those experiment files in this folder that you will run on the cluster. Move all other experiment files into the `archive` subfolder. As again, we will run ALL of the experiment files in `abm/data/metaprotocol/experiments` keep only those there that you want to run to avoid cluttering the cluster with unwanted jobs.
+8. After this point you can call the bash script `HPC_run_all_exp.sh` as `sh HPC_run_all_exp.sh`. This will take care of initializing the folder structure, mounting volumes to the individual singularity containers on the nodes and running the experiments in individual singularity instances based on the SIF image you created.
+9. ALL the data will be generated under `abm/data/simulation_data` as it would be expected with local runs of experiments due to beegfs connection between the gateway and the nodes.
+10. These you can use on any host by mounting your gateway to the host with sshfs
+11. Log messages and error messages will be saved into a new `slurm_log` folder in the `ABM` folder 
+
 ## Details of the package
 In this section the package is detailed for reproducibility and for ease of use. Among others you can read about the main restrictions and assumptions we used in our framework, how one can initialize the package with different parameters through `.env` files, and how the code is structured.
 

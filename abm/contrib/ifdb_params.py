@@ -28,7 +28,7 @@ else:
     else:
         if T % 1000 != 0:
             raise Exception("Simulation time (T) must be dividable by 1000 or smaller than 1000!")
-        write_batch_size = 1000
+        write_batch_size = 100
 
 # SAVE_DIR is counted from the ABM parent directory.
 SAVE_DIR = envconf.get("SAVE_ROOT_DIR", "abm/data/simulation_data")

@@ -14,8 +14,8 @@ INFLUX_PORT = "8086"
 INFLUX_USER = "monitoring"
 INFLUX_PSWD = "password"
 INFLUX_DB_NAME = "home"
-INFLUX_TIMEOUT = 300  # timeout for requests to wait for client in seconds
-INFLUX_RETRIES = 30  # number of retries before fail when timeout reached
+INFLUX_TIMEOUT = 3000  # timeout for requests to wait for client in seconds
+INFLUX_RETRIES = 0  # number of retries before fail when timeout reached
 
 print("Using IFDB long timeout and retries!")
 

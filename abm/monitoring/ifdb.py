@@ -7,6 +7,7 @@ import os
 import numpy as np
 
 from influxdb import InfluxDBClient, DataFrameClient
+from influxdb.exceptions import InfluxDBServerError
 
 import abm.contrib.ifdb_params as ifdbp
 
@@ -87,7 +88,18 @@ def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
     if batch_size is None:
         batch_size = ifdbp.write_batch_size
     if len(batch_bodies_agents) == batch_size:
-        ifclient.write_points(batch_bodies_agents)
+        write_success = False
+        retries = 0
+        while not write_success and retries < 100:
+            try:
+                retries += 1
+                ifclient.write_points(batch_bodies_agents)
+                write_success = True
+            except InfluxDBServerError as e:
+                print(f"INFLUX ERROR, will retry {retries}")
+                print(e)
+        if retries == 100:
+            raise Exception("Too many retries to write to InfluxDB instance. Stopping application!")
         batch_bodies_agents = []
 
 
@@ -136,9 +148,19 @@ def save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
     if batch_size is None:
         batch_size = ifdbp.write_batch_size
     if len(batch_bodies_resources) == batch_size:
-        ifclient.write_points(batch_bodies_resources)
+        write_success = False
+        retries = 0
+        while not write_success  and retries < 100:
+            try:
+                retries += 1
+                ifclient.write_points(batch_bodies_resources)
+                write_success = True
+            except InfluxDBServerError as e:
+                print(f"INFLUX ERROR, will retry {retries}")
+                print(e)
+        if retries > 100:
+            raise Exception("Too many retries to write to InfluxDB instance. Stopping application!")
         batch_bodies_resources = []
-
 
 def save_simulation_params(ifclient, sim, exp_hash=""):
     """saving simulation parameters to IFDB

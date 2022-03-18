@@ -52,7 +52,7 @@ fixed_criteria = [
     Constant("DEC_GU", 0.085),
     Constant("DEC_TW", 0.5),
     Constant("DEC_TU", 0.5),
-    Constant("T", 100),
+    Constant("T", 5000),
 ]
 
 criteria_exp_changing = [

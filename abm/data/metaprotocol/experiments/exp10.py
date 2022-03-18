@@ -57,12 +57,12 @@ sum_resources = 3000
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
-num_patches = [1, 3, 5, 10, 30, 50, 100]
+num_patches = [1, 5, 50, 100]
 criteria_exp = [
     Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),
     Constant("AGENT_FOV", 1),  # unlimited
-    Tunable("DEC_EPSW", values_override=[1, 2, 3]),
+    Tunable("DEC_EPSW", values_override=[1, 3]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),

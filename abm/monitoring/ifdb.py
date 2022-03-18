@@ -92,7 +92,7 @@ def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
         try:
             ifclient.write_points(batch_bodies_agents)
             batch_bodies_agents = []
-        except InfluxDBServerError as e:
+        except Exception as e:
             print(f"Could not write in database, got Influx Error, will try to push with next batch...")
             print(e)
     # todo: in the last timestep use this code
@@ -161,7 +161,7 @@ def save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
         try:
             ifclient.write_points(batch_bodies_resources)
             batch_bodies_resources = []
-        except InfluxDBServerError as e:
+        except Exception as e:
             print(f"Could not write in database, got Influx Error, will try to push with next batch...")
             print(e)
 

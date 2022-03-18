@@ -38,14 +38,9 @@ else
 fi
 
 # Initializing empty bindmounts if not yet done
-if [ ! -d "influxdb" ]; then
-  mkdir influxdb
-  echo "Bind root directory created for influxdb..."
-fi
-
-if [ ! -d "influxdb/influxdb_$EXPERIMENT_NAME" ]; then
-  mkdir influxdb/influxdb_$EXPERIMENT_NAME
-  echo "Bind directory created for influxdb $EXPERIMENT_NAME..."
+if [ ! -d "/tmp/influxdb" ]; then
+  mkdir /tmp/influxdb
+  echo "Bind root directory created for influxdb on /tmp..."
 fi
 
 if [ ! -d "journal" ]; then
@@ -67,7 +62,7 @@ singularity version
 # Create singularity instance
 echo "Creating singularity instance..."
 singularity instance start --bind "/$(pwd):/app" \
-                           --bind "/$(pwd)/influxdb/influxdb_$EXPERIMENT_NAME:/var/lib/influxdb" \
+                           --bind "/tmp/influxdb:/var/lib/influxdb" \
                            --bind "/$(pwd)/journal/journal_$EXPERIMENT_NAME:/var/log/journal" \
                            scioip34abm.sif scioip34abmcontainer_$EXPERIMENT_NAME
 
@@ -78,6 +73,12 @@ env SINGULARITYENV_EXPERIMENT_NAME=$EXPERIMENT_NAME singularity exec instance://
 # When done we clean up
 echo "Experiment finished, stopping singularity instance."
 singularity instance stop scioip34abmcontainer_$EXPERIMENT_NAME
+
+# Cleaning up
+if [ -d "/tmp/influxdb" ]; then
+  rm -rf /tmp/influxdb
+  echo "Bind root directory influxdb deleted..."
+fi
 
 # We exit with success
 exit

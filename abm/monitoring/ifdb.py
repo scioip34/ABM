@@ -25,7 +25,9 @@ def create_ifclient():
                               ifdbp.INFLUX_PORT,
                               ifdbp.INFLUX_USER,
                               ifdbp.INFLUX_PSWD,
-                              ifdbp.INFLUX_DB_NAME)
+                              ifdbp.INFLUX_DB_NAME,
+                              timeout=ifdbp.INFLUX_TIMEOUT,
+                              retries=ifdbp.INFLUX_RETRIES)
     return ifclient
 
 
@@ -186,12 +188,13 @@ def save_ifdb_as_csv(exp_hash=""):
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     importlib.reload(ifdbp)
-    # from influxdb_client import InfluxDBClient
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
-                              ifdbp.INFLUX_PORT,
-                              ifdbp.INFLUX_USER,
-                              ifdbp.INFLUX_PSWD,
-                              ifdbp.INFLUX_DB_NAME)
+                               ifdbp.INFLUX_PORT,
+                               ifdbp.INFLUX_USER,
+                               ifdbp.INFLUX_PSWD,
+                               ifdbp.INFLUX_DB_NAME,
+                               timeout=ifdbp.INFLUX_TIMEOUT,
+                               retries=ifdbp.INFLUX_RETRIES)
 
     # create base folder in data
     save_dir = ifdbp.TIMESTAMP_SAVE_DIR

@@ -1,7 +1,7 @@
 description_text = """
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
-Title:      Experiment 9 (part1)
+Title:      Experiment 9 (part2)
 Date:       18.03.2022
 Goal:       In this experiment we restrict the total amount of resources as before, but when we change the number
             of resource patches we restrict the size of the patches together. This way the covered resource area 
@@ -9,7 +9,7 @@ Goal:       In this experiment we restrict the total amount of resources as befo
             patches in Experiment 5-7. Visual exclusion is now off. Number of patches are changed in
             more extreme ways than in #5-6 as now the arena does not get saturated with patches. The goal is to
             compare results from #8 (with visual cclusion) with this. Partitioned to run parallely on HPC and merge
-            later (part1).
+            later (part2).
 Defined by: mezdahun
 """
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
@@ -80,7 +80,7 @@ criteria_exp = [
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment9_part1", num_batches=5, parallel=False,
+mp = MetaProtocol(experiment_name="Experiment9_part2", num_batches=2, parallel=False,
                   description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)

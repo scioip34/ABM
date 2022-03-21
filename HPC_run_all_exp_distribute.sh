@@ -55,13 +55,13 @@ do
     cp $search_dir/$exp_name.py $search_dir/$exp_name_hashed.py
 
     # Run an experiment on a dedicated node
-    echo "Starting experiment $exp_name_hashed"
-    sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
+    #echo "Starting experiment $exp_name_hashed"
+    #sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
 
     # Cleaning up
     # remove env file
-    rm ./$exp_name_hashed.env
+    #rm ./$exp_name_hashed.env
     # remove temp exp file
-    rm $search_dir/$exp_name_hashed.py
+    #rm $search_dir/$exp_name_hashed.py
   done
 done

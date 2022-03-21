@@ -40,6 +40,8 @@ fi
 if [ ! -d "/tmp/influxdb" ]; then
   mkdir /tmp/influxdb
   echo "Bind root directory created for influxdb on /tmp..."
+else
+  echo "Influxdb folder already exists on node! Using it..."
 fi
 
 if [ ! -d "journal" ]; then
@@ -81,6 +83,7 @@ else
   if [ -d "/tmp/influxdb" ]; then
     rm -rf /tmp/influxdb
     echo "Bind root directory influxdb deleted..."
+  fi
 fi
 
 # We exit with success

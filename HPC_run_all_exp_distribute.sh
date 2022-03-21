@@ -36,24 +36,27 @@ done
 # Prepare empty env files for each experiment on root
 for exp_name in "${exp_name_array[@]}"
 do
-  echo "Handling instances for base experiemnt $exp_name"
-  # Generating random hash for each instance per experiment
-  random_hash==$(echo $RANDOM | md5sum | head -c 20)
+  echo "Handling instances for base experiemnt $exp_name, creating $NUM_INSTANCES_PER_EXP instances"
+  for i in $(seq 1 $NUM_INSTANCES_PER_EXP)
+  do
+    # Generating random hash for each instance per experiment
+    random_hash==$(echo $RANDOM | md5sum | head -c 20)
 
-  # Noting data with experiment name and hash
-  exp_name_hashed=$exp_name"_"$random_hash
-  if [ ! -f "./$exp_name_hashed.env" ]; then
-    cp ./.env ./$exp_name_hashed.env
-    echo "Created default env file for experiment $exp_name_hashed"
-  else
-    echo "Env file already exists for experiment $exp_name_hashed"
-  fi
+    # Noting data with experiment name and hash
+    exp_name_hashed=$exp_name"_"$random_hash
+    if [ ! -f "./$exp_name_hashed.env" ]; then
+      cp ./.env ./$exp_name_hashed.env
+      echo "Created default env file for experiment $exp_name_hashed"
+    else
+      echo "Env file already exists for experiment $exp_name_hashed"
+    fi
 
-  # Run an experiment on a dedicated node
-  echo "Starting experiment $exp_name_hashed"
-  sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
+    # Run an experiment on a dedicated node
+    echo "Starting experiment $exp_name_hashed"
+    sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
 
-  # Cleaning up
-  # remove env file
-  rm ./$exp_name_hashed.env
+    # Cleaning up
+    # remove env file
+    rm ./$exp_name_hashed.env
+  done
 done

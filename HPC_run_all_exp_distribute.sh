@@ -40,7 +40,7 @@ do
   for i in $(seq 1 $NUM_INSTANCES_PER_EXP)
   do
     # Generating random hash for each instance per experiment
-    random_hash==$(echo $RANDOM | md5sum | head -c 20)
+    random_hash=$(echo $RANDOM | md5sum | head -c 20)
 
     # Noting data with experiment name and hash
     exp_name_hashed=$exp_name"_"$random_hash

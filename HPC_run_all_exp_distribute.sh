@@ -5,7 +5,14 @@
 # Each experiment will be run on a different node.
 # Prepares the environment on the gateway such es env files, empty folders for logging and errors of the jobs, etc.
 
-NUM_INSTANCES_PER_EXP=3
+# Define how many repetitions should we simulate on the cluster in a heavily distributed manner,
+# meaning we run only 1 batch per instance but we create many instances that can be distributed on the
+# HPC cluster creating a parallel computation pool.
+# To handle all the instances the original experiment file will be copied N times with random hash strings as
+# well as N env files will be created. For each a new singularity instance will be dedicated. The saved data
+# will be in the abm/data/simulation_data folder with the random hashes which then can be merged into a single experiment
+# folder later.
+NUM_INSTANCES_PER_EXP=10
 
 # Initializing SLURM logging structure
 if [ ! -d "slurm_log" ]; then
@@ -30,6 +37,8 @@ do
   exp_name=$(basename $exp_path .py)
   echo "Found experiment: $exp_name"
   if [[ $exp_name == *"_"* ]]; then
+    # if _ is given in the exp filename we skip it as it might be garbage from previous broken runs
+    # so that we avoid exponential explosion of job numbers
     echo "Experiment is already hashed from previous runs, skipping it..."
   else
     exp_path_array+=("$exp_path")

@@ -86,6 +86,14 @@ else
   fi
 fi
 
+echo "Deleting temporary env file"
+rm /app/$EXPERIMENT_NAME.env
+
+echo "Deleting experiment file to archive"
+if [ "$HPC_DISTRIBUTED_ABM" == "yes" ]; then
+  rm /app/data/metaprotocol/experiments/$EXPERIMENT_NAME.py
+fi
+
 # We exit with success
 echo "Job finished successfully!"
 exit

@@ -57,13 +57,7 @@ do
 
     # Run an experiment on a dedicated node
     echo "Starting experiment $exp_name_hashed"
-    sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
+    sbatch --export=EXPERIMENT_NAME=$exp_name_hashed --export=HPC_DISTRIBUTED_ABM=yes ./HPC_batch_run.sh
 
   done
 done
-
-# Cleaning up
-# remove env file
-rm ./$exp_name_*.env
-# remove temp exp file
-rm $search_dir/$exp_name_*.py

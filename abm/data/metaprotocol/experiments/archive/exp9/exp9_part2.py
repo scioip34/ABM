@@ -68,7 +68,7 @@ criteria_exp = [
     Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),
     Constant("AGENT_FOV", 1),  # unlimited
-    Tunable("DEC_EPSW", values_override=[2, 3]),
+    Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),
@@ -76,11 +76,11 @@ criteria_exp = [
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 200)
+    Constant("T", 15000)
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment9_part2_paralltest", num_batches=2, parallel=True,
+mp = MetaProtocol(experiment_name="Experiment9_part2", num_batches=2, parallel=False,
                   description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)

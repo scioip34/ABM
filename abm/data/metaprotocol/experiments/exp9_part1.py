@@ -63,7 +63,7 @@ sum_resources = 3000
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
-num_patches = [1, 3, 5, 10, 30, 50, 100]
+num_patches = [1, 3]
 criteria_exp = [
     Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),

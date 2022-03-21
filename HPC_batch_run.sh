@@ -74,10 +74,15 @@ echo "Experiment finished, stopping singularity instance."
 singularity instance stop scioip34abmcontainer_$EXPERIMENT_NAME
 
 # Cleaning up
-if [ -d "/tmp/influxdb" ]; then
-  rm -rf /tmp/influxdb
-  echo "Bind root directory influxdb deleted..."
+if singularity instance list | grep -q scioip34abmcontainer; then
+  echo "Found another singularity instance running and sharing influxDB on the same node. Not cleaning up yet!"
+else
+  echo "No other singularity instance has been found, cleaning up is safe, proceeding..."
+  if [ -d "/tmp/influxdb" ]; then
+    rm -rf /tmp/influxdb
+    echo "Bind root directory influxdb deleted..."
 fi
 
 # We exit with success
+echo "Job finished successfully!"
 exit

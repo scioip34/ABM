@@ -59,10 +59,11 @@ do
     echo "Starting experiment $exp_name_hashed"
     sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
 
-    # Cleaning up
-    # remove env file
-    #rm ./$exp_name_hashed.env
-    # remove temp exp file
-    #rm $search_dir/$exp_name_hashed.py
   done
 done
+
+# Cleaning up
+# remove env file
+rm ./$exp_name_*.env
+# remove temp exp file
+rm $search_dir/$exp_name_*.py

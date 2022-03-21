@@ -29,8 +29,12 @@ for exp_path in "$search_dir"/*.py
 do
   exp_name=$(basename $exp_path .py)
   echo "Found experiment: $exp_name"
-  exp_path_array+=("$exp_path")
-  exp_name_array+=("$exp_name")
+  if [[ $exp_name == *"_"* ]]; then
+    echo "Experiment is already hashed from previous runs, skipping it..."
+  else
+    exp_path_array+=("$exp_path")
+    exp_name_array+=("$exp_name")
+  fi
 done
 
 # Prepare empty env files for each experiment on root

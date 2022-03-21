@@ -7,6 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=1-00:00          # Runtime in D-HH:MM
 #SBATCH --cpus-per-task=4
+#SBATCH --exclusive=user
 
 # BEHAVIOR:
 # Runs a single experiment on a dedicated cluster node. The experiment is defined in the dedicated folder of the codebase with the
@@ -87,11 +88,11 @@ else
 fi
 
 echo "Deleting temporary env file"
-rm /app/$EXPERIMENT_NAME.env
+rm ./$EXPERIMENT_NAME.env
 
-echo "Deleting experiment file to archive"
 if [ "$HPC_DISTRIBUTED_ABM" == "yes" ]; then
-  rm /app/data/metaprotocol/experiments/$EXPERIMENT_NAME.py
+  echo "Deleting experiment file"
+  rm ./abm/data/metaprotocol/experiments/$EXPERIMENT_NAME.py
 fi
 
 # We exit with success

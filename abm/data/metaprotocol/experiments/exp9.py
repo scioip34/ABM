@@ -1,19 +1,18 @@
-description_text = """
-Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
-
-Title:      Experiment 9 (part1)
-Date:       18.03.2022
-Goal:       In this experiment we restrict the total amount of resources as before, but when we change the number
-            of resource patches we restrict the size of the patches together. This way the covered resource area 
-            will remain the same (20%, or similar) over the experiment that was growing with the number of
-            patches in Experiment 5-7. Visual exclusion is now off. Number of patches are changed in
-            more extreme ways than in #5-6 as now the arena does not get saturated with patches. The goal is to
-            compare results from #8 (with visual cclusion) with this. Partitioned to run parallely on HPC and merge
-            later (part1).
-Defined by: mezdahun
-"""
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
+import os
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
+if EXP_NAME == "":
+    raise Exception("No experiment name has been passed")
+
+description_text = f"""
+Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
+
+Title:      Experiment : {EXP_NAME}
+Date:       18.03.2022
+Goal:       Lorem Ipsum
+Defined by: mezdahun
+"""
 
 # Defining fixed criteria for all automized simulations/experiments
 arena_w = 500
@@ -76,11 +75,11 @@ criteria_exp = [
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 200)
+    Constant("T", 2000)
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment9_part1_paralltest", num_batches=2, parallel=True,
+mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1, parallel=True,
                   description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)

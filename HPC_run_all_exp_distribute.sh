@@ -5,6 +5,8 @@
 # Each experiment will be run on a different node.
 # Prepares the environment on the gateway such es env files, empty folders for logging and errors of the jobs, etc.
 
+NUM_INSTANCES_PER_EXP=3
+
 # Initializing SLURM logging structure
 if [ ! -d "slurm_log" ]; then
   mkdir slurm_log
@@ -34,17 +36,24 @@ done
 # Prepare empty env files for each experiment on root
 for exp_name in "${exp_name_array[@]}"
 do
-  if [ ! -f "./$exp_name.env" ]; then
-    cp ./.env ./$exp_name.env
-    echo "Created default env file for experiment $exp_name"
-  else
-    echo "Env file already exists for experiment $exp_name"
-  fi
-done
+  echo "Handling instances for base experiemnt $exp_name"
+  # Generating random hash for each instance per experiment
+  random_hash==$(echo $RANDOM | md5sum | head -c 20)
 
-# Run an experiment on a dedicated node
-for exp_name in "${exp_name_array[@]}"
-do
-  echo "Starting experiment $exp_name"
-  sbatch --export=EXPERIMENT_NAME=$exp_name ./HPC_batch_run.sh
+  # Noting data with experiment name and hash
+  exp_name_hashed=$exp_name"_"$random_hash
+  if [ ! -f "./$exp_name_hashed.env" ]; then
+    cp ./.env ./$exp_name_hashed.env
+    echo "Created default env file for experiment $exp_name_hashed"
+  else
+    echo "Env file already exists for experiment $exp_name_hashed"
+  fi
+
+  # Run an experiment on a dedicated node
+  echo "Starting experiment $exp_name_hashed"
+  sbatch --export=EXPERIMENT_NAME=$exp_name_hashed ./HPC_batch_run.sh
+
+  # Cleaning up
+  # remove env file
+  rm ./$exp_name_hashed.env
 done

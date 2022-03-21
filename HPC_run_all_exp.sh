@@ -47,4 +47,6 @@ for exp_name in "${exp_name_array[@]}"
 do
   echo "Starting experiment $exp_name"
   sbatch --export=EXPERIMENT_NAME=$exp_name ./HPC_batch_run.sh
+  echo "Wait a few secs..."
+  sleep 5
 done

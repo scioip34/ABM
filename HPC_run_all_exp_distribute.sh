@@ -12,7 +12,9 @@
 # well as N env files will be created. For each a new singularity instance will be dedicated. The saved data
 # will be in the abm/data/simulation_data folder with the random hashes which then can be merged into a single experiment
 # folder later.
-NUM_INSTANCES_PER_EXP=10
+if [ "$NUM_INSTANCES_PER_EXP" == "" ]; then
+  NUM_INSTANCES_PER_EXP=1
+fi
 
 # Initializing SLURM logging structure
 if [ ! -d "slurm_log" ]; then

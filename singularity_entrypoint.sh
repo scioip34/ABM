@@ -21,7 +21,7 @@ influx --execute "show users"
 
 # The experiment name can be passed for each instance individually so that different env files will be used but
 # in the same attached volume from all nodes
-EXPERIMENT_NAME=$EXPERIMENT_NAME python3 -u /app/abm/data/metaprotocol/experiments/docker_exp.py
+EXPERIMENT_NAME=$EXPERIMENT_NAME python3 -u /app/abm/data/metaprotocol/experiments/$EXPERIMENT_NAME.py
 
 # So to start an experiment in a given singularity instance use
 # e.g.: env SINGULARITYENV_EXPERIMENT_NAME=docker_exp singularity exec instance://<instance name> sh /app/singularity_entrypoint.sh

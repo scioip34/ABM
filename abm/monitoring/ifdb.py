@@ -7,6 +7,7 @@ import os
 import numpy as np
 
 from influxdb import InfluxDBClient, DataFrameClient
+from influxdb.exceptions import InfluxDBServerError
 
 import abm.contrib.ifdb_params as ifdbp
 
@@ -25,7 +26,9 @@ def create_ifclient():
                               ifdbp.INFLUX_PORT,
                               ifdbp.INFLUX_USER,
                               ifdbp.INFLUX_PSWD,
-                              ifdbp.INFLUX_DB_NAME)
+                              ifdbp.INFLUX_DB_NAME,
+                              timeout=ifdbp.INFLUX_TIMEOUT,
+                              retries=ifdbp.INFLUX_RETRIES)
     return ifclient
 
 
@@ -84,9 +87,29 @@ def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
     batch_bodies_agents.append(body)
     if batch_size is None:
         batch_size = ifdbp.write_batch_size
-    if len(batch_bodies_agents) == batch_size:
-        ifclient.write_points(batch_bodies_agents)
-        batch_bodies_agents = []
+        # todo: in the last timestep we need to try until we can
+    if len(batch_bodies_agents) % batch_size == 0 and len(batch_bodies_agents) != 0:
+        try:
+            ifclient.write_points(batch_bodies_agents)
+            batch_bodies_agents = []
+        except Exception as e:
+            print(f"Could not write in database, got Influx Error, will try to push with next batch...")
+            print(e)
+    # todo: in the last timestep use this code
+    # if len(batch_bodies_agents) == batch_size:
+    #     write_success = False
+    #     retries = 0
+    #     while not write_success and retries < 100:
+    #         try:
+    #             retries += 1
+    #             ifclient.write_points(batch_bodies_agents)
+    #             write_success = True
+    #         except InfluxDBServerError as e:
+    #             print(f"INFLUX ERROR, will retry {retries}")
+    #             print(e)
+    #     if retries == 100:
+    #         raise Exception("Too many retries to write to InfluxDB instance. Stopping application!")
+    #     batch_bodies_agents = []
 
 
 def mode_to_int(mode):
@@ -133,9 +156,14 @@ def save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
     # write the measurement in batches
     if batch_size is None:
         batch_size = ifdbp.write_batch_size
-    if len(batch_bodies_resources) == batch_size:
-        ifclient.write_points(batch_bodies_resources)
-        batch_bodies_resources = []
+    # todo: in the last timestep we need to try until we can
+    if len(batch_bodies_resources) % batch_size == 0 and len(batch_bodies_resources) != 0:
+        try:
+            ifclient.write_points(batch_bodies_resources)
+            batch_bodies_resources = []
+        except Exception as e:
+            print(f"Could not write in database, got Influx Error, will try to push with next batch...")
+            print(e)
 
 
 def save_simulation_params(ifclient, sim, exp_hash=""):
@@ -186,18 +214,19 @@ def save_ifdb_as_csv(exp_hash=""):
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     importlib.reload(ifdbp)
-    # from influxdb_client import InfluxDBClient
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
-                              ifdbp.INFLUX_PORT,
-                              ifdbp.INFLUX_USER,
-                              ifdbp.INFLUX_PSWD,
-                              ifdbp.INFLUX_DB_NAME)
+                               ifdbp.INFLUX_PORT,
+                               ifdbp.INFLUX_USER,
+                               ifdbp.INFLUX_PSWD,
+                               ifdbp.INFLUX_DB_NAME,
+                               timeout=ifdbp.INFLUX_TIMEOUT,
+                               retries=ifdbp.INFLUX_RETRIES)
 
     # create base folder in data
     save_dir = ifdbp.TIMESTAMP_SAVE_DIR
     os.makedirs(save_dir, exist_ok=True)
 
-    measurement_names = [f"agent_data{exp_hash}", f"simulation_params{exp_hash}", f"resource_data{exp_hash}"]
+    measurement_names = [f"agent_data{exp_hash}", f"resource_data{exp_hash}"]
     for mes_name in measurement_names:
         data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=100000)
         ret = data_dict[mes_name]

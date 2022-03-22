@@ -71,7 +71,7 @@ description_text = "Experiment N run with Docker\n" \
                    "...\n" \
                    "\n" \
                    "and how..."
-mp = MetaProtocol(experiment_name="DockerTest", num_batches=1,
+mp = MetaProtocol(experiment_name="DockerTest2", num_batches=1,
                   parallel=False, description=description_text,
                   headless=True)
 for crit in fixed_criteria:

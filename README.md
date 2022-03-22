@@ -125,8 +125,65 @@ influx --execute "show users"
   
 </details>
 
+### (HPC) Using singularity on HPC
+To run experiments on cluster nodes of the HPC we need to use singularity, as docker is not directly allowed on cluster nodes. To do so, first we need to transform the automatically built docker image on DockerHub to an immutable singularity image (SIF file). This can be done on any linux based host computer with `sudo` privileges and installed singularity (v3.7.0).
+
+Choose a local host machine with sudo right.
+
+1. Install singularity on host with [this](https://github.com/apptainer/singularity/issues/5099#issuecomment-814563244) or [this](https://github.com/sylabs/singularity/blob/master/INSTALL.md) method.
+2. Pull and build docker image to sif file: `sudo singularity build scioip34abm.sif docker://mezdahun/scioip34abm`. Note that the container always represents the develop branch and only rebuilt when another branch is merged or a push event is carried out on develop.
+3. Use sshfs to create a mount between your linux system and the HPC gateway
+4. Then upload your sif image into the mount (copy)
+
+After this point you will have a SIF file on the home folder of your user gateway and from this point you will work on the gateway.
+
+5. Now you have to clone the codebase (this repo) to the home directory of user gateway.
+6. Copy the SIF file from the home folder of the gateway into this new cloned `ABM` folder and `cd` into it.
+7. As we will bind the data codebase to the singularity containers (so that we can dynamically define new experiments without rebuilding the base image) we can now prepare these experiments as experiment `<eperiment name>.py` files under `abm/data/metaprotocol/experiments`. Corresponding `.env` files will be generated automatically later on. Only keep those experiment files in this folder that you will run on the cluster. Move all other experiment files into the `archive` subfolder. As again, we will run ALL of the experiment files in `abm/data/metaprotocol/experiments` keep only those there that you want to run to avoid cluttering the cluster with unwanted jobs.
+8. After this point you can call the bash script `HPC_run_all_exp.sh` as `sh HPC_run_all_exp.sh`. This will take care of initializing the folder structure, mounting volumes to the individual singularity containers on the nodes and running the experiments in individual singularity instances based on the SIF image you created.
+9. ALL the data will be generated under `abm/data/simulation_data` as it would be expected with local runs of experiments due to beegfs connection between the gateway and the nodes.
+10. These you can use on any host by mounting your gateway to the host with sshfs
+11. Log messages and error messages will be saved into a new `slurm_log` folder in the `ABM` folder 
+
+#### Heavily distributed runs on cluster nodes
+In the `HPC_run_all_exp.sh` bash script we use the `sbatch` flag `--exclusive` to avoid any other jobs running on the given node. This is a wasteful behavior but it separates individual instances of the simulation maximally. To use multiple simulation instances on the same node use the `HPC_run_all_exp_distributed.sh` script. When run in a distributed way 4CPU will be dedicated per instance on the cluster nodes and no other user can use the node at the same time (but other jobs of the same user can). Saving data happens in the same shared influxdb instance (per node). The final data folder structure is different than in previous cases. To distrivute a given `experiment.py` file on many instances and nodes we first copy this file into N copies each of which is hashed with a random string (as well as the corresponding env files are generated). The number of instances can be controlled with the environment variable `NUM_INSTANCES_PER_EXP` when calling the bash script. Each resulting singularity instance will generate K batches (this should be set to 1 in the experiment files for maximal usage of parallel computing). At the end in the `simulation_data` folder you will see multiple hashed subfolders starting with the name of the original experiment. Each of these are generated parallely on different instances and nodes. You can merge these into the old folder structure (so that it can be replayed or summarized later on with data processing tools) with the `abm/data/metaprotocol/experiments/archive/organize_distributed_experiment.py` script. To do so, first copy all hashed folders into a subfolder with the name of the experiment. Then change the path in the script to this folder and run the script. This will create the adequate folder structure and delete hashed folders.
+
+#### Example workflow
+1. ssh into the gateway (after preparing the codebase and the SIF image as decribed before)
+2. pull the repo and prepare your experiment file under `abm/data/metaprotocol/experiments` and move all other (unused) files from this folder to the `archive` subfolder 
+3. when preparing your experiment use the following parameters to declare your MetaRunner instance.
+
+```python
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
+if EXP_NAME == "":
+    raise Exception("No experiment name has been passed")
+    
+description_text = "Lorem Ipsum..."
+    
+mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1, parallel=True,
+                  description=description_text, headless=True)
+```
+
+It is important that you:
+- Pass the experiment name from the environment when running distributed from the HPC
+- You only use single batch (`num_batches=1`) experiments. Multiple batches will be defined via `sbatch` automatically.
+- Set your experiment to parallel (so that multiple instances can use the same InfluxDB instance) and headless (so that no visualization will be used)
+
+4. Run your experiment in a distributed way on N individual instances on the HPC with
+
+```bash
+NUM_INSTANCES_PER_EXP=<N> sh HPC_run_all_exp_distributed.sh
+```
+5. N hashed (with random string) `.env`file will appear as well as your experiment file will be copied N times. 
+6. You can check your running instances with `squeue -u <your username>`
+7. You can find the log files under the `slurm_logs` folder and you can continously read the logs of a given slurm job with `watch tail -n 30 slurm_logs/.<job id>.log`. Error files are generated in the same way but with `.err` extension
+8. After the instances are done copy all hashed folders into a common folder. Then change the path in the `abm/data/metaprotocol/experiments/archive/organize_distributed_experiment.py` to this common folder and run the script.
+9. You end up having 1 folder (in which you copied the hashed subfolders originally) but instead of the hashed subfolder structure you will have N batch folders with the name `batch_<i>`  
+
 ## Details of the package
 In this section the package is detailed for reproducibility and for ease of use. Among others you can read about the main restrictions and assumptions we used in our framework, how one can initialize the package with different parameters through `.env` files, and how the code is structured.
+
+4. run your experiment file 
 
 ### Code Elements
 The code is structured into a single installable python package called `abm`. Submodules of this package contain the main classes and methods that are used to implement the functionalities of our framework, such as `Agent`, `Resource` and `Simulation` classes among others. A dedicated `contrib` submodule provides parameters for running the simulations in python syntax. These parameters are either initialized from a `.env` file (described later) or they are not to be changed throughout simulations (such as passwords and database details) and therefore fixed in these scripts. Note that although we store passwords as text these are absolutely insensitive as they are only needed locally on a simulation computer to access the database in which we store simulation data (that is by nature not sensitive data).

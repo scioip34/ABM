@@ -187,7 +187,7 @@ class Simulation:
             if not self.parallel:
                 self.ifdb_client.drop_database(ifdb_params.INFLUX_DB_NAME)
             self.ifdb_client.create_database(ifdb_params.INFLUX_DB_NAME)
-            ifdb.save_simulation_params(self.ifdb_client, self, exp_hash=self.ifdb_hash)
+            # ifdb.save_simulation_params(self.ifdb_client, self, exp_hash=self.ifdb_hash)
         else:
             self.ifdb_client = None
 

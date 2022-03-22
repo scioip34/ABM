@@ -1,19 +1,18 @@
-description_text = """
-Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
-
-Title:      Experiment 9 (part3)
-Date:       18.03.2022
-Goal:       In this experiment we restrict the total amount of resources as before, but when we change the number
-            of resource patches we restrict the size of the patches together. This way the covered resource area 
-            will remain the same (20%, or similar) over the experiment that was growing with the number of
-            patches in Experiment 5-7. Visual exclusion is now off. Number of patches are changed in
-            more extreme ways than in #5-6 as now the arena does not get saturated with patches. The goal is to
-            compare results from #8 (with visual cclusion) with this. Partitioned to run parallely on HPC and merge
-            later (part3).
-Defined by: mezdahun
-"""
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
+import os
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
+if EXP_NAME == "":
+    raise Exception("No experiment name has been passed")
+
+description_text = f"""
+Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
+
+Title:      Experiment : {EXP_NAME}
+Date:       22.03.2022
+Goal:       We reproduce experiment 8 but now with limited FOV.
+Defined by: mezdahun
+"""
 
 # Defining fixed criteria for all automized simulations/experiments
 arena_w = 500
@@ -66,8 +65,8 @@ overall_res_area = int(arena_size * 0.2)
 num_patches = [1, 3, 5, 10, 30, 50, 100]
 criteria_exp = [
     Constant("N", 10),
-    Constant("VISUAL_EXCLUSION", 0),
-    Constant("AGENT_FOV", 1),  # unlimited
+    Constant("VISUAL_EXCLUSION", 1),
+    Constant("AGENT_FOV", 0.5),  # unlimited
     Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),
@@ -76,11 +75,11 @@ criteria_exp = [
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 15000)
+    Constant("T", 10000)
 ]
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name="Experiment9_part3", num_batches=2, parallel=False,
+mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1, parallel=True,
                   description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)

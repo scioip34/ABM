@@ -147,7 +147,7 @@ class ExperimentLoader:
         self.varying_params = {}
         self.distances = None
         # COLLAPSE OF MULTIDIMENSIONAL PLOTS
-        # in case 3 variables are present and we kept a pair of variables changing together, we can collapse
+        # in case 3 variables are present, and we kept a pair of variables changing together, we can collapse
         # the visualization into 2 dimensions by taking only non-zero elements into considerations.
         # this is equivalent defining a new variable that is a combination of 2 changed variables along simulations
         # The string encodes how the collision should work:
@@ -207,9 +207,9 @@ class ExperimentLoader:
             self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
     def read_all_data(self):
-        """reading all data in the experiment folder and storing them in the memory"""
+        """reading all data in the experiment folder and saving them as numpy files"""
         print("Reading all experimental data first...")
-
+        # calculating the maximum number of resource patches over all experiments
         max_r_in_runs = 0
         for i, batch_path in enumerate(self.batch_folders):
             glob_pattern = os.path.join(batch_path, "*")
@@ -221,8 +221,10 @@ class ExperimentLoader:
                 print(f"Reading agent data batch {i}, run {j}")
                 agent_data, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
 
-                # finding out max depleted patches for next loop
-                num_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+                # finding out max depleted patches for next loop when we summarize
+                # resource data
+                num_in_run = int(float(env_data['N_RESOURCES'])) # len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+                print(f"in this run we have {num_in_run} resources")
                 if num_in_run > max_r_in_runs:
                     max_r_in_runs = num_in_run
 
@@ -300,40 +302,84 @@ class ExperimentLoader:
                     # num_batches x criterion1 x criterion2 x ... x criterionN x max_num_resources x time
                     # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                     # where the value is -1 the resource does not exist in time
-                    r_posx_array = -1 * np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_posy_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = -1 + np.ones((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posx_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
+                # in the raw data we create a new column every time a new patch appears
+                env_num_res_in_run = int(float(env_data['N_RESOURCES']))
                 num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
 
+                # recording times of patch depletion so that we can continously log data into a single
+                # column instead of saving new patches in new columns
+                depletion_times = np.zeros(env_num_res_in_run)
                 for ri in range(num_res_in_run):
-                    ind = (i,) + tuple(index) + (ri,)
+                    # in the numpy array we only have N_RESOURCES column
+                    if ri < env_num_res_in_run:
+                        # we check which timestep the patch is depleted and store these in switching time
+                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        data = np.array([float(d) if d != "" else 0.0 for d in data])
+                        data[data < 0] = 0
+                        try:
+                            depletion_times[ri] = np.nonzero(np.diff(data))[0]
+                        except:
+                            depletion_times[ri] = len(data)
+                        collapsed_ri = ri
+                    else:
+                        # if the columnid is larger than how many resources we defined in the env file
+                        # that will mean we have a regenereted patch. We need to find which previous patch disappeard
+                        # when this one appeared so we can continously store data in less columns
+                        # print(ri, "depletion_times: ", depletion_times)
+                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        data = np.array([float(d) if d != "" else 0.0 for d in data])
+                        data[data < 0] = 0
+                        # finding which patch is continued by this
+                        try:
+                            appearance_time = np.nonzero(np.diff(data))[0][0]
+                        except IndexError as e:
+                            print("Patch didn't appear in this undersampling rate")
+                            continue
+
+                        # print("patch appeared @ ", appearance_time)
+                        try:
+                            depletion_time = np.nonzero(np.diff(data))[0][1]
+                            # print("patch depleted @ ", depletion_time)
+                        except IndexError as e:
+                            # print("last patch")
+                            depletion_time = -1
+                        collapsed_ri = np.where(depletion_times == appearance_time)[0][0]
+                        # print("patch continues prev. patch ", collapsed_ri)
+                        depletion_times[collapsed_ri] = depletion_time
+                        # print(ri, "new depletion_times: ", depletion_times)
+
+                    ind = (i,) + tuple(index) + (collapsed_ri,)
+
                     data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
                     # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_posx_array[ind] = data
+                    data = np.array([float(d) if d != "" else 0.0 for d in data])
+                    data[data < 0] = 0
+                    r_posx_array[ind] += data
 
                     data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
                     # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_posy_array[ind] = data
+                    data = np.array([float(d) if d != "" else 0.0 for d in data])
+                    data[data < 0] = 0
+                    r_posy_array[ind] += data
 
                     data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
                     # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_qual_array[ind] = data
+                    data = np.array([float(d) if d != "" else 0.0 for d in data])
+                    data[data < 0] = 0
+                    r_qual_array[ind] += data
 
                     data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
                     # clean empty strings
-                    data = [float(d) if d != "" else -1.0 for d in data]
-                    # clean empty strings as -1s
-                    r_rescleft_array[ind] = data
+                    data = np.array([float(d) if d != "" else 0.0 for d in data])
+                    data[data < 0] = 0
+                    r_rescleft_array[ind] += data
 
         print("Saving resource summary...")
         np.savez(os.path.join(summary_path, "resource_summary.npz"),

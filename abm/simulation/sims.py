@@ -306,12 +306,16 @@ class Simulation:
     def add_new_resource_patch(self):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
         prove_resource method so that the distribution and overlap is following some predefined rules"""
+        max_retries = 7000
         resource_proven = 0
         if len(self.rescources) > 0:
             id = max([resc.id for resc in self.rescources])
         else:
             id = 0
+        retries = 0
         while not resource_proven:
+            if retries > max_retries:
+                raise Exception("Reached timeout while trying to create resources without overlap!")
             radius = self.resc_radius
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
@@ -319,7 +323,10 @@ class Simulation:
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
                                  quality)
-            resource_proven = self.proove_sprite(resource)
+            # we initialize the resources so that there is no resource-resource overlap, but there can be
+            # a resource-agent overlap
+            resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)
+            retries+=1
         self.rescources.add(resource)
         return resource.id
 

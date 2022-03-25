@@ -236,3 +236,6 @@ def save_ifdb_as_csv(exp_hash=""):
             filename = mes_name
         save_file_path = os.path.join(save_dir, f'{filename}.csv')
         ret.to_csv(save_file_path, sep=",", encoding="utf-8")
+        print(f"Cleaning up measurement from IFDB: {mes_name}")
+        ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+    print(f"Remaining measurements: {ifclient.get_list_measurements()}")

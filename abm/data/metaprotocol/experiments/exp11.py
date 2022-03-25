@@ -10,7 +10,9 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       24.03.2022
-Goal:       We reproduce experiment 8 but now with many agents.
+Goal:       We reproduce experiment 8 but now with many agents to see if the effects are coming from small group size.
+            IMPORTANT CHANGE: now the agents and resources can overlap when initialized (not as before)
+                due to possible infinite proving loops for many agents and resources
 Defined by: mezdahun
 """
 
@@ -64,7 +66,7 @@ arena_size = arena_w * arena_h
 overall_res_area = int(arena_size * 0.2)
 num_patches = [1, 3, 5, 10, 30, 50, 100]
 criteria_exp = [
-    Constant("N", 10),
+    Constant("N", 100),
     Constant("VISUAL_EXCLUSION", 1),
     Constant("AGENT_FOV", 0.5),  # unlimited
     Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),

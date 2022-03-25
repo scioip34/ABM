@@ -414,7 +414,7 @@ class ExperimentReplay:
         """Drawing agents in arena according to data"""
         num_resources = len(posx)
         for ri in range(num_resources):
-            if posx[ri] != -1 and posy[ri] != -1:
+            if posx[ri] != 0 and posy[ri] != 0:
                 self.draw_res_patch(ri, posx[ri], posy[ri], max_units[ri], resc_left[ri], resc_quality[ri], radius)
 
     def draw_res_patch(self, id, posx, posy, max_unit, resc_left, resc_quality, radius):

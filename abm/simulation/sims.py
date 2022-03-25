@@ -195,9 +195,11 @@ class Simulation:
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         self.env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
-    def proove_sprite(self, sprite):
+    def proove_sprite(self, sprite, prove_with_agents=True, prove_with_res=True):
         """Checks if the proposed agent or resource is valid according to some rules, e.g. no overlap with resource
-        patches or agents"""
+        patches or agents
+        overlap check for individual sprite groups, i.e. agents or resources can be turn off with the
+        prove_with... parameters set to False"""
         # Checking for collision with already existing resources
         new_res_group = pygame.sprite.Group()
         new_res_group.add(sprite)
@@ -215,7 +217,14 @@ class Simulation:
             False,
             pygame.sprite.collide_circle
         )
-        if len(collision_group) > 0 or len(collision_group_a) > 0:
+
+        is_proven = True
+        if prove_with_agents:
+            is_proven = is_proven and not (len(collision_group_a) > 0)
+        if prove_with_res:
+            is_proven = is_proven and not (len(collision_group) > 0)
+
+        if not is_proven:
             return False
         else:
             return True

@@ -6,7 +6,7 @@
 #SBATCH --partition=ex_scioi_node   # partition to submit to
 #SBATCH --ntasks=1
 #SBATCH --time=1-00:00          # Runtime in D-HH:MM
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=8
 #SBATCH --exclusive=user
 
 # BEHAVIOR:

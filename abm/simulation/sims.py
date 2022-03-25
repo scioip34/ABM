@@ -547,19 +547,24 @@ class Simulation:
     def start(self):
 
         start_time = datetime.now()
+        print(f"Running simulation start method!")
 
         # Creating N agents in the environment
+        print("Creating agents!")
         self.create_agents()
 
         # Creating resource patches
+        print("Creating resources!")
         self.create_resources()
 
         # Creating surface to show visual fields
+        print("Creating visual field graph!")
         self.stats, self.stats_pos = self.create_vis_field_graph()
 
         # local var to decide when to show visual fields
         turned_on_vfield = 0
 
+        print("Starting main simulation loop!")
         # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 
@@ -702,7 +707,7 @@ class Simulation:
                                         batch_size=self.write_batch_size)
 
             # Moving time forward
-            if self.t % 500 == 0:
+            if self.t % 500 == 0 or self.t == 1:
                 print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
             self.clock.tick(self.framerate)
 

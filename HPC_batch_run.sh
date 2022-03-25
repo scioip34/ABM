@@ -3,10 +3,10 @@
 #SBATCH --job-name=scioi_p34_ABM_simulation
 #SBATCH --output=slurm_log/.%j.log         # output file
 #SBATCH --error=slurm_log/.%j.err          # error file
-#SBATCH --partition=ex_scioi_node   # partition to submit to
+#SBATCH --partition=ex_scioi_node          # partition to submit to
 #SBATCH --ntasks=1
-#SBATCH --time=1-00:00          # Runtime in D-HH:MM
-#SBATCH --cpus-per-task=8
+#SBATCH --time=1-00:00                     # Runtime in D-HH:MM
+#SBATCH --cpus-per-task=16                 # on ex_scioi partition we have 32core/node
 #SBATCH --exclusive=user
 
 # BEHAVIOR:

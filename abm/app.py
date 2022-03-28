@@ -19,6 +19,7 @@ def start(parallel=False, headless=False):
     if headless:
         # required to start pygame in headless mode
         os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        from xvfbwrapper import Xvfb
     with ExitStack() if not headless else Xvfb(width=vscreen_width, height=vscreen_height) as xvfb:
         sim = Simulation(N=int(float(envconf["N"])),
                          T=int(float(envconf["T"])),
@@ -58,7 +59,6 @@ def start(parallel=False, headless=False):
 
 def start_headless():
     print("Start ABM in Headless Mode...")
-    from xvfbwrapper import Xvfb
     start(headless=True)
 
 

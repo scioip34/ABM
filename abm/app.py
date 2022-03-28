@@ -3,8 +3,6 @@ from contextlib import ExitStack
 from abm.simulation.sims import Simulation
 from abm.simulation.isims import PlaygroundSimulation
 
-from xvfbwrapper import Xvfb
-
 import os
 # loading env variables from dotenv file
 from dotenv import dotenv_values
@@ -60,6 +58,7 @@ def start(parallel=False, headless=False):
 
 def start_headless():
     print("Start ABM in Headless Mode...")
+    from xvfbwrapper import Xvfb
     start(headless=True)
 
 

@@ -165,6 +165,8 @@ class ExperimentLoader:
 
         # path variables
         self.experiment_path = experiment_path
+        if not os.path.isdir(self.experiment_path):
+            raise Exception(f"Can not find experiment folder {self.experiment_path}")
         self.experiment_name = os.path.basename(experiment_path)
 
         # collecting batch folders

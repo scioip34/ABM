@@ -7,7 +7,7 @@
 #SBATCH --ntasks=1
 #SBATCH --time=3-00:00                     # Runtime in D-HH:MM
 #SBATCH --cpus-per-task=16                 # on ex_scioi partition we have 32core/node
-#SBATCH --mem-per-cpu=2048                 # memory in MB per cpu allocated (2GB * 16CPU = 32GB / Job)
+#SBATCH --mem=40G                          # memory requested
 #SBATCH --exclusive=user
 
 # BEHAVIOR:

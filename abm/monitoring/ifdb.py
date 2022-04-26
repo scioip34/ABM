@@ -214,12 +214,13 @@ def save_ifdb_as_csv(exp_hash=""):
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     importlib.reload(ifdbp)
+    print("Saving data with client timeout of 600s")
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
                                ifdbp.INFLUX_PORT,
                                ifdbp.INFLUX_USER,
                                ifdbp.INFLUX_PSWD,
                                ifdbp.INFLUX_DB_NAME,
-                               timeout=ifdbp.INFLUX_TIMEOUT,
+                               timeout=600,  # using larger timeout for data saving
                                retries=ifdbp.INFLUX_RETRIES)
 
     # create base folder in data
@@ -228,7 +229,7 @@ def save_ifdb_as_csv(exp_hash=""):
 
     measurement_names = [f"agent_data{exp_hash}", f"resource_data{exp_hash}"]
     for mes_name in measurement_names:
-        data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=100000)
+        data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
         ret = data_dict[mes_name]
         if exp_hash != "":
             filename = mes_name.split(exp_hash)[0]

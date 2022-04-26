@@ -707,7 +707,7 @@ class Simulation:
                                         batch_size=self.write_batch_size)
 
             # Moving time forward
-            if self.t % 100 == 0 or self.t == 1:
+            if self.t % 500 == 0 or self.t == 1:
                 print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
                 print(f"Simulation FPS: {self.clock.get_fps()}")
             self.clock.tick(self.framerate)

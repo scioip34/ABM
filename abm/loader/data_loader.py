@@ -485,6 +485,9 @@ class ExperimentLoader:
             time_dim = agent_dim + 1
 
             collres = self.agent_summary["collresource"][..., -1]
+            # normalizing with distances needs good temporal resolution when reading data back
+            # using large downsampling factors will make it impossibly to calculate trajectory lengths
+            # and thus makes distance measures impossible
             sum_distances = np.sum(self.distances, axis=time_dim)
             self.efficiency = collres  # / sum_distances
 

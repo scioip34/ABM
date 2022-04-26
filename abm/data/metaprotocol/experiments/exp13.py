@@ -10,10 +10,9 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       26.04.2022
-Goal:       We simulate a group of 10 agents with changing social excitability in environments of different patchiness.
-            We set the simulation times to extremely large, as during this experiment we will dynamically batch the
-            resulting data and study the temporal evolution of the group efficiency to a steady state. We are interested
-            in the needed simulation timesteps to reach this steady state. 
+Goal:       Here we do exactly the same thing as in experiment 12 but we decrease the number of overall resource units.
+            This shall change the time scale of depletion and by that increase the speed of the system to reach a steady
+            state in efficiency. 
 Defined by: mezdahun
 """
 
@@ -61,7 +60,7 @@ fixed_criteria = [
 ]
 
 # Defining decision param
-sum_resources = 3000
+sum_resources = 1500
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)

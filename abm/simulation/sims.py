@@ -62,8 +62,8 @@ class Simulation:
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
-                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True,
-                 parallel=False):
+                 use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
+                 patchwise_exclusion=True, parallel=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -100,6 +100,8 @@ class Simulation:
         :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
                                 and near field visual field will be drawn around the agents
         :param use_ifdb_logging: Switch to turn IFDB save on or off
+        :param use_ram_logging: log data into memory (RAM) only use this if ifdb is problematic and you have enough
+            resources
         :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
         :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
         :param patchwise_exclusion: excluding agents from social v field if they are exploiting the same patch as the
@@ -181,7 +183,12 @@ class Simulation:
         else:
             self.ifdb_hash = ""
         self.save_in_ifd = use_ifdb_logging
+        self.save_in_ram = use_ram_logging
         self.save_csv_files = save_csv_files
+        if self.save_in_ram:
+            self.save_in_ifd = False
+            print("Turned off IFDB logging as RAM logging was explicitly requested!!!")
+
         if self.save_in_ifd:
             self.ifdb_client = ifdb.create_ifclient()
             if not self.parallel:
@@ -705,6 +712,9 @@ class Simulation:
                                      batch_size=self.write_batch_size)
                 ifdb.save_resource_data(self.ifdb_client, self.rescources, self.t, exp_hash=self.ifdb_hash,
                                         batch_size=self.write_batch_size)
+            elif self.save_in_ram:
+                ifdb.save_agent_data_RAM(self.agents, self.t)
+                ifdb.save_resource_data_RAM(self.rescources, self.t)
 
             # Moving time forward
             if self.t % 500 == 0 or self.t == 1:
@@ -717,12 +727,12 @@ class Simulation:
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
-            if self.save_in_ifd:
-                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash)
+            if self.save_in_ifd or self.save_in_ram:
+                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram)
                 env_saver.save_env_vars([self.env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
-                                "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"
+                                "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
                                 " or turn off CSV saving feature.")
 
         end_save_time = datetime.now()

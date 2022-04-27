@@ -30,6 +30,7 @@ default_params = {
                 "visual_exclusion": True,  # interactive
                 "show_vision_range": True,
                 "use_ifdb_logging": False,  # interactive
+                "use_ram_logging": False,
                 "save_csv_files": False,
                 "ghost_mode": True,  # interactive
                 "patchwise_exclusion": True,

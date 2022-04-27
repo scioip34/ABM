@@ -22,6 +22,7 @@ arena_w = 500
 arena_h = 500
 fixed_criteria = [
     Constant("USE_IFDB_LOGGING", 1),
+    Constant("USE_RAM_LOGGING", 1),  # as we have plenty of resources we don't have to deal with IFDB on HPC
     Constant("SAVE_CSV_FILES", 1),
     Constant("WITH_VISUALIZATION", 0),  # how does the simulation speed scale with N
     Constant("TELEPORT_TO_MIDDLE", 0),

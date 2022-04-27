@@ -51,7 +51,7 @@ def pad_to_n_digits(number, n=3):
     else:
         return str(number)
 
-def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
+def save_agent_data_RAM(agents, t):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
@@ -94,7 +94,7 @@ def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
         agents_dict[agent.id][f"vfield_down"].append(f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}")
 
 
-def _save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
+def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
@@ -170,7 +170,7 @@ def mode_to_int(mode):
         return int(3)
 
 
-def save_resource_data(client, resources, t, exp_hash="", batch_size=None):
+def save_resource_data_RAM(resources, t):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -206,13 +206,14 @@ def save_resource_data(client, resources, t, exp_hash="", batch_size=None):
             resources_dict[res_id]["end_time"] = t
 
 
-def _save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
+def save_resource_data(ifclient, resources, t, exp_hash="", batch_size=None):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     global batch_bodies_resources
     measurement_name = f"resource_data{exp_hash}"
     fields = {}
+    fields['t'] = t
     for res in resources:
         res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
         # take a timestamp for this measurement
@@ -291,61 +292,65 @@ def save_simulation_params(ifclient, sim, exp_hash=""):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv(exp_hash=""):
+def save_ifdb_as_csv(exp_hash="", use_ram = False):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     global resources_dict, agents_dict
     importlib.reload(ifdbp)
-    print("Saving data with client timeout of 600s")
-    ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
-                               ifdbp.INFLUX_PORT,
-                               ifdbp.INFLUX_USER,
-                               ifdbp.INFLUX_PSWD,
-                               ifdbp.INFLUX_DB_NAME,
-                               timeout=600,  # using larger timeout for data saving
-                               retries=ifdbp.INFLUX_RETRIES)
+    if not use_ram:
+        print("Saving data with client timeout of 600s")
+        ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
+                                   ifdbp.INFLUX_PORT,
+                                   ifdbp.INFLUX_USER,
+                                   ifdbp.INFLUX_PSWD,
+                                   ifdbp.INFLUX_DB_NAME,
+                                   timeout=600,  # using larger timeout for data saving
+                                   retries=ifdbp.INFLUX_RETRIES)
 
-    # create base folder in data
-    save_dir = ifdbp.TIMESTAMP_SAVE_DIR
-    os.makedirs(save_dir, exist_ok=True)
+        # create base folder in data
+        save_dir = ifdbp.TIMESTAMP_SAVE_DIR
+        os.makedirs(save_dir, exist_ok=True)
 
-    # measurement_names = [f"agent_data{exp_hash}"]#, f"resource_data{exp_hash}"]
-    # for mes_name in measurement_names:
-    #     print(f"Querying data with measurement name: {mes_name}")
-    #     data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
-    #     print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
-    #     print("Keys: ", list(data_dict.keys()))
-    #     ret = data_dict[mes_name]
-    #     if exp_hash != "":
-    #         filename = mes_name.split(exp_hash)[0]
-    #     else:
-    #         filename = mes_name
-    #     print("Saving csv file...")
-    #     save_file_path = os.path.join(save_dir, f'{filename}.csv')
-    #     ret.to_csv(save_file_path, sep=",", encoding="utf-8")
-    #     print(f"Cleaning up measurement from IFDB: {mes_name}")
-    #     ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
-    #     print(f"Remaining measurements: {ifclient.get_list_measurements()}")
+        measurement_names = [f"agent_data{exp_hash}", f"resource_data{exp_hash}"]
+        for mes_name in measurement_names:
+            print(f"Querying data with measurement name: {mes_name}")
+            data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
+            print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
+            print("Keys: ", list(data_dict.keys()))
+            ret = data_dict[mes_name]
+            if exp_hash != "":
+                filename = mes_name.split(exp_hash)[0]
+            else:
+                filename = mes_name
+            print("Saving csv file...")
+            save_file_path = os.path.join(save_dir, f'{filename}.csv')
+            ret.to_csv(save_file_path, sep=",", encoding="utf-8")
+            print(f"Cleaning up measurement from IFDB: {mes_name}")
+            ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+            print(f"Remaining measurements: {ifclient.get_list_measurements()}")
 
-    import json
-    print("Saving resource data as json file...")
-    mes_name = f"resource_data{exp_hash}"
-    if exp_hash != "":
-        filename = mes_name.split(exp_hash)[0]
     else:
-        filename = mes_name
-    save_file_path = os.path.join(save_dir, f'{filename}.json')
-    with open(save_file_path, "w") as f:
-        json.dump(resources_dict, f,)
+        save_dir = ifdbp.TIMESTAMP_SAVE_DIR
+        os.makedirs(save_dir, exist_ok=True)
+        import json
+        print("Saving resource data as json file...")
+        mes_name = f"resource_data{exp_hash}"
+        if exp_hash != "":
+            filename = mes_name.split(exp_hash)[0]
+        else:
+            filename = mes_name
+        save_file_path = os.path.join(save_dir, f'{filename}.json')
+        with open(save_file_path, "w") as f:
+            json.dump(resources_dict, f,)
 
-    print("Saving agent data as json file...")
-    mes_name = f"agent_data{exp_hash}"
-    if exp_hash != "":
-        filename = mes_name.split(exp_hash)[0]
-    else:
-        filename = mes_name
-    save_file_path = os.path.join(save_dir, f'{filename}.json')
-    with open(save_file_path, "w") as f:
-        json.dump(agents_dict, f)
+        print("Saving agent data as json file...")
+        mes_name = f"agent_data{exp_hash}"
+        if exp_hash != "":
+            filename = mes_name.split(exp_hash)[0]
+        else:
+            filename = mes_name
+        save_file_path = os.path.join(save_dir, f'{filename}.json')
+        with open(save_file_path, "w") as f:
+            json.dump(agents_dict, f)
 

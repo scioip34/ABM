@@ -49,6 +49,7 @@ def start(parallel=False, headless=False):
                          visual_exclusion=bool(int(float(envconf["VISUAL_EXCLUSION"]))),
                          show_vision_range=bool(int(float(envconf["SHOW_VISION_RANGE"]))),
                          use_ifdb_logging=bool(int(float(envconf["USE_IFDB_LOGGING"]))),
+                         use_ram_logging=bool(int(float(envconf["USE_RAM_LOGGING"]))),
                          save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
                          parallel=parallel,
                          window_pad=window_pad

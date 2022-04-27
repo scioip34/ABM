@@ -326,8 +326,10 @@ def save_ifdb_as_csv(exp_hash=""):
     #     ret.to_csv(save_file_path, sep=",", encoding="utf-8")
     #     print(f"Cleaning up measurement from IFDB: {mes_name}")
     #     ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+    #     print(f"Remaining measurements: {ifclient.get_list_measurements()}")
 
     import json
+    print("Saving resource data as json file...")
     mes_name = f"resource_data{exp_hash}"
     if exp_hash != "":
         filename = mes_name.split(exp_hash)[0]
@@ -337,6 +339,7 @@ def save_ifdb_as_csv(exp_hash=""):
     with open(save_file_path, "w") as f:
         json.dump(resources_dict, f,)
 
+    print("Saving agent data as json file...")
     mes_name = f"agent_data{exp_hash}"
     if exp_hash != "":
         filename = mes_name.split(exp_hash)[0]
@@ -345,6 +348,4 @@ def save_ifdb_as_csv(exp_hash=""):
     save_file_path = os.path.join(save_dir, f'{filename}.json')
     with open(save_file_path, "w") as f:
         json.dump(agents_dict, f)
-
-    print(f"Remaining measurements: {ifclient.get_list_measurements()}")
 

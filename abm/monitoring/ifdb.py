@@ -354,3 +354,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram = False):
         with open(save_file_path, "w") as f:
             json.dump(agents_dict, f)
 
+        print("Cleaning global data structure!")
+        resources_dict = {}
+        agents_dict = {}
+

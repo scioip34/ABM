@@ -6,8 +6,8 @@
 #SBATCH --partition=ex_scioi_node          # partition to submit to
 #SBATCH --ntasks=1
 #SBATCH --time=3-00:00                     # Runtime in D-HH:MM
-#SBATCH --cpus-per-task=16                 # on ex_scioi partition we have 32core/node
-#SBATCH --mem=64G                          # memory requested
+#SBATCH --cpus-per-task=4                  # on ex_scioi partition we have 32core/node
+#SBATCH --mem=32G                          # memory requested
 #SBATCH --exclusive=user
 
 # BEHAVIOR:

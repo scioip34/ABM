@@ -335,7 +335,7 @@ def save_ifdb_as_csv(exp_hash=""):
         filename = mes_name
     save_file_path = os.path.join(save_dir, f'{filename}.json')
     with open(save_file_path, "w") as f:
-        json.dump(resources_dict, f, indent=4)
+        json.dump(resources_dict, f,)
 
     mes_name = f"agent_data{exp_hash}"
     if exp_hash != "":

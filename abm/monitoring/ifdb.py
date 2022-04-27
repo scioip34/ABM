@@ -17,6 +17,7 @@ import importlib
 batch_bodies_agents = []
 batch_bodies_resources = []
 resources_dict = {}
+agents_dict = {}
 
 def create_ifclient():
     """Connecting to the InfluxDB defined with environmental variables and returning a client instance.
@@ -50,8 +51,50 @@ def pad_to_n_digits(number, n=3):
     else:
         return str(number)
 
-
 def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
+    """Saving relevant agent data into InfluxDB intance
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database
+    """
+    global agents_dict
+    if t % 500 == 0:
+        print(f"Agent data size in memory: {sys.getsizeof(agents_dict)/1024} MB", )
+    for agent in agents:
+        if agent.id not in list(agents_dict.keys()):
+            agents_dict[agent.id] = {}
+            agent_name = f"agent-{pad_to_n_digits(agent.id, n=2)}"
+            agents_dict[agent.id]['agent_name'] = agent_name
+            agents_dict[agent.id][f"posx"] = []
+            agents_dict[agent.id][f"posy"] = []
+            agents_dict[agent.id][f"orientation"] = []
+            agents_dict[agent.id][f"velocity"] = []
+            agents_dict[agent.id][f"w"] = []
+            agents_dict[agent.id][f"u"] = []
+            agents_dict[agent.id][f"Ipriv"] = []
+            agents_dict[agent.id][f"mode"] = []
+            agents_dict[agent.id][f"collectedr"] = []
+            agents_dict[agent.id][f"expl_patch_id"] = []
+            # only storing visual field edges to compress data and keep real time simulations
+            agents_dict[agent.id][f"vfield_up"] = []
+            agents_dict[agent.id][f"vfield_down"] = []
+
+        # format the data as a single measurement for influx
+        agents_dict[agent.id][f"posx"].append(int(agent.position[0]))
+        agents_dict[agent.id][f"posy"].append(int(agent.position[1]))
+        agents_dict[agent.id][f"orientation"].append(float(agent.orientation))
+        agents_dict[agent.id][f"velocity"].append(float(agent.velocity))
+        agents_dict[agent.id][f"w"].append(float(agent.w))
+        agents_dict[agent.id][f"u"].append(float(agent.u))
+        agents_dict[agent.id][f"Ipriv"].append(float(agent.I_priv))
+        agents_dict[agent.id][f"mode"].append(int(mode_to_int(agent.mode)))
+        agents_dict[agent.id][f"collectedr"].append(float(agent.collected_r))
+        agents_dict[agent.id][f"expl_patch_id"].append(int(agent.exploited_patch_id))
+        # only storing visual field edges to compress data and keep real time simulations
+        agents_dict[agent.id][f"vfield_up"].append(f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}")
+        agents_dict[agent.id][f"vfield_down"].append(f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}")
+
+
+def _save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
@@ -252,7 +295,7 @@ def save_ifdb_as_csv(exp_hash=""):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
-    global resources_dict
+    global resources_dict, agents_dict
     importlib.reload(ifdbp)
     print("Saving data with client timeout of 600s")
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
@@ -267,22 +310,23 @@ def save_ifdb_as_csv(exp_hash=""):
     save_dir = ifdbp.TIMESTAMP_SAVE_DIR
     os.makedirs(save_dir, exist_ok=True)
 
-    measurement_names = [f"agent_data{exp_hash}"]#, f"resource_data{exp_hash}"]
-    for mes_name in measurement_names:
-        print(f"Querying data with measurement name: {mes_name}")
-        data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
-        print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
-        print("Keys: ", list(data_dict.keys()))
-        ret = data_dict[mes_name]
-        if exp_hash != "":
-            filename = mes_name.split(exp_hash)[0]
-        else:
-            filename = mes_name
-        print("Saving csv file...")
-        save_file_path = os.path.join(save_dir, f'{filename}.csv')
-        ret.to_csv(save_file_path, sep=",", encoding="utf-8")
-        print(f"Cleaning up measurement from IFDB: {mes_name}")
-        ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+    # measurement_names = [f"agent_data{exp_hash}"]#, f"resource_data{exp_hash}"]
+    # for mes_name in measurement_names:
+    #     print(f"Querying data with measurement name: {mes_name}")
+    #     data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
+    #     print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
+    #     print("Keys: ", list(data_dict.keys()))
+    #     ret = data_dict[mes_name]
+    #     if exp_hash != "":
+    #         filename = mes_name.split(exp_hash)[0]
+    #     else:
+    #         filename = mes_name
+    #     print("Saving csv file...")
+    #     save_file_path = os.path.join(save_dir, f'{filename}.csv')
+    #     ret.to_csv(save_file_path, sep=",", encoding="utf-8")
+    #     print(f"Cleaning up measurement from IFDB: {mes_name}")
+    #     ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+
     import json
     mes_name = f"resource_data{exp_hash}"
     if exp_hash != "":
@@ -292,4 +336,15 @@ def save_ifdb_as_csv(exp_hash=""):
     save_file_path = os.path.join(save_dir, f'{filename}.json')
     with open(save_file_path, "w") as f:
         json.dump(resources_dict, f, indent=4)
+
+    mes_name = f"agent_data{exp_hash}"
+    if exp_hash != "":
+        filename = mes_name.split(exp_hash)[0]
+    else:
+        filename = mes_name
+    save_file_path = os.path.join(save_dir, f'{filename}.json')
+    with open(save_file_path, "w") as f:
+        json.dump(agents_dict, f)
+
     print(f"Remaining measurements: {ifclient.get_list_measurements()}")
+

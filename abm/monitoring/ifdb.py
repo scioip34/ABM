@@ -4,6 +4,7 @@
 """
 import datetime
 import os
+import sys
 import numpy as np
 
 from influxdb import InfluxDBClient, DataFrameClient
@@ -15,6 +16,7 @@ import importlib
 
 batch_bodies_agents = []
 batch_bodies_resources = []
+resources_dict = {}
 
 def create_ifclient():
     """Connecting to the InfluxDB defined with environmental variables and returning a client instance.
@@ -49,7 +51,7 @@ def pad_to_n_digits(number, n=3):
         return str(number)
 
 
-def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
+def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
@@ -57,6 +59,7 @@ def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
     global batch_bodies_agents
     measurement_name = f"agent_data{exp_hash}"
     fields = {}
+    fields['t'] = t
     for agent in agents:
         agent_name = f"agent-{pad_to_n_digits(agent.id, n=2)}"
         # take a timestamp for this measurement
@@ -124,7 +127,43 @@ def mode_to_int(mode):
         return int(3)
 
 
-def save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
+def save_resource_data(client, resources, t, exp_hash="", batch_size=None):
+    """Saving relevant resource patch data into InfluxDB instance
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database"""
+    global resources_dict
+    if t % 500 == 0:
+        print(f"Resource data size in memory: {sys.getsizeof(resources_dict)/1024} MB", )
+    ids_in_run = []
+    for res in resources:
+        if res.id not in list(resources_dict.keys()):
+            resources_dict[res.id] = {}
+            resources_dict[res.id]["start_time"] = t
+            resources_dict[res.id]["end_time"] = None
+
+            res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
+            resources_dict[res.id]["res_name"] = res_name
+
+            # format the data as a single measurement for influx
+            # pos and radius are enough to calculate center
+            # (only important in spatially moving res, otherwise take the first element)
+            # wasteful with resources but generalizable for later with no effort
+            resources_dict[res.id]["pos_x"] = int(res.position[0])
+            resources_dict[res.id]["pos_y"] = int(res.position[1])
+            resources_dict[res.id]["radius"] = int(res.radius)
+            resources_dict[res.id]["resc_left"] = []
+            resources_dict[res.id]["quality"] = float(res.unit_per_timestep)
+
+        resources_dict[res.id]["resc_left"].append(float(res.resc_left))
+        ids_in_run.append(res.id)
+    global_ids = set(list(resources_dict.keys()))
+    disappeared_patch_ids = list(global_ids.difference(set(ids_in_run)))
+    for res_id in disappeared_patch_ids:
+        if resources_dict[res_id]["end_time"] is None:
+            resources_dict[res_id]["end_time"] = t
+
+
+def _save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -213,8 +252,8 @@ def save_ifdb_as_csv(exp_hash=""):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
+    global resources_dict
     importlib.reload(ifdbp)
-    import sys
     print("Saving data with client timeout of 600s")
     ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
                                ifdbp.INFLUX_PORT,
@@ -228,8 +267,9 @@ def save_ifdb_as_csv(exp_hash=""):
     save_dir = ifdbp.TIMESTAMP_SAVE_DIR
     os.makedirs(save_dir, exist_ok=True)
 
-    measurement_names = [f"agent_data{exp_hash}", f"resource_data{exp_hash}"]
+    measurement_names = [f"agent_data{exp_hash}"]#, f"resource_data{exp_hash}"]
     for mes_name in measurement_names:
+        print(f"Querying data with measurement name: {mes_name}")
         data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
         print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
         print("Keys: ", list(data_dict.keys()))
@@ -238,8 +278,18 @@ def save_ifdb_as_csv(exp_hash=""):
             filename = mes_name.split(exp_hash)[0]
         else:
             filename = mes_name
+        print("Saving csv file...")
         save_file_path = os.path.join(save_dir, f'{filename}.csv')
         ret.to_csv(save_file_path, sep=",", encoding="utf-8")
         print(f"Cleaning up measurement from IFDB: {mes_name}")
         ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+    import json
+    mes_name = f"resource_data{exp_hash}"
+    if exp_hash != "":
+        filename = mes_name.split(exp_hash)[0]
+    else:
+        filename = mes_name
+    save_file_path = os.path.join(save_dir, f'{filename}.json')
+    with open(save_file_path, "w") as f:
+        json.dump(resources_dict, f, indent=4)
     print(f"Remaining measurements: {ifclient.get_list_measurements()}")

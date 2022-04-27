@@ -701,9 +701,9 @@ class Simulation:
 
             # Monitoring with IFDB
             if self.save_in_ifd:
-                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash,
+                ifdb.save_agent_data(self.ifdb_client, self.agents, self.t, exp_hash=self.ifdb_hash,
                                      batch_size=self.write_batch_size)
-                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash,
+                ifdb.save_resource_data(self.ifdb_client, self.rescources, self.t, exp_hash=self.ifdb_hash,
                                         batch_size=self.write_batch_size)
 
             # Moving time forward

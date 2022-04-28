@@ -41,7 +41,7 @@ class DataLoader:
     parameters
     """
 
-    def __init__(self, data_folder_path, only_env=False, only_agent=False, undersample=1):
+    def __init__(self, data_folder_path, only_env=False, only_agent=False, undersample=1, t_start=0, t_end=5000):
         """
         Initalization method of main DataLoader class
 
@@ -53,12 +53,16 @@ class DataLoader:
         :param only_env: if true only env files are read in
         :param only_agent: if true only env and agent data is read
         :param undersample: factor of data undersampling during summary
+        :param t_start: start time of summary (slice start)
+        :param t_end: end time of summary (slice end)
         """
         # Initializing DataLoader paths according to convention
         self.undersample = undersample
         self.only_env = only_env
         self.only_agent = only_agent
         self.data_folder_path = data_folder_path
+        self.t_start = t_start
+        self.t_end = t_end
 
         # Defining path for agent data
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
@@ -101,7 +105,10 @@ class DataLoader:
                     new_dict_key = mes_name + "_" + agent_name
                     new_dict[new_dict_key] = mes
                     # undersampling agent data
-                    new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[::self.undersample]
+                    if self.t_start is not None and self.t_end is not None:
+                        new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[self.t_start:self.t_end:self.undersample]
+                    else:
+                        new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[::self.undersample]
                     if mes_name == "posx" and "t" not in new_dict.keys():
                         new_dict["t"] = [i for i in range(len(mes))]
         return new_dict
@@ -128,7 +135,10 @@ class DataLoader:
                     data = np.zeros(time_len) - 1
                     data[start_time:end_time] = mes
                     # undersampling resource data
-                    data = data[::self.undersample]
+                    if self.t_start is not None and self.t_end is not None:
+                        data = data[self.t_start:self.t_end:self.undersample]
+                    else:
+                        data = data[::self.undersample]
                     new_dict[new_dict_key] = data.copy()
 
         return new_dict
@@ -229,7 +239,7 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None):
+    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None, t_start=0, t_end=5000):
         # experiment data after summary
         self.undersample = int(undersample)
         self.env = None
@@ -241,6 +251,8 @@ class ExperimentLoader:
         self.agent_summary = None
         self.varying_params = {}
         self.distances = None
+        self.t_start = t_start
+        self.t_end = t_end
         # COLLAPSE OF MULTIDIMENSIONAL PLOTS
         # in case 3 variables are present, and we kept a pair of variables changing together, we can collapse
         # the visualization into 2 dimensions by taking only non-zero elements into considerations.
@@ -316,7 +328,7 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading agent data batch {i}, run {j}")
-                agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True).get_loaded_data()
+                agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True, t_start=self.t_start, t_end=self.t_end).get_loaded_data()
                 del _
 
                 # finding out max depleted patches for next loop when we summarize
@@ -332,7 +344,10 @@ class ExperimentLoader:
                     else:
                         print("Detected varying group size across runs, will use maximum agent number...")
                         num_agents = int(np.max(self.varying_params["N"]))
-                    num_timesteps = int(float(env_data['T']) / self.undersample)
+                    if self.t_start is not None and self.t_end is not None:
+                        num_timesteps = int((self.t_end-self.t_start)/self.undersample)
+                    else:
+                        num_timesteps = int(float(env_data['T']) / self.undersample)
                     axes_lens = []
                     for k in sorted(list(self.varying_params.keys())):
                         axes_lens.append(len(self.varying_params[k]))
@@ -395,7 +410,7 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading resource data batch {i}, run {j}")
-                _, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
+                _, res_data, env_data = DataLoader(run, undersample=self.undersample, t_start=self.t_start, t_end=self.t_end).get_loaded_data()
 
                 if i == 0 and j == 0:
                     print("\nInitializing resource data structures")

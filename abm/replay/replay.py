@@ -24,7 +24,10 @@ class ExperimentReplay:
         # todo: this initialization will fail when we systematically change width and height in experiment
         self.WIDTH = int(float(self.experiment.env["ENV_WIDTH"]))
         self.HEIGHT = int(float(self.experiment.env["ENV_HEIGHT"]))
-        self.T = int(float(self.experiment.env["T"]) / self.undersample)
+        if self.experiment.t_start is None and self.experiment.t_end is None:
+            self.T = int(float(self.experiment.env["T"]) / self.undersample)
+        else:
+            self.T = int((self.experiment.t_end - self.experiment.t_start) / self.undersample)
         self.window_pad = 30
         self.vis_area_end_width = 2 * self.window_pad + self.WIDTH
         self.vis_area_end_height = 2 * self.window_pad + self.HEIGHT

@@ -54,8 +54,31 @@ class DataLoader:
         self.undersample = undersample
         self.only_env = only_env
         self.data_folder_path = data_folder_path
+
+        # Defining path for agent data
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
+        if not os.path.isfile(self.agent_csv_path):
+            self.agent_json_path = os.path.join(self.data_folder_path, "agent_data.json")
+            self.agent_csv_path = None
+            if not os.path.isfile(self.agent_json_path):
+                print("Neither json nor csv data found for agent data!")
+                self.agent_json_path = None
+        else:
+            self.agent_json_path = None
+
+        # Defining path for resource data
         self.resource_csv_path = os.path.join(self.data_folder_path, "resource_data.csv")
+        if not os.path.isfile(self.resource_csv_path):
+            self.resource_json_path = os.path.join(self.data_folder_path, "resource_data.json")
+            self.resource_csv_path = None
+            self.res_json_format = True
+            if not os.path.isfile(self.resource_json_path):
+                print("Neither json nor csv data found for resource data!")
+                self.resource_json_path = None
+        else:
+            self.resource_json_path = None
+            self.res_json_format = False
+
         self.env_json_path = os.path.join(self.data_folder_path, "env_params.json")
         self.agent_data = {}
         self.resource_data = {}
@@ -63,11 +86,69 @@ class DataLoader:
         self.load_files()
         self.preprocess_data()
 
+    def agent_json_to_csv_format(self):
+        """transforming a read in json format dictionary to the standard data structure we use when read in a csv file"""
+        new_dict = {}
+        for agent_id, agent_dict in self.agent_data.items():
+            agent_name = agent_dict['agent_name']
+            for mes_name, mes in agent_dict.items():
+                if mes_name != "agent_name":
+                    new_dict_key = mes_name + "_" + agent_name
+                    new_dict[new_dict_key] = mes
+                    if mes_name == "posx" and "t" not in new_dict.keys():
+                        new_dict["t"] = [i for i in range(len(mes))]
+        print("NEW")
+        print(list(new_dict.keys()))
+        return new_dict
+
+    def resource_json_to_csv_format(self):
+        """transforming a read in json format dictionary to the standard data structure we use when read in a csv file"""
+        new_dict = {}
+        time_len = len(self.agent_data["t"])
+        print(time_len)
+        for res_id, res_dict in self.resource_data.items():
+            res_name = res_dict['res_name']
+            start_time = res_dict["start_time"]-1
+            print(start_time)
+            end_time = res_dict["end_time"]
+            if end_time is None:
+                end_time = time_len
+            else:
+                end_time -= 1
+            print(end_time)
+            for mes_name, mes in res_dict.items():
+                if mes_name != "res_name":
+                    if mes_name == "pos_x":
+                        mes_name = "posx"
+                    if mes_name == "pos_y":
+                        mes_name = "posy"
+                    new_dict_key = mes_name + "_" + res_name
+                    data = np.zeros(time_len) - 1
+                    data[start_time:end_time] = mes
+                    new_dict[new_dict_key] = data
+
+        print("NEW")
+        print(list(new_dict.keys()))
+        return new_dict
+
     def load_files(self):
         """loading agent and resource data files into memory and make post-processing on time series"""
         if not self.only_env:
-            self.agent_data = dh.load_csv_file(self.agent_csv_path, undersample=self.undersample)
-            self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
+            if self.agent_csv_path is not None:
+                self.agent_data = dh.load_csv_file(self.agent_csv_path, undersample=self.undersample)
+            elif self.agent_json_path is not None:
+                with open(self.agent_json_path, "r") as f:
+                    self.agent_data = json.load(f)
+                self.agent_data = self.agent_json_to_csv_format()
+            if self.resource_csv_path is not None:
+                self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
+                print("OLD")
+                print(list(self.resource_data.keys()))
+                print(self.resource_data)
+            elif self.resource_json_path is not None:
+                with open(self.resource_json_path, "r") as f:
+                    self.resource_data = json.load(f)
+                self.resource_data = self.resource_json_to_csv_format()
         with open(self.env_json_path, "r") as file:
             self.env_data = json.load(file)
 
@@ -109,6 +190,8 @@ class DataLoader:
         self.env_data["USE_IFDB_LOGGING"] = bool(int(self.env_data["USE_IFDB_LOGGING"])),
         self.env_data["SAVE_CSV_FILES"] = bool(int(self.env_data["SAVE_CSV_FILES"]))
         self.env_data["SUMMARY_UNDERSAMPLE"] = float(self.undersample)
+        if self.res_json_format:
+            self.env_data["RES_JSON_FORMAT"] = True
 
         for k, v in self.env_data.items():
             if isinstance(v, tuple):
@@ -123,8 +206,10 @@ class DataLoader:
                     self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
                         "[ ", "[").replace(" ", ", ") for i in v], dtype=object)
 
-            for k, v in self.resource_data.items():
-                self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
+            if not self.res_json_format:
+                for k, v in self.resource_data.items():
+                    # replacing empty strings with -1
+                    self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
 
     def get_loaded_data(self):
         """returning the loaded data upon request"""

@@ -7,6 +7,7 @@ import json
 import os
 import glob
 import shutil
+import sys
 
 from abm.agent.agent import Agent, supcalc
 from abm.loader import helper as dh
@@ -40,19 +41,23 @@ class DataLoader:
     parameters
     """
 
-    def __init__(self, data_folder_path, only_env=False, undersample=1):
+    def __init__(self, data_folder_path, only_env=False, only_agent=False, undersample=1):
         """
         Initalization method of main DataLoader class
 
         :param data_folder_path: path of the folder to be loaded. Inside there must be the following data files:
-            - agent_data.csv: including time series of agent data
-            - resource_data.csv: including time series of resource data
+            - agent_data.csv/json: including time series of agent data
+            - resource_data.csv/json: including time series of resource data
             - env_params.json: json file including all environmental variables that was used for the simulation with
                 the given data folder.
+        :param only_env: if true only env files are read in
+        :param only_agent: if true only env and agent data is read
+        :param undersample: factor of data undersampling during summary
         """
         # Initializing DataLoader paths according to convention
         self.undersample = undersample
         self.only_env = only_env
+        self.only_agent = only_agent
         self.data_folder_path = data_folder_path
 
         # Defining path for agent data
@@ -95,27 +100,24 @@ class DataLoader:
                 if mes_name != "agent_name":
                     new_dict_key = mes_name + "_" + agent_name
                     new_dict[new_dict_key] = mes
+                    # undersampling agent data
+                    new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[::self.undersample]
                     if mes_name == "posx" and "t" not in new_dict.keys():
                         new_dict["t"] = [i for i in range(len(mes))]
-        print("NEW")
-        print(list(new_dict.keys()))
         return new_dict
 
     def resource_json_to_csv_format(self):
         """transforming a read in json format dictionary to the standard data structure we use when read in a csv file"""
         new_dict = {}
         time_len = len(self.agent_data["t"])
-        print(time_len)
         for res_id, res_dict in self.resource_data.items():
             res_name = res_dict['res_name']
             start_time = res_dict["start_time"]-1
-            print(start_time)
             end_time = res_dict["end_time"]
             if end_time is None:
                 end_time = time_len
             else:
                 end_time -= 1
-            print(end_time)
             for mes_name, mes in res_dict.items():
                 if mes_name != "res_name":
                     if mes_name == "pos_x":
@@ -125,10 +127,10 @@ class DataLoader:
                     new_dict_key = mes_name + "_" + res_name
                     data = np.zeros(time_len) - 1
                     data[start_time:end_time] = mes
-                    new_dict[new_dict_key] = data
+                    # undersampling resource data
+                    data = data[::self.undersample]
+                    new_dict[new_dict_key] = data.copy()
 
-        print("NEW")
-        print(list(new_dict.keys()))
         return new_dict
 
     def load_files(self):
@@ -140,15 +142,21 @@ class DataLoader:
                 with open(self.agent_json_path, "r") as f:
                     self.agent_data = json.load(f)
                 self.agent_data = self.agent_json_to_csv_format()
-            if self.resource_csv_path is not None:
-                self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
-                print("OLD")
-                print(list(self.resource_data.keys()))
-                print(self.resource_data)
-            elif self.resource_json_path is not None:
-                with open(self.resource_json_path, "r") as f:
-                    self.resource_data = json.load(f)
-                self.resource_data = self.resource_json_to_csv_format()
+            print("agent_data loaded")
+            print(sys.getsizeof(self.agent_data))
+
+            if not self.only_agent:
+                if self.resource_csv_path is not None:
+                    self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
+                    print("OLD")
+                elif self.resource_json_path is not None:
+                    with open(self.resource_json_path, "r") as f:
+                        self.resource_data = json.load(f)
+                    self.resource_data = self.resource_json_to_csv_format()
+                print("resource data loaded")
+                print(sys.getsizeof(self.agent_data))
+            else:
+                self.resource_data = None
         with open(self.env_json_path, "r") as file:
             self.env_data = json.load(file)
 
@@ -158,7 +166,8 @@ class DataLoader:
             time_len = len(self.agent_data["t"])
             new_time = [i for i in range(time_len)]
             self.agent_data["t"] = new_time
-            self.resource_data["t"] = new_time
+            if not self.only_agent:
+                self.resource_data["t"] = new_time
 
         # Change env data types
         self.env_data["N"] = int(self.env_data["N"]),
@@ -206,10 +215,11 @@ class DataLoader:
                     self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
                         "[ ", "[").replace(" ", ", ") for i in v], dtype=object)
 
-            if not self.res_json_format:
-                for k, v in self.resource_data.items():
-                    # replacing empty strings with -1
-                    self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
+            if not self.only_agent:
+                if not self.res_json_format:
+                    for k, v in self.resource_data.items():
+                        # replacing empty strings with -1
+                        self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
 
     def get_loaded_data(self):
         """returning the loaded data upon request"""
@@ -306,7 +316,8 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading agent data batch {i}, run {j}")
-                agent_data, res_data, env_data = DataLoader(run, undersample=self.undersample).get_loaded_data()
+                agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True).get_loaded_data()
+                del _
 
                 # finding out max depleted patches for next loop when we summarize
                 # resource data
@@ -353,6 +364,8 @@ class ExperimentLoader:
                     Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
                     mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
                     expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+
+                del agent_data
 
         print("Datastructures initialized according to loaded data!")
         print("Saving agent summary...")

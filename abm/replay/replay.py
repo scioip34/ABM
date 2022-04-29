@@ -258,7 +258,7 @@ class ExperimentReplay:
         """print mean search efficiency"""
         if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
-        self.experiment.plot_search_efficiency()
+        self.experiment.plot_search_efficiency(t_step=self.t)
 
     def on_run_show_vfield(self):
         self.show_vfield = not self.show_vfield

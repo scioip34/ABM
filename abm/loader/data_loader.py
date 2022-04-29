@@ -253,6 +253,7 @@ class ExperimentLoader:
         self.distances = None
         self.t_start = t_start
         self.t_end = t_end
+        print(f"Experiment time window: t= {t_start} --- {t_end}")
         # COLLAPSE OF MULTIDIMENSIONAL PLOTS
         # in case 3 variables are present, and we kept a pair of variables changing together, we can collapse
         # the visualization into 2 dimensions by taking only non-zero elements into considerations.
@@ -585,33 +586,43 @@ class ExperimentLoader:
             print("___END_README___\n")
         print("Experiment loaded")
 
-    def calculate_search_efficiency(self):
+    def calculate_search_efficiency(self, t_step=-1):
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
-        with the travelled distance"""
-        if self.mean_efficiency is None:
-            print("Calculating mean search efficiency...")
-            self.get_travelled_distances()
+        with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
+        the real time according to how much the data was undersampled during sammury"""
+        # Caclulating length of time window for normalizing efficiency
+        if t_step == -1:
+            if self.t_end is None:
+                T = int(self.env['T'])
+            else:
+                T = self.t_end
+        else:
+            T = t_step * self.undersample
+        print(f"Using T={T} to normalize efficiency!")
 
-            batch_dim = 0
-            num_var_params = len(list(self.varying_params.keys()))
-            agent_dim = batch_dim + num_var_params + 1
-            time_dim = agent_dim + 1
+        print("Calculating mean search efficiency...")
+        self.get_travelled_distances()
 
-            collres = self.agent_summary["collresource"][..., -1]
-            # normalizing with distances needs good temporal resolution when reading data back
-            # using large downsampling factors will make it impossibly to calculate trajectory lengths
-            # and thus makes distance measures impossible
-            sum_distances = np.sum(self.distances, axis=time_dim)
-            self.efficiency = collres  # / sum_distances
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
 
-            self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
-            self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+        collres = self.agent_summary["collresource"][..., t_step]
+        # normalizing with distances needs good temporal resolution when reading data back
+        # using large downsampling factors will make it impossibly to calculate trajectory lengths
+        # and thus makes distance measures impossible
+        # sum_distances = np.sum(self.distances, axis=time_dim)
+        self.efficiency = collres / T
 
-    def plot_search_efficiency(self):
+        self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+        self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+
+    def plot_search_efficiency(self, t_step=-1):
         """Method to plot search efficiency irrespectively of how many parameters have been tuned during the
         experiments."""
 
-        self.calculate_search_efficiency()
+        self.calculate_search_efficiency(t_step=t_step)
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))

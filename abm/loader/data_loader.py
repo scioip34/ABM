@@ -239,7 +239,7 @@ class DataLoader:
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None, t_start=0, t_end=5000):
+    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None, t_start=None, t_end=None):
         # experiment data after summary
         self.undersample = int(undersample)
         self.env = None

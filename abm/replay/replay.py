@@ -12,14 +12,14 @@ import numpy as np
 
 
 class ExperimentReplay:
-    def __init__(self, data_folder_path, undersample=1, collapse=None):
+    def __init__(self, data_folder_path, undersample=1, t_start=None, t_end=None, collapse=None):
         """Initialization method to replay recorded simulations from their summary folder. If a summary is not yet
         available for the experiment it will be summarized first
         the undersample parameter only matters if the data is not yet summarized, otherwise it is automatically
         read from the env file"""
         self.show_vfield = False
         self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=False,
-                                           undersample=undersample, collapse_plot=collapse)
+                                           undersample=undersample, collapse_plot=collapse, t_start=t_start, t_end=t_end)
         self.undersample = self.experiment.undersample
         # todo: this initialization will fail when we systematically change width and height in experiment
         self.WIDTH = int(float(self.experiment.env["ENV_WIDTH"]))

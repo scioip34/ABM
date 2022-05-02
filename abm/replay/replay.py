@@ -189,6 +189,7 @@ class ExperimentReplay:
             borderThickness=1
         )
 
+        # Plotting Button Line
         button_start_y += 2*self.button_height
         self.plot_efficiency = Button(
             # Mandatory Parameters
@@ -222,7 +223,6 @@ class ExperimentReplay:
             onClick=lambda: self.on_print_reloc_time(),  # Function to call when clicked on
             borderThickness=1
         )
-
         if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.collapse_dropdown = Dropdown(
                 self.screen,
@@ -248,6 +248,43 @@ class ExperimentReplay:
                     'MIN-1'], direction='down', textHAlign='centre'
             )
 
+        # Plotting Details Button Line
+        button_start_y += self.button_height
+        self.t_start = None
+        self.t_end = None
+        self.t_start_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Set Start Time',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_set_t_start(),  # Function to call when clicked on
+            borderThickness=1
+        )
+        self.t_end_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.button_start_x_2,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Set End Time',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_set_t_end(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
     def on_print_reloc_time(self):
         """print mean relative relocation time"""
         if len(list(self.experiment.varying_params.keys())) in [3, 4]:
@@ -259,6 +296,50 @@ class ExperimentReplay:
         if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_search_efficiency(t_step=self.t)
+
+    def on_set_t_start(self):
+        """Setting starting timestep for plotting and calculations"""
+        if self.t_start is None:
+            self.t_start = self.time_slider.getValue()
+            if self.t_end is not None:
+                t_end = self.t_end
+            else:
+                t_end = self.T - 1
+            if self.t_start >= t_end:
+                self.t_start = None
+                print("Start time can not be larger than end time!")
+            else:
+                self.t_start_b.inactiveColour = colors.GREEN
+                self.t_start_b.string = f"T start = {self.t_start * self.undersample}"
+        else:
+            self.t_start = None
+            self.t_start_b.inactiveColour = colors.GREY
+            self.t_start_b.string = "Set Start Time"
+
+        self.t_start_b.text = self.t_start_b.font.render(self.t_start_b.string, True,
+                                                         self.t_start_b.textColour)
+
+    def on_set_t_end(self):
+        """Setting starting timestep for plotting and calculations"""
+        if self.t_end is None:
+            self.t_end = self.time_slider.getValue()
+            if self.t_start is not None:
+                t_start = self.t_start
+            else:
+                t_start = 0
+            if self.t_end <= t_start:
+                self.t_end = None
+                print("End time can not be smaller than end time!")
+            else:
+                self.t_end_b.inactiveColour = colors.GREEN
+                self.t_end_b.string = f"T end = {self.t_end * self.undersample}"
+        else:
+            self.t_end = None
+            self.t_end_b.inactiveColour = colors.GREY
+            self.t_end_b.string = "Set End Time"
+
+        self.t_end_b.text = self.t_end_b.font.render(self.t_end_b.string, True,
+                                                         self.t_end_b.textColour)
 
     def on_run_show_vfield(self):
         self.show_vfield = not self.show_vfield

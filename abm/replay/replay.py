@@ -17,6 +17,7 @@ class ExperimentReplay:
         available for the experiment it will be summarized first
         the undersample parameter only matters if the data is not yet summarized, otherwise it is automatically
         read from the env file"""
+        self.from_script = False  # can be set to True for batch execution of plotting functions
         self.show_vfield = False
         self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=False,
                                            undersample=undersample, collapse_plot=collapse, t_start=t_start, t_end=t_end)
@@ -291,11 +292,21 @@ class ExperimentReplay:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_mean_relocation_time()
 
-    def on_print_efficiency(self):
+    def on_print_efficiency(self, with_read_collapse_param=True):
         """print mean search efficiency"""
-        if len(list(self.experiment.varying_params.keys())) in [3, 4]:
-            self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
-        self.experiment.plot_search_efficiency(t_step=self.t)
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.t_start is None:
+            t_start = 0
+        else:
+            t_start = self.t_start
+        if self.t_end is None:
+            t_end = self.T - 1
+        else:
+            t_end = self.t_end
+        fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end, from_script=self.from_script)
+        return fig, ax, cbar
 
     def on_set_t_start(self):
         """Setting starting timestep for plotting and calculations"""

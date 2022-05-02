@@ -586,43 +586,46 @@ class ExperimentLoader:
             print("___END_README___\n")
         print("Experiment loaded")
 
-    def calculate_search_efficiency(self, t_step=-1):
+    def calculate_search_efficiency(self, t_start_plot=0, t_end_plot=-1):
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
         with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
         the real time according to how much the data was undersampled during sammury"""
         # Caclulating length of time window for normalizing efficiency
-        if t_step == -1:
-            if self.t_end is None:
+        if t_end_plot == -1:
+            if self.t_end is None:  # we processed the whole experiment
                 T = int(self.env['T'])
-            else:
+            else:  # we have cut down some part at the end of the experiment
                 T = self.t_end
-        else:
-            T = t_step * self.undersample
-        print(f"Using T={T} to normalize efficiency!")
+        else:  # We calculate the efficiency until a given point of time
+            T = t_end_plot * self.undersample
+
+        T_start = t_start_plot * self.undersample
+        dT = T - T_start
+        print(f"Using T_start={T_start}, T_end={T} delta_T={dT} to normalize efficiency!")
 
         print("Calculating mean search efficiency...")
-        self.get_travelled_distances()
+        # self.get_travelled_distances()
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        collres = self.agent_summary["collresource"][..., t_step]
+        collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][..., t_start_plot]
         # normalizing with distances needs good temporal resolution when reading data back
         # using large downsampling factors will make it impossibly to calculate trajectory lengths
         # and thus makes distance measures impossible
         # sum_distances = np.sum(self.distances, axis=time_dim)
-        self.efficiency = collres / T
+        self.efficiency = collres / dT
 
         self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
         self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
 
-    def plot_search_efficiency(self, t_step=-1):
+    def plot_search_efficiency(self, t_start=0, t_end=-1, from_script=False):
         """Method to plot search efficiency irrespectively of how many parameters have been tuned during the
         experiments."""
-
-        self.calculate_search_efficiency(t_step=t_step)
+        cbar = None
+        self.calculate_search_efficiency(t_start_plot=t_start, t_end_plot=t_end)
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
@@ -682,7 +685,7 @@ class ExperimentLoader:
 
                 fig.subplots_adjust(right=0.8)
                 cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-                fig.colorbar(img, cax=cbar_ax)
+                cbar = fig.colorbar(img, cax=cbar_ax)
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
@@ -716,7 +719,7 @@ class ExperimentLoader:
                             f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
                     labels.append(label)
 
-                ax.imshow(collapsed_data)
+                img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
                 ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
                 ax.set_ylabel(keys[self.collapse_fixedvar_ind])
@@ -724,6 +727,10 @@ class ExperimentLoader:
                 ax.set_xticks(range(len(labels)))
                 ax.set_xticklabels(labels, rotation=45)
                 ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
                 # ax.set_xlabel(f"Combined Parameters\n"
                 #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
                 #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
@@ -732,7 +739,8 @@ class ExperimentLoader:
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of total collected resource units normalized with the mean total\n" \
                            f"distance travelled by agents over the experiments.\n"
-        self.add_plot_interaction(description_text, fig, ax, show=True)
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
 
     def plot_mean_relocation_time(self):
         """Plotting the mean relative relocation time over agents and batches"""
@@ -881,7 +889,7 @@ class ExperimentLoader:
                            f"travelled distance\n"
         self.add_plot_interaction(description_text, fig, ax, show=True)
 
-    def add_plot_interaction(self, description_text, fig, ax, show=True):
+    def add_plot_interaction(self, description_text, fig, ax, show=True, from_script=False):
         """Adding plot description to figure with interaction and showing if requested"""
         num_runs = 1
         for k, v in self.varying_params.items():
@@ -911,7 +919,11 @@ class ExperimentLoader:
                 fig.canvas.mpl_connect('button_release_event', lambda event: hide_plot_description(event, fig, annot))
 
         if show:
-            plt.show()
+            if not from_script:
+                plt.show()
+            else:
+                plt.show(block=False)
+                plt.pause(0.1)
 
     def get_travelled_distances(self):
         """calculating the travelled distance for all agents in all runs and batches in an experiment.

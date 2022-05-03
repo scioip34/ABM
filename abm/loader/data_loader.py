@@ -586,7 +586,7 @@ class ExperimentLoader:
             print("___END_README___\n")
         print("Experiment loaded")
 
-    def calculate_search_efficiency(self, t_start_plot=0, t_end_plot=-1):
+    def calculate_search_efficiency(self, t_start_plot=0, t_end_plot=-1, used_batches=None):
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
         with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
         the real time according to how much the data was undersampled during sammury"""
@@ -611,7 +611,13 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][..., t_start_plot]
+        if used_batches is None:
+            collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][..., t_start_plot]
+        else:
+            # limiting number of used batches (e.g. for quick prototyping)
+            print(f"Using {used_batches} batches to calculate efficiency!")
+            print(self.agent_summary["collresource"].shape)
+            collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary["collresource"][0:used_batches, ..., t_start_plot]
         # normalizing with distances needs good temporal resolution when reading data back
         # using large downsampling factors will make it impossibly to calculate trajectory lengths
         # and thus makes distance measures impossible
@@ -621,11 +627,11 @@ class ExperimentLoader:
         self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
         self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
 
-    def plot_search_efficiency(self, t_start=0, t_end=-1, from_script=False):
+    def plot_search_efficiency(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot search efficiency irrespectively of how many parameters have been tuned during the
         experiments."""
         cbar = None
-        self.calculate_search_efficiency(t_start_plot=t_start, t_end_plot=t_end)
+        self.calculate_search_efficiency(t_start_plot=t_start, t_end_plot=t_end, used_batches=used_batches)
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))

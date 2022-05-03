@@ -292,7 +292,7 @@ class ExperimentReplay:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_mean_relocation_time()
 
-    def on_print_efficiency(self, with_read_collapse_param=True):
+    def on_print_efficiency(self, with_read_collapse_param=True, used_batches=None):
         """print mean search efficiency"""
         if with_read_collapse_param:
             if len(list(self.experiment.varying_params.keys())) in [3, 4]:
@@ -305,7 +305,8 @@ class ExperimentReplay:
             t_end = self.T - 1
         else:
             t_end = self.t_end
-        fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end, from_script=self.from_script)
+        fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end, from_script=self.from_script,
+                                                               used_batches=used_batches)
         return fig, ax, cbar
 
     def on_set_t_start(self):

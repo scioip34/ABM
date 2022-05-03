@@ -9,10 +9,10 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       26.04.2022
-Goal:       Here we do exactly the same thing as in experiment 12 but we decrease the number of overall resource units.
-            This shall change the time scale of depletion and by that increase the speed of the system to reach a steady
-            state in efficiency. 
+Date:       03.05.2022
+Goal:       We simulate a group of 10 agents with changing social excitability in environments of different patchiness.
+            We set the simulation times to low, but we carry out a very large amount of batches to see if we get equivalent
+            results to large simulation times and low batch numbers.
 Defined by: mezdahun
 """
 
@@ -61,7 +61,7 @@ fixed_criteria = [
 ]
 
 # Defining decision param
-sum_resources = 1500
+sum_resources = 3000
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
@@ -78,7 +78,7 @@ criteria_exp = [
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 100000)
+    Constant("T", 10000)
 ]
 
 # Creating metaprotocol and add defined criteria

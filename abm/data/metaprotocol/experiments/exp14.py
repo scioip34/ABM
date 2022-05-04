@@ -9,7 +9,7 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       03.05.2022
+Date:       04.05.2022
 Goal:       exp14: We test our golden standard 20k timestep and 50 batches simulation on 3 agents to see if depletion
             timescale is sufficient with other fixed parameters.
 Defined by: mezdahun

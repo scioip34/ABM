@@ -6,8 +6,8 @@ import os
 experiment_path = "/home/mezey/Desktop/clustermount/ABM/abm/data/simulation_data/exp13"
 t_start = 0
 t_end = 10000
-undersample = 5000
-used_batches = 40
+undersample = 2500
+used_batches = 100
 
 replayed_experiment = ExperimentReplay(experiment_path, t_start=t_start, t_end=t_end, undersample=undersample)
 # replayed_experiment.start()
@@ -27,17 +27,18 @@ replayed_experiment.from_script = True
 # Checking efficiency in moving window
 plt.ion()
 window_length = 1
-for i in range(used_batches):
-    replayed_experiment.t_start = t_start
-    replayed_experiment.t_end = int(t_end/undersample) - 1
+for i in range(0, used_batches, 5):
+    print(f"Using {i} batches")
+    replayed_experiment.t_start = 1
+    replayed_experiment.t_end = -1
 
     fig, ax, cbar = replayed_experiment.on_print_efficiency(with_read_collapse_param=False, used_batches=i)
     # adjusting figure
     ax.set_title(f"Used batches: {i+1}")
     # set color range for all figures to the same range
     im = ax.get_images()
-    im[0].set_clim(0.075, 0.2)
-    cbar.ax.set_yticks([0.075, 0.1, 0.2])
+    im[0].set_clim(0.04, 0.15)
+    cbar.ax.set_yticks([0.04, 0.1, 0.15])
 
     # Save adjusted figure
     file_name = f"ub_{i+1}_eff.png"

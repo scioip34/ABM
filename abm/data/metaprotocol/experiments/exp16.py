@@ -10,7 +10,9 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       04.05.2022
-Goal:       exp16: We test the different efficiency values for 1, 3, and 5 agents with no social interactions.
+Goal:       exp16: We test the total number of resources on the depletion timescale by keeping a small number of agents
+            and decreaste the total number of distributed resource units. We expect to get back the original shape
+            of the fficiency curve even with a small number of agents (for which we needed to use very long simulations)
 Defined by: mezdahun
 """
 
@@ -59,16 +61,16 @@ fixed_criteria = [
 ]
 
 # Defining decision param
-sum_resources = 3000
+sum_resources = 600
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
 num_patches = [1, 3, 5, 10, 30, 50, 100]
 criteria_exp = [
-    Tunable("N", values_override=[1, 3, 5]),
+    Constant("N", 3),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
     Constant("AGENT_FOV", 1),  # unlimited
-    Constant("DEC_EPSW", 0),
+    Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here

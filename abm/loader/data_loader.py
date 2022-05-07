@@ -63,6 +63,7 @@ class DataLoader:
         self.data_folder_path = data_folder_path
         self.t_start = t_start
         self.t_end = t_end
+        self.patch_id_dict = None
 
         # Defining path for agent data
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
@@ -106,7 +107,8 @@ class DataLoader:
                     new_dict[new_dict_key] = mes
                     # undersampling agent data
                     if self.t_start is not None and self.t_end is not None:
-                        new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[self.t_start:self.t_end:self.undersample]
+                        new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[
+                                                 self.t_start:self.t_end:self.undersample]
                     else:
                         new_dict[new_dict_key] = np.array(new_dict[new_dict_key])[::self.undersample]
                     if mes_name == "posx" and "t" not in new_dict.keys():
@@ -119,7 +121,7 @@ class DataLoader:
         time_len = len(self.agent_data["t"])
         for res_id, res_dict in self.resource_data.items():
             res_name = res_dict['res_name']
-            start_time = res_dict["start_time"]-1
+            start_time = res_dict["start_time"] - 1
             end_time = res_dict["end_time"]
             if end_time is None:
                 end_time = time_len
@@ -140,8 +142,52 @@ class DataLoader:
                     else:
                         data = data[::self.undersample]
                     new_dict[new_dict_key] = data.copy()
-
+        self.match_patch_ids()
         return new_dict
+
+    def match_patch_ids(self):
+        """"Every time a patch with id K is depleted a new patch with a new id will be created in the database. Later
+        we want to compress data so that we want to match the newly created patch with the one that was depleted. For
+        this we check the creation and depletion times of patches and we match accordingly. The result is a dictionary where
+        each key is the id of a depleted patch and each corresponding value is the id of the newly created patch."""
+        matched_patch_ids_path = os.path.join(self.data_folder_path, "matched_res_ids.json")
+        if os.path.isfile(matched_patch_ids_path):
+            with open(matched_patch_ids_path, "r") as f:
+                patch_id_dict_r = json.load(f)
+                self.patch_id_dict = {int(k): int(v) for k, v in patch_id_dict_r.items()}
+        else:
+            self.patch_id_dict = {}
+            start_times = []
+            end_times = []
+            for res_id, res_dict in self.resource_data.items():
+                start_time = res_dict["start_time"] - 1
+                end_time = res_dict["end_time"]
+                if end_time is not None:
+                    end_time -= 1
+                # if int(res_id) < 5:
+                #     print(res_id)
+                #     print("start ", start_time)
+                #     print("end ", end_time)
+                start_times.append(start_time)
+                end_times.append(end_time)
+
+            for id, etime in enumerate(end_times):
+                if etime in start_times:
+                    # the patch ends and regenerates as
+                    matched_ids = [i for i, value in enumerate(start_times) if value == etime]
+                    for matched_id in matched_ids:
+                        if matched_id not in self.patch_id_dict.keys():  # if there are more than one matching ids
+                            if not id in self.patch_id_dict.keys():
+                                self.patch_id_dict[matched_id] = id
+                            else:
+                                self.patch_id_dict[matched_id] = self.patch_id_dict[id]
+                            break
+                else:
+                    # the patch never ends
+                    self.patch_id_dict[-id] = id
+                # saving results
+                with open(matched_patch_ids_path, "w") as f:
+                    json.dump(self.patch_id_dict, f)
 
     def load_files(self):
         """loading agent and resource data files into memory and make post-processing on time series"""
@@ -235,11 +281,16 @@ class DataLoader:
         """returning the loaded data upon request"""
         return self.agent_data, self.resource_data, self.env_data
 
+    def get_loaded_res_data_json(self):
+        """returning resource data and patch depletion ids"""
+        return self.agent_data, self.resource_data, self.env_data, self.patch_id_dict
+
 
 class ExperimentLoader:
     """Loads and transforms a whole experiment folder with multiple batches and simulations"""
 
-    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None, t_start=None, t_end=None):
+    def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
+                 t_start=None, t_end=None):
         # experiment data after summary
         self.undersample = int(undersample)
         self.env = None
@@ -329,12 +380,14 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading agent data batch {i}, run {j}")
-                agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True, t_start=self.t_start, t_end=self.t_end).get_loaded_data()
+                agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True,
+                                                     t_start=self.t_start, t_end=self.t_end).get_loaded_data()
                 del _
 
                 # finding out max depleted patches for next loop when we summarize
                 # resource data
-                num_in_run = int(float(env_data['N_RESOURCES'])) # len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+                num_in_run = int(float(
+                    env_data['N_RESOURCES']))  # len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
                 print(f"in this run we have {num_in_run} resources")
                 if num_in_run > max_r_in_runs:
                     max_r_in_runs = num_in_run
@@ -346,7 +399,7 @@ class ExperimentLoader:
                         print("Detected varying group size across runs, will use maximum agent number...")
                         num_agents = int(np.max(self.varying_params["N"]))
                     if self.t_start is not None and self.t_end is not None:
-                        num_timesteps = int((self.t_end-self.t_start)/self.undersample)
+                        num_timesteps = int((self.t_end - self.t_start) / self.undersample)
                     else:
                         num_timesteps = int(float(env_data['T']) / self.undersample)
                     axes_lens = []
@@ -411,7 +464,9 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 print(f"Reading resource data batch {i}, run {j}")
-                _, res_data, env_data = DataLoader(run, undersample=self.undersample, t_start=self.t_start, t_end=self.t_end).get_loaded_data()
+                _, res_data, env_data, patch_id_dict = DataLoader(run, undersample=self.undersample,
+                                                                  t_start=self.t_start,
+                                                                  t_end=self.t_end).get_loaded_res_data_json()
 
                 if i == 0 and j == 0:
                     print("\nInitializing resource data structures")
@@ -433,43 +488,55 @@ class ExperimentLoader:
                 # column instead of saving new patches in new columns
                 depletion_times = np.zeros(env_num_res_in_run)
                 for ri in range(num_res_in_run):
-                    # in the numpy array we only have N_RESOURCES column
-                    if ri < env_num_res_in_run:
-                        # we check which timestep the patch is depleted and store these in switching time
-                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        data = np.array([float(d) if d != "" else 0.0 for d in data])
-                        data[data < 0] = 0
-                        try:
-                            depletion_times[ri] = np.nonzero(np.diff(data))[0]
-                        except:
-                            depletion_times[ri] = len(data)
-                        collapsed_ri = ri
-                    else:
-                        # if the columnid is larger than how many resources we defined in the env file
-                        # that will mean we have a regenereted patch. We need to find which previous patch disappeard
-                        # when this one appeared so we can continously store data in less columns
-                        # print(ri, "depletion_times: ", depletion_times)
-                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        data = np.array([float(d) if d != "" else 0.0 for d in data])
-                        data[data < 0] = 0
-                        # finding which patch is continued by this
-                        try:
-                            appearance_time = np.nonzero(np.diff(data))[0][0]
-                        except IndexError as e:
-                            print("Patch didn't appear in this undersampling rate")
-                            continue
+                    if patch_id_dict is None:
+                        # we try to collapse data according to generated raw csv if data was not saved in json, otherwise
+                        # already done with preprocessing
+                        # in the numpy array we only have N_RESOURCES column
+                        if ri < env_num_res_in_run:
+                            # we check which timestep the patch is depleted and store these in switching time
+                            data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                            data = np.array([float(d) if d != "" else 0.0 for d in data])
+                            data[data < 0] = 0
+                            try:
+                                depletion_times[ri] = np.nonzero(np.diff(data))[0]
+                            except:
+                                depletion_times[ri] = len(data)
+                            collapsed_ri = ri
+                        else:
+                            # if the columnid is larger than how many resources we defined in the env file
+                            # that will mean we have a regenereted patch. We need to find which previous patch disappeard
+                            # when this one appeared so we can continously store data in less columns
+                            # print(ri, "depletion_times: ", depletion_times)
+                            data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                            data = np.array([float(d) if d != "" else 0.0 for d in data])
+                            data[data < 0] = 0
+                            # finding which patch is continued by this
+                            try:
+                                appearance_time = np.nonzero(np.diff(data))[0][0]
+                            except IndexError as e:
+                                print("Patch didn't appear in this undersampling rate")
+                                continue
 
-                        # print("patch appeared @ ", appearance_time)
-                        try:
-                            depletion_time = np.nonzero(np.diff(data))[0][1]
-                            # print("patch depleted @ ", depletion_time)
-                        except IndexError as e:
-                            # print("last patch")
-                            depletion_time = -1
-                        collapsed_ri = np.where(depletion_times == appearance_time)[0][0]
-                        # print("patch continues prev. patch ", collapsed_ri)
-                        depletion_times[collapsed_ri] = depletion_time
-                        # print(ri, "new depletion_times: ", depletion_times)
+                            # print("patch appeared @ ", appearance_time)
+                            try:
+                                depletion_time = np.nonzero(np.diff(data))[0][1]
+                                # print("patch depleted @ ", depletion_time)
+                            except IndexError as e:
+                                # print("last patch")
+                                depletion_time = -1
+                            collapsed_ri = np.where(depletion_times == appearance_time)[0][0]
+                            # print("patch continues prev. patch ", collapsed_ri)
+                            depletion_times[collapsed_ri] = depletion_time
+                            # print(ri, "new depletion_times: ", depletion_times)
+                    else:
+                        # switching keys and values so we get end:start
+                        patch_id_dict_r = patch_id_dict  # {endt: startt for startt, endt in patch_id_dict.items()}
+                        if ri in list(patch_id_dict_r.keys()):
+                            # this patch is a regenerated patch, we need to find parents
+                            collapsed_ri = patch_id_dict_r[ri]
+                        else:
+                            # This is an original patch
+                            collapsed_ri = ri
 
                     ind = (i,) + tuple(index) + (collapsed_ri,)
 
@@ -612,12 +679,16 @@ class ExperimentLoader:
         time_dim = agent_dim + 1
 
         if used_batches is None:
-            collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][..., t_start_plot]
+            collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][
+                ..., t_start_plot]
         else:
             # limiting number of used batches (e.g. for quick prototyping)
             print(f"Using {used_batches} batches to calculate efficiency!")
             print(self.agent_summary["collresource"].shape)
-            collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary["collresource"][0:used_batches, ..., t_start_plot]
+            collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary[
+                                                                                                "collresource"][
+                                                                                            0:used_batches, ...,
+                                                                                            t_start_plot]
         # normalizing with distances needs good temporal resolution when reading data back
         # using large downsampling factors will make it impossibly to calculate trajectory lengths
         # and thus makes distance measures impossible

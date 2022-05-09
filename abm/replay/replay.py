@@ -9,7 +9,8 @@ from pygame_widgets.dropdown import Dropdown
 import pygame_widgets
 import pygame
 import numpy as np
-
+import zarr
+import os
 
 class ExperimentReplay:
     def __init__(self, data_folder_path, undersample=1, t_start=None, t_end=None, collapse=None):
@@ -39,18 +40,23 @@ class ExperimentReplay:
 
         self.env = self.experiment.env
 
-        self.posx = self.experiment.agent_summary['posx']
-        self.posy = self.experiment.agent_summary['posy']
-        self.orientation = self.experiment.agent_summary['orientation']
-        self.agmodes = self.experiment.agent_summary['mode']
-        self.coll_resc = self.experiment.agent_summary['collresource']
+        self.posx_z = self.experiment.agent_summary['posx']
+        self.posy_z = self.experiment.agent_summary['posy']
+        self.orientation_z = self.experiment.agent_summary['orientation']
+        self.agmodes_z = self.experiment.agent_summary['mode']
+        self.coll_resc_z = self.experiment.agent_summary['collresource']
 
-        self.res_pos_x = self.experiment.res_summary['posx']
-        self.res_pos_y = self.experiment.res_summary['posy']
-        self.resc_left = self.experiment.res_summary['resc_left']
-        self.resc_quality = self.experiment.res_summary['quality']
+        self.res_pos_x_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posx.zarr"), mode='r') # self.experiment.res_summary['posx']
+        self.res_pos_y_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posy.zarr"), mode='r') # self.experiment.res_summary['posy']
+        self.resc_left_z = zarr.open(os.path.join(data_folder_path, "summary", "res_rescleft.zarr"), mode='r') # self.experiment.res_summary['resc_left']
+        self.resc_quality_z = zarr.open(os.path.join(data_folder_path, "summary", "res_qual.zarr"), mode='r') # self.experiment.res_summary['quality']
+
+        #self.load_data_to_ram()
 
         self.varying_params = self.experiment.varying_params
+        self.index_prev = None
+        self.index = None
+        self.t_slice = 0
 
         self.is_paused = True
         self.show_stats = False
@@ -286,6 +292,22 @@ class ExperimentReplay:
             borderThickness=1
         )
 
+    def load_data_to_ram(self):
+        cs = self.experiment.chunksize
+        self.t_slice = int(self.t_slice)
+        self.posx = self.posx_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.posy = self.posy_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.orientation = self.orientation_z[self.index][:,(self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.agmodes = self.agmodes_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.radius = self.env["RADIUS_AGENT"]
+
+        self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.resc_left = self.resc_left_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+
+
     def on_print_reloc_time(self):
         """print mean relative relocation time"""
         if len(list(self.experiment.varying_params.keys())) in [3, 4]:
@@ -447,21 +469,54 @@ class ExperimentReplay:
     def update_frame_data(self):
         """updating the data that needs to be visualized"""
         index = [self.varying_dimensions[k] for k in sorted(list(self.varying_dimensions.keys()))]
-        index = (self.batch_id,) + tuple(index)
+        self.index = (self.batch_id,) + tuple(index)
+        update_dataframes = True
+        if self.index_prev is not None:
+            if self.index_prev == self.index:
+                t_slice = np.floor(self.t/self.experiment.chunksize)
+                if t_slice == self.t_slice:
+                    update_dataframes = False
+                else:
+                    self.t_slice = t_slice
+                    update_dataframes = True
+            else:
+                update_dataframes = True
 
-        posx = self.posx[index][:, self.t]
-        posy = self.posy[index][:, self.t]
-        orientation = self.orientation[index][:, self.t]
-        mode = self.agmodes[index][:, self.t]
-        coll_resc = self.coll_resc[index][:, self.t]
+        self.index_prev = self.index
+
+        if update_dataframes:
+            print("Loading next data chunk...")
+            self.load_data_to_ram()
+
+        t_ind = int(self.t - (self.t_slice * self.experiment.chunksize))
+
+        posx = self.posx[:, t_ind]
+        posy = self.posy[:, t_ind]
+        orientation = self.orientation[:, t_ind]
+        mode = self.agmodes[:, t_ind]
+        coll_resc = self.coll_resc[:, t_ind]
         radius = self.env["RADIUS_AGENT"]
 
-        res_posx = self.res_pos_x[index][:, self.t]
-        res_posy = self.res_pos_y[index][:, self.t]
-        resc_left = self.resc_left[index][:, self.t]
-        max_units = np.max(self.resc_left[index], axis=1)
-        resc_quality = self.resc_quality[index][:, self.t]
+        res_posx = self.res_pos_x[:, t_ind]
+        res_posy = self.res_pos_y[:, t_ind]
+        resc_left = self.resc_left[:, t_ind]
+
+        res_unit = self.env["MIN_RESOURCE_PER_PATCH"]
+        if res_unit == "----TUNED----":
+            var_keys = sorted(list(self.varying_params.keys()))
+            dimnum = var_keys.index("MIN_RESOURCE_PER_PATCH")
+            slider = self.varying_sliders[dimnum]
+            indexalongdim = slider.getValue()
+            res_unit = self.varying_params["MIN_RESOURCE_PER_PATCH"][indexalongdim]
+
+        max_num_res = self.env["N_RESOURCES"]
+        if max_num_res == "----TUNED----":
+            max_num_res = max(self.varying_params["N_RESOURCES"])
+
+        max_units = [res_unit for _ in range(int(max_num_res))]
+        resc_quality = self.resc_quality[:, t_ind]
         res_radius = self.env["RADIUS_RESOURCE"]
+        # if not update_dataframes:
         if res_radius == "----TUNED----":
             # in case the patch size was changed during the simulations we
             # read the radius from the corresponding slider
@@ -473,8 +528,8 @@ class ExperimentReplay:
 
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         if self.show_paths:
-            self.draw_agent_paths(self.posx[index][:, max(0, self.t - self.path_length):self.t],
-                                  self.posy[index][:, max(0, self.t - self.path_length):self.t],
+            self.draw_agent_paths(self.posx[:, max(0, t_ind - self.path_length):t_ind],
+                                  self.posy[:, max(0, t_ind - self.path_length):t_ind],
                                   radius)
         self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
 
@@ -482,7 +537,7 @@ class ExperimentReplay:
         if self.show_stats:
             time_dep_stats = []
             time_dep_stats.append("HISTORY SUMMARY:")
-            mode_til_now = self.agmodes[index][:, 0:self.t]
+            mode_til_now = self.agmodes[:, 0:t_ind]
             mean_reloc = np.mean(np.mean((mode_til_now == 2).astype(int), axis=-1))
             if np.isnan(mean_reloc):
                 mean_reloc = 0
@@ -522,6 +577,7 @@ class ExperimentReplay:
             image, colors.GREY, (radius, radius), radius
         )
         new_radius = int((resc_left / max_unit) * radius)
+        # print(f"R={radius}, RN={new_radius}, Remres={resc_left}, maxu={max_unit}")
         pygame.draw.circle(
             image, colors.DARK_GREY, (radius, radius), new_radius
         )

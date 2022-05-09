@@ -14,6 +14,7 @@ from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
 from matplotlib import pyplot as plt
+import zarr
 
 
 class LoadedAgent(Agent):
@@ -292,6 +293,7 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.chunksize = 5000
         self.undersample = int(undersample)
         self.env = None
         self.description = None
@@ -367,94 +369,140 @@ class ExperimentLoader:
                 self.collapse_method = np.min
             self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
-    def read_all_data(self):
+    def read_all_data(self, only_res=False):
         """reading all data in the experiment folder and saving them as numpy files"""
-        print("Reading all experimental data first...")
-        # calculating the maximum number of resource patches over all experiments
-        max_r_in_runs = 0
-        for i, batch_path in enumerate(self.batch_folders):
-            glob_pattern = os.path.join(batch_path, "*")
-            run_folders = [path for path in glob.iglob(glob_pattern)]
-            if i == 0:
-                self.num_runs = len(run_folders)
+        max_r_in_runs = None
+        if not only_res:
+            print("Reading all experimental data first...")
+            # calculating the maximum number of resource patches over all experiments
+            # and reading agent data at the same time
+            max_r_in_runs = 0
+            for i, batch_path in enumerate(self.batch_folders):
+                glob_pattern = os.path.join(batch_path, "*")
+                run_folders = [path for path in glob.iglob(glob_pattern)]
+                if i == 0:
+                    self.num_runs = len(run_folders)
 
-            for j, run in enumerate(run_folders):
-                print(f"Reading agent data batch {i}, run {j}")
-                agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True,
-                                                     t_start=self.t_start, t_end=self.t_end).get_loaded_data()
-                del _
+                for j, run in enumerate(run_folders):
+                    print(f"Reading agent data batch {i}, run {j}")
+                    agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True,
+                                                         t_start=self.t_start, t_end=self.t_end).get_loaded_data()
+                    del _
 
-                # finding out max depleted patches for next loop when we summarize
-                # resource data
-                num_in_run = int(float(
-                    env_data['N_RESOURCES']))  # len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
-                print(f"in this run we have {num_in_run} resources")
-                if num_in_run > max_r_in_runs:
-                    max_r_in_runs = num_in_run
+                    # finding out max depleted patches for next loop when we summarize
+                    # resource data
+                    num_in_run = int(float(
+                        env_data['N_RESOURCES']))  # len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+                    print(f"in this run we have {num_in_run} resources")
+                    if num_in_run > max_r_in_runs:
+                        max_r_in_runs = num_in_run
 
-                if i == 0 and j == 0:
-                    if "N" not in list(self.varying_params.keys()):
-                        num_agents = int(float(env_data['N']))
-                    else:
-                        print("Detected varying group size across runs, will use maximum agent number...")
-                        num_agents = int(np.max(self.varying_params["N"]))
-                    if self.t_start is not None and self.t_end is not None:
-                        num_timesteps = int((self.t_end - self.t_start) / self.undersample)
-                    else:
-                        num_timesteps = int(float(env_data['T']) / self.undersample)
-                    axes_lens = []
-                    for k in sorted(list(self.varying_params.keys())):
-                        axes_lens.append(len(self.varying_params[k]))
-                    print("Initialize data arrays for agent data")
-                    # num_batches x criterion1 x criterion2 x ... x criterionN x num_agents x time
-                    # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
-                    posx_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    posy_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    rew_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    ori_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    vel_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    w_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    u_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    Ip_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    mode_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                    expl_patch_array = np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                    if i == 0 and j == 0:
+                        if "N" not in list(self.varying_params.keys()):
+                            num_agents = int(float(env_data['N']))
+                        else:
+                            print("Detected varying group size across runs, will use maximum agent number...")
+                            num_agents = int(np.max(self.varying_params["N"]))
+                        if self.t_start is not None and self.t_end is not None:
+                            num_timesteps = int((self.t_end - self.t_start) / self.undersample)
+                        else:
+                            num_timesteps = int(float(env_data['T']) / self.undersample)
+                        axes_lens = []
+                        for k in sorted(list(self.varying_params.keys())):
+                            axes_lens.append(len(self.varying_params[k]))
+                        print("Initialize data arrays for agent data")
+                        # num_batches x criterion1 x criterion2 x ... x criterionN x num_agents x time
+                        # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
+                        summary_path = os.path.join(self.experiment_path, "summary")
+                        posx_array = zarr.open(os.path.join(summary_path, "agent_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') #np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        posy_array = zarr.open(os.path.join(summary_path, "agent_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        rew_array = zarr.open(os.path.join(summary_path, "agent_rew.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        ori_array = zarr.open(os.path.join(summary_path, "agent_ori.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float')# np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        vel_array = zarr.open(os.path.join(summary_path, "agent_vel.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        w_array = zarr.open(os.path.join(summary_path, "agent_w.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        u_array = zarr.open(os.path.join(summary_path, "agent_u.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        Ip_array = zarr.open(os.path.join(summary_path, "agent_Ip.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        mode_array = zarr.open(os.path.join(summary_path, "agent_mode.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        expl_patch_array = zarr.open(os.path.join(summary_path, "agent_explpatch.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
 
-                index = [self.varying_params[k].index(float(env_data[k])) for k in
-                         sorted(list(self.varying_params.keys()))]
-                for ai in range(int(float(env_data["N"]))):
-                    ind = (i,) + tuple(index) + (ai,)
-                    posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
-                    posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']
-                    rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
-                    ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
-                    vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
-                    w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
-                    u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
-                    Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
-                    mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
-                    expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+                    index = [self.varying_params[k].index(float(env_data[k])) for k in
+                             sorted(list(self.varying_params.keys()))]
+                    for ai in range(int(float(env_data["N"]))):
+                        ind = (i,) + tuple(index) + (ai,)
+                        posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
+                        posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']
+                        rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
+                        ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
+                        vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
+                        w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
+                        u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
+                        Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
+                        mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
+                        expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
 
-                del agent_data
+                    del agent_data
 
-        print("Datastructures initialized according to loaded data!")
-        print("Saving agent summary...")
-        summary_path = os.path.join(self.experiment_path, "summary")
-        os.makedirs(summary_path, exist_ok=True)
-        np.savez(os.path.join(summary_path, "agent_summary.npz"),
-                 posx=posx_array,
-                 posy=posy_array,
-                 orientation=ori_array,
-                 velocity=vel_array,
-                 Ipriv=Ip_array,
-                 collresource=rew_array,
-                 w=w_array,
-                 u=u_array,
-                 mode=mode_array,
-                 explpatch=expl_patch_array)
+            print("Datastructures initialized according to loaded data!")
+            print("Saving agent summary...")
+            summary_path = os.path.join(self.experiment_path, "summary")
+            os.makedirs(summary_path, exist_ok=True)
+            # np.savez(os.path.join(summary_path, "agent_summary.npz"),
+            #          # posx=posx_array,
+            #          posy=posy_array,
+            #          orientation=ori_array,
+            #          velocity=vel_array,
+            #          Ipriv=Ip_array,
+            #          collresource=rew_array,
+            #          w=w_array,
+            #          u=u_array,
+            #          mode=mode_array,
+            #          explpatch=expl_patch_array)
 
-        del posx_array, posy_array, rew_array, ori_array, vel_array, \
-            w_array, u_array, Ip_array, mode_array, expl_patch_array
+            del posx_array, posy_array, rew_array, ori_array, vel_array, \
+                w_array, u_array, Ip_array, mode_array, expl_patch_array
 
+            # Saving max patch number for further calc
+            env_data['SUMMARY_MAX_PATCHES'] = int(max_r_in_runs)
+            if self.t_start is not None:
+                env_data['SUMMARY_TSTART'] = int(self.t_start)
+            if self.t_end is not None:
+                env_data['SUMMARY_TEND'] = int(self.t_end)
+
+            with open(os.path.join(summary_path, "fixed_env.json"), "w") as fenvf:
+                fixed_env = env_data
+                for k, v in fixed_env.items():
+                    if k in list(self.varying_params.keys()):
+                        fixed_env[k] = "----TUNED----"
+                json.dump(fixed_env, fenvf)
+
+            with open(os.path.join(summary_path, "tuned_env.json"), "w") as tenvf:
+                json.dump(self.varying_params, tenvf)
+
+        if only_res:
+            from pprint import pprint
+            print("!Agent and env data has been already summarized, continuing from there!")
+            # reading back saved env variables from previous interrzpted summary
+            summary_path = os.path.join(self.experiment_path, "summary")
+            with open(os.path.join(summary_path, "fixed_env.json"), "r") as fenvf:
+                self.env = json.loads(fenvf.read())
+            print("Found fixed env parameters")
+            pprint(self.env)
+            with open(os.path.join(summary_path, "tuned_env.json"), "r") as tenvf:
+                self.varying_params = json.loads(tenvf.read())
+            print("Found Varying parameters")
+            pprint(self.varying_params)
+            max_r_in_runs = int(float(self.env.get('SUMMARY_MAX_PATCHES')))
+            self.undersample = int(float(self.env.get("SUMMARY_UNDERSAMPLE", "1")))
+            self.t_start = self.env.get('SUMMARY_TSTART', 0)
+            self.t_end = self.env.get('SUMMARY_TEND', self.env['T'])
+            num_timesteps = int((self.t_end - self.t_start) / self.undersample)
+            axes_lens = []
+            for k in sorted(list(self.varying_params.keys())):
+                axes_lens.append(len(self.varying_params[k]))
+            print(f"Previous summary had parameters t_start={self.t_start} : us-{self.undersample}-us : {self.t_end}=t_end")
+            print(f"Previous summary will have varying axes dimensions: {axes_lens}")
+
+        # Calculating res data
         for i, batch_path in enumerate(self.batch_folders):
             glob_pattern = os.path.join(batch_path, "*")
 
@@ -473,10 +521,11 @@ class ExperimentLoader:
                     # num_batches x criterion1 x criterion2 x ... x criterionN x max_num_resources x time
                     # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                     # where the value is -1 the resource does not exist in time
-                    r_posx_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_posy_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    ax_chunk = [1 for i in range(len(axes_lens))]
+                    r_posx_array = zarr.open(os.path.join(summary_path, "res_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = zarr.open(os.path.join(summary_path, "res_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = zarr.open(os.path.join(summary_path, "res_qual.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = zarr.open(os.path.join(summary_path, "res_rescleft.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
@@ -488,6 +537,7 @@ class ExperimentLoader:
                 # column instead of saving new patches in new columns
                 depletion_times = np.zeros(env_num_res_in_run)
                 for ri in range(num_res_in_run):
+                    print(f"Processing patch {ri}/{num_res_in_run}")
                     if patch_id_dict is None:
                         # we try to collapse data according to generated raw csv if data was not saved in json, otherwise
                         # already done with preprocessing
@@ -565,23 +615,13 @@ class ExperimentLoader:
                     r_rescleft_array[ind] += data
 
         print("Saving resource summary...")
-        np.savez(os.path.join(summary_path, "resource_summary.npz"),
-                 posx=r_posx_array,
-                 posy=r_posy_array,
-                 quality=r_qual_array,
-                 resc_left=r_rescleft_array)
+        # np.savez(os.path.join(summary_path, "resource_summary.npz"),
+        #          posx=r_posx_array,
+        #          posy=r_posy_array,
+        #          quality=r_qual_array,
+        #          resc_left=r_rescleft_array)
 
         del r_posx_array, r_posy_array, r_qual_array, r_rescleft_array
-
-        with open(os.path.join(summary_path, "fixed_env.json"), "w") as fenvf:
-            fixed_env = env_data
-            for k, v in fixed_env.items():
-                if k in list(self.varying_params.keys()):
-                    fixed_env[k] = "----TUNED----"
-            json.dump(fixed_env, fenvf)
-
-        with open(os.path.join(summary_path, "tuned_env.json"), "w") as tenvf:
-            json.dump(self.varying_params, tenvf)
 
         raw_description_path = os.path.join(self.experiment_path, "README.txt")
         sum_description_path = os.path.join(summary_path, "README.txt")
@@ -634,12 +674,37 @@ class ExperimentLoader:
     def reload_summarized_data(self):
         """Loading an already summarized experiment to spare time and resources"""
         print("Reloading previous experiment summary!")
-        self.agent_summary = np.load(os.path.join(self.experiment_path, "summary", "agent_summary.npz"))
-        self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"))
+        if os.path.isfile(os.path.join(self.experiment_path, "summary", "agent_summary.npz")):
+            self.agent_summary = np.load(os.path.join(self.experiment_path, "summary", "agent_summary.npz"))
+        else:
+            if os.path.isdir(os.path.join(self.experiment_path, "summary", "agent_posx.zarr")):
+                self.agent_summary={}
+                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"), mode='r')
+                self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zarr"),
+                                                       mode='r')
+                self.agent_summary['orientation'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),
+                                               mode='r')  # self.experiment.agent_summary['orientation']
+                self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_mode.zarr"),
+                                           mode='r')  # self.experiment.agent_summary['mode']
+                self.agent_summary['collresource'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_rew.zarr"),
+                                             mode='r')  # self.experiment.agent_summary['collresource']
+            else:
+                self.agent_summary = None
+        if not os.path.isfile(os.path.join(self.experiment_path, "summary", "resource_summary.npz")):
+            if not os.path.isdir(os.path.join(self.experiment_path, "summary", "res_posx.zarr")):
+                print("Previous summary folder has been found but does not contain resource data. Summarizing resource data!")
+                self.read_all_data(only_res=True)
+            else:
+                self.res_summary = None
+        else:
+            self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"), mmap_mode="r+")
         with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
             self.env = json.loads(fixf.read())
         print("Overwriting undersample ratio with the one read from env file...")
+        self.t_start = self.env.get('SUMMARY_TSTART')
+        self.t_end = self.env.get('SUMMARY_TEND')
         self.undersample = int(float(self.env.get("SUMMARY_UNDERSAMPLE", "1")))
+        print(f"Previous summary had parameters t_start={self.t_start} : us-{self.undersample}-us : {self.t_end}=t_end")
         with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
             self.varying_params = json.loads(tunedf.read())
         print("Agent, resource and parameter data reloaded!")

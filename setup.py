@@ -20,9 +20,10 @@ setup(
         'matplotlib',
         'python-dotenv',
         'pandas',
-        'influxdb',
+        'influxdb<5.3.0',
         'opencv-python',
-        'xvfbwrapper'
+        'xvfbwrapper',
+        'zarr'
     ],
     extras_require={
         'test': [

@@ -12,6 +12,7 @@ import numpy as np
 import zarr
 import os
 
+
 class ExperimentReplay:
     def __init__(self, data_folder_path, undersample=1, t_start=None, t_end=None, collapse=None):
         """Initialization method to replay recorded simulations from their summary folder. If a summary is not yet
@@ -21,7 +22,8 @@ class ExperimentReplay:
         self.from_script = False  # can be set to True for batch execution of plotting functions
         self.show_vfield = False
         self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=False,
-                                           undersample=undersample, collapse_plot=collapse, t_start=t_start, t_end=t_end)
+                                           undersample=undersample, collapse_plot=collapse, t_start=t_start,
+                                           t_end=t_end)
         self.undersample = self.experiment.undersample
         # todo: this initialization will fail when we systematically change width and height in experiment
         self.WIDTH = int(float(self.experiment.env["ENV_WIDTH"]))
@@ -40,18 +42,24 @@ class ExperimentReplay:
 
         self.env = self.experiment.env
 
+        self.connected_params = self.env.get('SUMMARY_CONNECTED_PARAMS')
+        if self.connected_params is None:
+            self.connected_params = []
+
         self.posx_z = self.experiment.agent_summary['posx']
         self.posy_z = self.experiment.agent_summary['posy']
         self.orientation_z = self.experiment.agent_summary['orientation']
         self.agmodes_z = self.experiment.agent_summary['mode']
         self.coll_resc_z = self.experiment.agent_summary['collresource']
 
-        self.res_pos_x_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posx.zarr"), mode='r') # self.experiment.res_summary['posx']
-        self.res_pos_y_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posy.zarr"), mode='r') # self.experiment.res_summary['posy']
-        self.resc_left_z = zarr.open(os.path.join(data_folder_path, "summary", "res_rescleft.zarr"), mode='r') # self.experiment.res_summary['resc_left']
-        self.resc_quality_z = zarr.open(os.path.join(data_folder_path, "summary", "res_qual.zarr"), mode='r') # self.experiment.res_summary['quality']
-
-        #self.load_data_to_ram()
+        self.res_pos_x_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posx.zarr"),
+                                     mode='r')  # self.experiment.res_summary['posx']
+        self.res_pos_y_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posy.zarr"),
+                                     mode='r')  # self.experiment.res_summary['posy']
+        self.resc_left_z = zarr.open(os.path.join(data_folder_path, "summary", "res_rescleft.zarr"),
+                                     mode='r')  # self.experiment.res_summary['resc_left']
+        self.resc_quality_z = zarr.open(os.path.join(data_folder_path, "summary", "res_qual.zarr"),
+                                        mode='r')  # self.experiment.res_summary['quality']
 
         self.varying_params = self.experiment.varying_params
         self.index_prev = None
@@ -197,7 +205,7 @@ class ExperimentReplay:
         )
 
         # Plotting Button Line
-        button_start_y += 2*self.button_height
+        button_start_y += 2 * self.button_height
         self.plot_efficiency = Button(
             # Mandatory Parameters
             self.screen,  # Surface to place button on
@@ -292,21 +300,86 @@ class ExperimentReplay:
             borderThickness=1
         )
 
+        # Connecting variables Line
+        button_start_y += 2 * self.button_height
+        self.connect_vars_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Connect Vars',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_connect_vars(),  # Function to call when clicked on
+            borderThickness=1
+        )
+        small_textb_width = int(self.slider_width / 4)
+        self.cvar1_tb = TextBox(self.screen, self.button_start_x_2, button_start_y, small_textb_width,
+                                self.button_height, fontSize=int(self.button_height / 2), borderThickness=1)
+        startx = self.button_start_x_2 + small_textb_width
+        self.cvar2_tb = TextBox(self.screen, startx, button_start_y, small_textb_width,
+                                self.button_height, fontSize=int(self.button_height / 2), borderThickness=1)
+        startx += 5 + small_textb_width
+        self.connect_alias_tb = TextBox(self.screen, startx, button_start_y, int(self.slider_width / 2) - 5,
+                                        self.button_height, fontSize=int(self.button_height / 2), borderThickness=1)
+
+    def on_connect_vars(self):
+        """Connected parameters when they change together in dataset, by that we can create new calculated axes"""
+        v1 = int(float(self.cvar1_tb.getText()))
+        if v1 > len(self.varying_params):
+            print(f"The selected parameter index {v1} for variable 1 is too large. The indexing starts at 0.")
+            return
+        v2 = int(float(self.cvar2_tb.getText()))
+        if v2 > len(self.varying_params):
+            print(f"The selected parameter index {v2} for variable 2 is too large. The indexing starts at 0.")
+            return
+        pair_already_connected = False
+        target_pair = None
+        for pair in self.connected_params:
+            if (abs(pair[0]) == abs(v1) and abs(pair[1]) == abs(v2)) or \
+                    ((abs(pair[1]) == abs(v1) and abs(pair[0]) == abs(v2))):
+                pair_already_connected = True
+                target_pair = pair
+        if not pair_already_connected:
+            alias_text = self.connect_alias_tb.getText()
+            if alias_text == "":
+                print(f"Please provide an alias text for the new composite variable!")
+                return
+            self.connected_params.append([v1, v2, alias_text])
+        else:
+            print(f"Pair with alias {target_pair[2]} was already connected. Deleting from connected pairs!")
+            self.connected_params.remove(target_pair)
+        self.env["SUMMARY_CONNECTED_PARAMS"] = self.connected_params
+        if not pair_already_connected:
+            print(
+                f"Connecting variables: [{sorted(list(self.varying_params.keys()))[v1]} x {sorted(list(self.varying_params.keys()))[v2]}] = {alias_text}")
+        self.save_env()
+
+    def save_env(self):
+        env_path = os.path.join(self.experiment.experiment_path, "summary", "fixed_env.json")
+        with open(env_path, "w") as envf:
+            json.dump(self.env, envf, indent=4)
+        print("Env file saved!")
+
     def load_data_to_ram(self):
         cs = self.experiment.chunksize
         self.t_slice = int(self.t_slice)
-        self.posx = self.posx_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.posy = self.posy_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.orientation = self.orientation_z[self.index][:,(self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.agmodes = self.agmodes_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
+        self.posx = self.posx_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.posy = self.posy_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.orientation = self.orientation_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.agmodes = self.agmodes_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.radius = self.env["RADIUS_AGENT"]
 
-        self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.resc_left = self.resc_left_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-        self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice)*cs:(self.t_slice+1)*cs]
-
+        self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
 
     def on_print_reloc_time(self):
         """print mean relative relocation time"""
@@ -327,7 +400,8 @@ class ExperimentReplay:
             t_end = self.T - 1
         else:
             t_end = self.t_end
-        fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end, from_script=self.from_script,
+        fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end,
+                                                               from_script=self.from_script,
                                                                used_batches=used_batches)
         return fig, ax, cbar
 
@@ -373,7 +447,7 @@ class ExperimentReplay:
             self.t_end_b.string = "Set End Time"
 
         self.t_end_b.text = self.t_end_b.font.render(self.t_end_b.string, True,
-                                                         self.t_end_b.textColour)
+                                                     self.t_end_b.textColour)
 
     def on_run_show_vfield(self):
         self.show_vfield = not self.show_vfield
@@ -442,6 +516,9 @@ class ExperimentReplay:
 
         var_keys = sorted(list(self.varying_params.keys()))
         for i in range(len(self.varying_sliders)):
+            self.varying_sliders[i].enable()
+            self.varying_sliders[i].colour = (200, 200, 200)
+            self.varying_sliders[i].handleColour = (0, 0, 0)
             slider = self.varying_sliders[i]
             tbox = self.varying_textboxes[i]
             dimnum = i
@@ -451,6 +528,29 @@ class ExperimentReplay:
             corresp_value = self.varying_params[corresp_key][indexalongdim]
             tbox.setText(f"{corresp_key}: {corresp_value}")
             tbox.draw()
+            # Checking if the variable of the slider is connected with something
+            # print("------checking pairs for ", i)
+            for pair in self.connected_params:
+                if i == abs(pair[0]):
+                    j = pair[1]
+                    # print(f"found pair for {i} as {j}")
+                    if pair[0] < 0 or pair[1] < 0:
+                        print(len(self.varying_params[corresp_key]) - self.varying_sliders[i].getValue())
+                        self.varying_sliders[j].setValue(
+                            len(self.varying_params[corresp_key]) - 1 - self.varying_sliders[i].getValue())
+                    else:
+                        self.varying_sliders[j].setValue(self.varying_sliders[i].getValue())
+                    self.varying_sliders[j].disable()
+                    self.varying_sliders[j].colour = (250, 250, 250)
+                    self.varying_sliders[j].handleColour = (200, 200, 200)
+                elif i == abs(pair[1]):
+                    # print(f"{i} is controlled by {j}, disabling {i}")
+                    self.varying_sliders[i].disable()
+                    self.varying_sliders[i].colour = (250, 250, 250)
+                    self.varying_sliders[i].handleColour = (200, 200, 200)
+                else:
+                    print(f"{i} not in pair")
+                    continue
 
         if not self.is_paused:
             if self.t < self.T - 1:
@@ -473,7 +573,7 @@ class ExperimentReplay:
         update_dataframes = True
         if self.index_prev is not None:
             if self.index_prev == self.index:
-                t_slice = np.floor(self.t/self.experiment.chunksize)
+                t_slice = np.floor(self.t / self.experiment.chunksize)
                 if t_slice == self.t_slice:
                     update_dataframes = False
                 else:
@@ -724,43 +824,7 @@ class ExperimentReplay:
         # Exit if requested
         if event.type == pygame.QUIT:
             sys.exit()
-        #
-        # # Change orientation with mouse wheel
-        # if event.type == pygame.MOUSEWHEEL:
-        #     if event.y == -1:
-        #         event.y = 0
-        #     for ag in self.agents:
-        #         ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
-        #
-        # # Pause on Space
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-            print("Space pressed, quitting!")
-            #self.quit_term = True
-            self.experiment.plot_mean_relocation_time()
-        #
-        # # Speed up on s and down on f. reset default framerate with d
-        # if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
-        #     self.framerate -= 1
-        #     if self.framerate < 1:
-        #         self.framerate = 1
-        # if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
-        #     self.framerate += 1
-        #     if self.framerate > 35:
-        #         self.framerate = 35
-        # if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-        #     self.framerate = self.framerate_orig
-        #
-        # # Continuous mouse events (move with cursor)
-        # if pygame.mouse.get_pressed()[0]:
-        #     try:
-        #         for ag in self.agents:
-        #             ag.move_with_mouse(event.pos, 0, 0)
-        #     except AttributeError:
-        #         for ag in self.agents:
-        #             ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
-        # else:
-        #     for ag in self.agents:
-        #         ag.is_moved_with_cursor = False
+
         if event.type == pygame.VIDEORESIZE:
             # There's some code to add back window content here.
             self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)

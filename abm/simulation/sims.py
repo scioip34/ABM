@@ -302,23 +302,29 @@ class Simulation:
 
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
+        res_id = resource.id
+        resource.kill()
         if self.regenerate_resources:
-            rid = self.add_new_resource_patch()
+            rid = self.add_new_resource_patch(force_id=res_id)
             if resource.show_stats:
                 for res in self.rescources:
                     if res.id == rid:
                         res.show_stats = True
-        resource.kill()
 
-    def add_new_resource_patch(self):
+    def add_new_resource_patch(self, force_id = None):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
         prove_resource method so that the distribution and overlap is following some predefined rules"""
         max_retries = 7000
         resource_proven = 0
-        if len(self.rescources) > 0:
-            id = max([resc.id for resc in self.rescources])
+        if force_id is None:
+            # Id is not specified so we find a new one
+            if len(self.rescources) > 0:
+                id = max([resc.id for resc in self.rescources])
+            else:
+                id = 0
         else:
-            id = 0
+            print("FORCE ID: ", force_id)
+            id = force_id
         retries = 0
         while not resource_proven:
             if retries > max_retries:
@@ -328,8 +334,12 @@ class Simulation:
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
-            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
-                                 quality)
+            if force_id is None:
+                resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
+                                     quality)
+            else:
+                resource = Rescource(id, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
+                                     units, quality)
             # we initialize the resources so that there is no resource-resource overlap, but there can be
             # a resource-agent overlap
             resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)

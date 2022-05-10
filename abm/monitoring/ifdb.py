@@ -191,19 +191,23 @@ def save_resource_data_RAM(resources, t):
             # pos and radius are enough to calculate center
             # (only important in spatially moving res, otherwise take the first element)
             # wasteful with resources but generalizable for later with no effort
-            resources_dict[res.id]["pos_x"] = int(res.position[0])
-            resources_dict[res.id]["pos_y"] = int(res.position[1])
+            resources_dict[res.id]["pos_x"] = []
+            resources_dict[res.id]["pos_y"] = []
             resources_dict[res.id]["radius"] = int(res.radius)
             resources_dict[res.id]["resc_left"] = []
-            resources_dict[res.id]["quality"] = float(res.unit_per_timestep)
+            resources_dict[res.id]["quality"] = []
 
+        resources_dict[res.id]["pos_x"].append(int(res.position[0]))
+        resources_dict[res.id]["pos_y"].append(int(res.position[1]))
         resources_dict[res.id]["resc_left"].append(float(res.resc_left))
-        ids_in_run.append(res.id)
-    global_ids = set(list(resources_dict.keys()))
-    disappeared_patch_ids = list(global_ids.difference(set(ids_in_run)))
-    for res_id in disappeared_patch_ids:
-        if resources_dict[res_id]["end_time"] is None:
-            resources_dict[res_id]["end_time"] = t
+        resources_dict[res.id]["quality"].append(float(res.unit_per_timestep))
+    print(len(resources_dict.keys()))
+        # ids_in_run.append(res.id)
+    # global_ids = set(list(resources_dict.keys()))
+    # disappeared_patch_ids = list(global_ids.difference(set(ids_in_run)))
+    # for res_id in disappeared_patch_ids:
+    #     if resources_dict[res_id]["end_time"] is None:
+    #         resources_dict[res_id]["end_time"] = t
 
 
 def save_resource_data(ifclient, resources, t, exp_hash="", batch_size=None):

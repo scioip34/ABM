@@ -293,8 +293,8 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
-        self.chunksize = 5000
         self.undersample = int(undersample)
+        self.chunksize = None  # chunk size in zarr array
         self.env = None
         self.description = None
         self.efficiency = None
@@ -403,27 +403,33 @@ class ExperimentLoader:
                         else:
                             print("Detected varying group size across runs, will use maximum agent number...")
                             num_agents = int(np.max(self.varying_params["N"]))
+
+                        # Calculating number of timesteps to create data structures
                         if self.t_start is not None and self.t_end is not None:
                             num_timesteps = int((self.t_end - self.t_start) / self.undersample)
                         else:
                             num_timesteps = int(float(env_data['T']) / self.undersample)
+                        self.chunksize = num_timesteps
+
+                        # Calculating axes length along varying parameter dimensions
                         axes_lens = []
                         for k in sorted(list(self.varying_params.keys())):
                             axes_lens.append(len(self.varying_params[k]))
+
                         print("Initialize data arrays for agent data")
                         # num_batches x criterion1 x criterion2 x ... x criterionN x num_agents x time
                         # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                         summary_path = os.path.join(self.experiment_path, "summary")
-                        posx_array = zarr.open(os.path.join(summary_path, "agent_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') #np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        posy_array = zarr.open(os.path.join(summary_path, "agent_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        rew_array = zarr.open(os.path.join(summary_path, "agent_rew.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        ori_array = zarr.open(os.path.join(summary_path, "agent_ori.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float')# np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        vel_array = zarr.open(os.path.join(summary_path, "agent_vel.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        w_array = zarr.open(os.path.join(summary_path, "agent_w.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        u_array = zarr.open(os.path.join(summary_path, "agent_u.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        Ip_array = zarr.open(os.path.join(summary_path, "agent_Ip.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        mode_array = zarr.open(os.path.join(summary_path, "agent_mode.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        expl_patch_array = zarr.open(os.path.join(summary_path, "agent_explpatch.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        posx_array = zarr.open(os.path.join(summary_path, "agent_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') #np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        posy_array = zarr.open(os.path.join(summary_path, "agent_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1,num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        rew_array = zarr.open(os.path.join(summary_path, "agent_rew.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        ori_array = zarr.open(os.path.join(summary_path, "agent_ori.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float')# np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        vel_array = zarr.open(os.path.join(summary_path, "agent_vel.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        w_array = zarr.open(os.path.join(summary_path, "agent_w.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1,num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        u_array = zarr.open(os.path.join(summary_path, "agent_u.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        Ip_array = zarr.open(os.path.join(summary_path, "agent_Ip.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        mode_array = zarr.open(os.path.join(summary_path, "agent_mode.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        expl_patch_array = zarr.open(os.path.join(summary_path, "agent_explpatch.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *axes_lens, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
                              sorted(list(self.varying_params.keys()))]
@@ -522,10 +528,10 @@ class ExperimentLoader:
                     # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                     # where the value is -1 the resource does not exist in time
                     ax_chunk = [1 for i in range(len(axes_lens))]
-                    r_posx_array = zarr.open(os.path.join(summary_path, "res_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_posy_array = zarr.open(os.path.join(summary_path, "res_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = zarr.open(os.path.join(summary_path, "res_qual.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = zarr.open(os.path.join(summary_path, "res_rescleft.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, self.chunksize), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posx_array = zarr.open(os.path.join(summary_path, "res_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = zarr.open(os.path.join(summary_path, "res_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = zarr.open(os.path.join(summary_path, "res_qual.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = zarr.open(os.path.join(summary_path, "res_rescleft.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
@@ -680,6 +686,7 @@ class ExperimentLoader:
             if os.path.isdir(os.path.join(self.experiment_path, "summary", "agent_posx.zarr")):
                 self.agent_summary={}
                 self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"), mode='r')
+                self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zarr"),
                                                        mode='r')
                 self.agent_summary['orientation'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),

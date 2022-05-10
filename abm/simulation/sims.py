@@ -123,7 +123,7 @@ class Simulation:
             self.framerate_orig = framerate
         else:
             # this is more than what is possible withy pygame so it will use the maximal framerate
-            self.framerate_orig = 200
+            self.framerate_orig = 500
         self.framerate = self.framerate_orig
         self.is_paused = False
 

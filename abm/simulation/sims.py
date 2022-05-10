@@ -323,7 +323,6 @@ class Simulation:
             else:
                 id = 0
         else:
-            print("FORCE ID: ", force_id)
             id = force_id
         retries = 0
         while not resource_proven:

@@ -201,7 +201,6 @@ def save_resource_data_RAM(resources, t):
         resources_dict[res.id]["pos_y"].append(int(res.position[1]))
         resources_dict[res.id]["resc_left"].append(float(res.resc_left))
         resources_dict[res.id]["quality"].append(float(res.unit_per_timestep))
-    print(len(resources_dict.keys()))
         # ids_in_run.append(res.id)
     # global_ids = set(list(resources_dict.keys()))
     # disappeared_patch_ids = list(global_ids.difference(set(ids_in_run)))

@@ -536,7 +536,6 @@ class ExperimentReplay:
                     j = pair[1]
                     # print(f"found pair for {i} as {j}")
                     if pair[0] < 0 or pair[1] < 0:
-                        print(len(self.varying_params[corresp_key]) - self.varying_sliders[i].getValue())
                         self.varying_sliders[j].setValue(
                             len(self.varying_params[corresp_key]) - 1 - self.varying_sliders[i].getValue())
                     else:
@@ -550,7 +549,6 @@ class ExperimentReplay:
                     self.varying_sliders[i].colour = (250, 250, 250)
                     self.varying_sliders[i].handleColour = (200, 200, 200)
                 else:
-                    print(f"{i} not in pair")
                     continue
 
         if not self.is_paused:

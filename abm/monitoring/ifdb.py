@@ -3,17 +3,15 @@
 @description: Helper functions for InfluxDB
 """
 import datetime
+import importlib
 import os
 import sys
-import numpy as np
 
+import numpy as np
 from influxdb import InfluxDBClient, DataFrameClient
-from influxdb.exceptions import InfluxDBServerError
 
 import abm.contrib.ifdb_params as ifdbp
 from abm.loader.helper import reconstruct_VPF
-
-import importlib
 
 batch_bodies_agents = []
 batch_bodies_resources = []
@@ -296,7 +294,7 @@ def save_simulation_params(ifclient, sim, exp_hash=""):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=False):
+def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfield=False):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -362,7 +360,6 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=False):
             import zarr, json
             print("Saving resource data as compressed zarr arrays...")
             num_res = len(resources_dict)
-            print(list(resources_dict.keys()))
             t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
             posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
                                  chunks = (num_res, t_len), dtype = 'float')
@@ -404,7 +401,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=False):
                                   chunks=(num_ag, t_len), dtype='float')
             aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zarr"), mode='w', shape=(num_ag, t_len),
                                   chunks=(num_ag, t_len), dtype='float')
-            if v_field_len is not None:
+            if v_field_len is not None and save_extracted_vfield:
                 avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zarr"), mode='w', shape=(num_ag, t_len, v_field_len),
                                       chunks=(num_ag, 1, v_field_len), dtype='float')
 
@@ -413,19 +410,19 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=False):
                 aposyzarr[ag_id-1, :] = agents_dict[ag_id]['posy']
                 aorizarr[ag_id-1, :] = agents_dict[ag_id]['orientation']
                 avelzarr[ag_id-1, :] = agents_dict[ag_id]['velocity']
-                awzarr[ag_id-1, :] = agents_dict[ag_id]['posx']
-                auzarr[ag_id-1, :] = agents_dict[ag_id]['w']
-                aiprivzarr[ag_id-1, :] = agents_dict[ag_id]['u']
-                amodezarr[ag_id-1, :] = agents_dict[ag_id]['Ipriv']
-                acollrzarr[ag_id-1, :] = agents_dict[ag_id]['mode']
+                awzarr[ag_id-1, :] = agents_dict[ag_id]['w']
+                auzarr[ag_id-1, :] = agents_dict[ag_id]['u']
+                aiprivzarr[ag_id-1, :] = agents_dict[ag_id]['Ipriv']
+                amodezarr[ag_id-1, :] = agents_dict[ag_id]['mode']
+                acollrzarr[ag_id-1, :] = agents_dict[ag_id]['collectedr']
                 aexplrzarr[ag_id-1, :] = agents_dict[ag_id]['expl_patch_id']
-                agents_dict[ag_id]['vfield_up'] = np.array(
-                    [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
-                        "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_up']], dtype=object)
-                agents_dict[ag_id]['vfield_down'] = np.array(
-                    [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
-                        "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_down']], dtype=object)
-                if v_field_len is not None:
+                if v_field_len is not None and save_extracted_vfield:
+                    agents_dict[ag_id]['vfield_up'] = np.array(
+                        [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                            "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_up']], dtype=object)
+                    agents_dict[ag_id]['vfield_down'] = np.array(
+                        [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                            "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_down']], dtype=object)
                     for t in range(t_len):
                         vfup = json.loads(agents_dict[ag_id]['vfield_up'][t])
                         vfdown = json.loads(agents_dict[ag_id]['vfield_down'][t])

@@ -63,7 +63,7 @@ class Simulation:
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
-                 patchwise_exclusion=True, parallel=False):
+                 patchwise_exclusion=True, parallel=False, use_zarr=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -108,6 +108,7 @@ class Simulation:
             focal agent
         :param parallel: if True we request to run the simulation parallely with other simulation instances and hence
             the influxDB saving will be handled accordingly.
+        :param use_zarr: using zarr compressed data format to save single run data
         """
         # Arena parameters
         self.WIDTH = width
@@ -176,6 +177,7 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
+        self.use_zarr = use_zarr
         self.write_batch_size = None
         self.parallel = parallel
         if self.parallel:
@@ -737,7 +739,8 @@ class Simulation:
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
             if self.save_in_ifd or self.save_in_ram:
-                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram)
+                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
+                                      save_extracted_vfield=False)
                 env_saver.save_env_vars([self.env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "

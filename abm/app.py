@@ -51,6 +51,7 @@ def start(parallel=False, headless=False):
                          use_ifdb_logging=bool(int(float(envconf["USE_IFDB_LOGGING"]))),
                          use_ram_logging=bool(int(float(envconf["USE_RAM_LOGGING"]))),
                          save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
+                         use_zarr=bool(int(float(envconf["USE_ZARR_FORMAT"]))),
                          parallel=parallel,
                          window_pad=window_pad
                          )

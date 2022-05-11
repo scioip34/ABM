@@ -66,14 +66,21 @@ class DataLoader:
         self.t_end = t_end
         self.patch_id_dict = None
 
+        self.zarr_compressed_runs = False
+
         # Defining path for agent data
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
         if not os.path.isfile(self.agent_csv_path):
             self.agent_json_path = os.path.join(self.data_folder_path, "agent_data.json")
             self.agent_csv_path = None
             if not os.path.isfile(self.agent_json_path):
-                print("Neither json nor csv data found for agent data!")
+                print("Neither json nor csv data found for agent data, looking for zarr!")
                 self.agent_json_path = None
+                if os.path.isdir(os.path.join(self.data_folder_path, "ag_posx.zarr")):
+                    print("Found zarr archives, using them!")
+                    self.zarr_compressed_runs = True
+                else:
+                    print("No zarr archives found!")
         else:
             self.agent_json_path = None
 
@@ -86,6 +93,8 @@ class DataLoader:
             if not os.path.isfile(self.resource_json_path):
                 print("Neither json nor csv data found for resource data!")
                 self.resource_json_path = None
+                if self.zarr_compressed_runs:
+                    print("But zarr archives found!")
         else:
             self.resource_json_path = None
             self.res_json_format = False
@@ -200,7 +209,6 @@ class DataLoader:
                     self.agent_data = json.load(f)
                 self.agent_data = self.agent_json_to_csv_format()
             print("agent_data loaded")
-            print(sys.getsizeof(self.agent_data))
 
             if not self.only_agent:
                 if self.resource_csv_path is not None:
@@ -210,6 +218,20 @@ class DataLoader:
                     with open(self.resource_json_path, "r") as f:
                         self.resource_data = json.load(f)
                     self.resource_data = self.resource_json_to_csv_format()
+                else:
+                    if self.zarr_compressed_runs:
+                        self.resource_data = {}
+                        self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, "res_posx.zarr"),
+                                                            mode='r')
+                        self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, "res_posy.zarr"),
+                                                            mode='r')
+                        self.resource_data['resc_left'] = zarr.open(os.path.join(self.data_folder_path, "res_left.zarr"),
+                                                                   mode='r')
+                        self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, "res_qual.zarr"),
+                                                                mode='r')
+                        self.resource_data['radius'] = zarr.open(os.path.join(self.data_folder_path, "res_rad.zarr"),
+                                                                  mode='r')
+
                 print("resource data loaded")
                 print(sys.getsizeof(self.agent_data))
             else:
@@ -220,11 +242,12 @@ class DataLoader:
     def preprocess_data(self):
         """preprocessing loaded data structures"""
         if not self.only_env:
-            time_len = len(self.agent_data["t"])
-            new_time = [i for i in range(time_len)]
-            self.agent_data["t"] = new_time
-            if not self.only_agent:
-                self.resource_data["t"] = new_time
+            if not self.zarr_compressed_runs:
+                time_len = len(self.agent_data["t"])
+                new_time = [i for i in range(time_len)]
+                self.agent_data["t"] = new_time
+                if not self.only_agent:
+                    self.resource_data["t"] = new_time
 
         # Change env data types
         self.env_data["N"] = int(self.env_data["N"]),
@@ -258,6 +281,8 @@ class DataLoader:
         self.env_data["SUMMARY_UNDERSAMPLE"] = float(self.undersample)
         if self.res_json_format:
             self.env_data["RES_JSON_FORMAT"] = True
+        if self.zarr_compressed_runs:
+            self.env_data["SUMMARY_ZARR_FORMAT"] = True
 
         for k, v in self.env_data.items():
             if isinstance(v, tuple):
@@ -265,18 +290,19 @@ class DataLoader:
 
         # Change time-series data types
         if not self.only_env:
-            for k, v in self.agent_data.items():
-                if k.find("vfield") == -1:
-                    self.agent_data[k] = np.array([float(i) for i in v])
-                else:
-                    self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
-                        "[ ", "[").replace(" ", ", ") for i in v], dtype=object)
+            if not self.zarr_compressed_runs:
+                for k, v in self.agent_data.items():
+                    if k.find("vfield") == -1:
+                        self.agent_data[k] = np.array([float(i) for i in v])
+                    else:
+                        self.agent_data[k] = np.array([i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                            "[ ", "[").replace(" ", ", ") for i in v], dtype=object)
 
-            if not self.only_agent:
-                if not self.res_json_format:
-                    for k, v in self.resource_data.items():
-                        # replacing empty strings with -1
-                        self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
+                if not self.only_agent:
+                    if not self.res_json_format:
+                        for k, v in self.resource_data.items():
+                            # replacing empty strings with -1
+                            self.resource_data[k] = np.array([float(i) if i != "" else -1.0 for i in v])
 
     def get_loaded_data(self):
         """returning the loaded data upon request"""
@@ -434,18 +460,32 @@ class ExperimentLoader:
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
                              sorted(list(self.varying_params.keys()))]
-                    for ai in range(int(float(env_data["N"]))):
-                        ind = (i,) + tuple(index) + (ai,)
-                        posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
-                        posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']
-                        rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
-                        ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
-                        vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
-                        w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
-                        u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
-                        Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
-                        mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
-                        expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+
+                    if not env_data.get("SUMMARY_ZARR_FORMAT", False):
+                        for ai in range(int(float(env_data["N"]))):
+                            ind = (i,) + tuple(index) + (ai,)
+                            posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
+                            posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']
+                            rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
+                            ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
+                            vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
+                            w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
+                            u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
+                            Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
+                            mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
+                            expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+                    else:
+                        ind = (i,) + tuple(index)
+                        posx_array[ind] = agent_data['posx']
+                        posy_array[ind] = agent_data['posy']
+                        rew_array[ind] = agent_data['collresource']
+                        ori_array[ind] = agent_data['orientation']
+                        vel_array[ind] = agent_data['velocity']
+                        w_array[ind] = agent_data['w']
+                        u_array[ind] = agent_data['u']
+                        Ip_array[ind] = agent_data['Ipriv']
+                        mode_array[ind] = agent_data['mode']
+                        expl_patch_array[ind] = agent_data['expl_patch_id']
 
                     del agent_data
 
@@ -536,90 +576,101 @@ class ExperimentLoader:
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
-                # in the raw data we create a new column every time a new patch appears
-                env_num_res_in_run = int(float(env_data['N_RESOURCES']))
-                num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
 
-                # recording times of patch depletion so that we can continously log data into a single
-                # column instead of saving new patches in new columns
-                depletion_times = np.zeros(env_num_res_in_run)
-                for ri in range(num_res_in_run):
-                    print(f"Processing patch {ri}/{num_res_in_run}")
-                    if patch_id_dict is None:
-                        # we try to collapse data according to generated raw csv if data was not saved in json, otherwise
-                        # already done with preprocessing
-                        # in the numpy array we only have N_RESOURCES column
-                        if ri < env_num_res_in_run:
-                            # we check which timestep the patch is depleted and store these in switching time
-                            data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                            data = np.array([float(d) if d != "" else 0.0 for d in data])
-                            data[data < 0] = 0
-                            try:
-                                depletion_times[ri] = np.nonzero(np.diff(data))[0]
-                            except:
-                                depletion_times[ri] = len(data)
-                            collapsed_ri = ri
+                if not env_data.get("SUMMARY_ZARR_FORMAT", False):
+                    # in the raw data we create a new column every time a new patch appears
+                    env_num_res_in_run = int(float(env_data['N_RESOURCES']))
+                    num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
+
+                    # recording times of patch depletion so that we can continously log data into a single
+                    # column instead of saving new patches in new columns
+                    depletion_times = np.zeros(env_num_res_in_run)
+                    for ri in range(num_res_in_run):
+                        print(f"Processing patch {ri}/{num_res_in_run}")
+                        if patch_id_dict is None:
+                            # we try to collapse data according to generated raw csv if data was not saved in json, otherwise
+                            # already done with preprocessing
+                            # in the numpy array we only have N_RESOURCES column
+                            if ri < env_num_res_in_run:
+                                # we check which timestep the patch is depleted and store these in switching time
+                                data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                                data = np.array([float(d) if d != "" else 0.0 for d in data])
+                                data[data < 0] = 0
+                                try:
+                                    depletion_times[ri] = np.nonzero(np.diff(data))[0]
+                                except:
+                                    depletion_times[ri] = len(data)
+                                collapsed_ri = ri
+                            else:
+                                # if the columnid is larger than how many resources we defined in the env file
+                                # that will mean we have a regenereted patch. We need to find which previous patch disappeard
+                                # when this one appeared so we can continously store data in less columns
+                                # print(ri, "depletion_times: ", depletion_times)
+                                data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                                data = np.array([float(d) if d != "" else 0.0 for d in data])
+                                data[data < 0] = 0
+                                # finding which patch is continued by this
+                                try:
+                                    appearance_time = np.nonzero(np.diff(data))[0][0]
+                                except IndexError as e:
+                                    print("Patch didn't appear in this undersampling rate")
+                                    continue
+
+                                # print("patch appeared @ ", appearance_time)
+                                try:
+                                    depletion_time = np.nonzero(np.diff(data))[0][1]
+                                    # print("patch depleted @ ", depletion_time)
+                                except IndexError as e:
+                                    # print("last patch")
+                                    depletion_time = -1
+                                collapsed_ri = np.where(depletion_times == appearance_time)[0][0]
+                                # print("patch continues prev. patch ", collapsed_ri)
+                                depletion_times[collapsed_ri] = depletion_time
+                                # print(ri, "new depletion_times: ", depletion_times)
                         else:
-                            # if the columnid is larger than how many resources we defined in the env file
-                            # that will mean we have a regenereted patch. We need to find which previous patch disappeard
-                            # when this one appeared so we can continously store data in less columns
-                            # print(ri, "depletion_times: ", depletion_times)
-                            data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                            data = np.array([float(d) if d != "" else 0.0 for d in data])
-                            data[data < 0] = 0
-                            # finding which patch is continued by this
-                            try:
-                                appearance_time = np.nonzero(np.diff(data))[0][0]
-                            except IndexError as e:
-                                print("Patch didn't appear in this undersampling rate")
-                                continue
+                            # switching keys and values so we get end:start
+                            patch_id_dict_r = patch_id_dict  # {endt: startt for startt, endt in patch_id_dict.items()}
+                            if ri in list(patch_id_dict_r.keys()):
+                                # this patch is a regenerated patch, we need to find parents
+                                collapsed_ri = patch_id_dict_r[ri]
+                            else:
+                                # This is an original patch
+                                collapsed_ri = ri
 
-                            # print("patch appeared @ ", appearance_time)
-                            try:
-                                depletion_time = np.nonzero(np.diff(data))[0][1]
-                                # print("patch depleted @ ", depletion_time)
-                            except IndexError as e:
-                                # print("last patch")
-                                depletion_time = -1
-                            collapsed_ri = np.where(depletion_times == appearance_time)[0][0]
-                            # print("patch continues prev. patch ", collapsed_ri)
-                            depletion_times[collapsed_ri] = depletion_time
-                            # print(ri, "new depletion_times: ", depletion_times)
-                    else:
-                        # switching keys and values so we get end:start
-                        patch_id_dict_r = patch_id_dict  # {endt: startt for startt, endt in patch_id_dict.items()}
-                        if ri in list(patch_id_dict_r.keys()):
-                            # this patch is a regenerated patch, we need to find parents
-                            collapsed_ri = patch_id_dict_r[ri]
-                        else:
-                            # This is an original patch
-                            collapsed_ri = ri
+                        ind = (i,) + tuple(index) + (collapsed_ri,)
 
-                    ind = (i,) + tuple(index) + (collapsed_ri,)
+                        data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = np.array([float(d) if d != "" else 0.0 for d in data])
+                        data[data < 0] = 0
+                        r_posx_array[ind] += data
 
-                    data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = np.array([float(d) if d != "" else 0.0 for d in data])
-                    data[data < 0] = 0
-                    r_posx_array[ind] += data
+                        data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = np.array([float(d) if d != "" else 0.0 for d in data])
+                        data[data < 0] = 0
+                        r_posy_array[ind] += data
 
-                    data = res_data[f'posy_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = np.array([float(d) if d != "" else 0.0 for d in data])
-                    data[data < 0] = 0
-                    r_posy_array[ind] += data
+                        data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = np.array([float(d) if d != "" else 0.0 for d in data])
+                        data[data < 0] = 0
+                        r_qual_array[ind] += data
 
-                    data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = np.array([float(d) if d != "" else 0.0 for d in data])
-                    data[data < 0] = 0
-                    r_qual_array[ind] += data
+                        data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
+                        # clean empty strings
+                        data = np.array([float(d) if d != "" else 0.0 for d in data])
+                        data[data < 0] = 0
+                        r_rescleft_array[ind] += data
 
-                    data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
-                    # clean empty strings
-                    data = np.array([float(d) if d != "" else 0.0 for d in data])
-                    data[data < 0] = 0
-                    r_rescleft_array[ind] += data
+                else:
+                    num_res_in_run = res_data['posx'].shape[0]
+                    for pid in range(num_res_in_run):
+                        ind = (i,) + tuple(index) + (pid,)
+                        r_posx_array[ind] = res_data['posx'][pid]
+                        r_posy_array[ind] = res_data['posy'][pid]
+                        r_qual_array[ind] = res_data['quality'][pid]
+                        r_rescleft_array[ind] = res_data['resc_left'][pid]
 
         print("Saving resource summary...")
         # np.savez(os.path.join(summary_path, "resource_summary.npz"),

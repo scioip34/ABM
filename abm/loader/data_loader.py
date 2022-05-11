@@ -208,6 +208,21 @@ class DataLoader:
                 with open(self.agent_json_path, "r") as f:
                     self.agent_data = json.load(f)
                 self.agent_data = self.agent_json_to_csv_format()
+            else:
+                if self.zarr_compressed_runs:
+                    self.agent_data = {}
+                    self.agent_data['posx'] = zarr.open(os.path.join(self.data_folder_path, "ag_posx.zarr"), mode='r')
+                    self.agent_data['posy'] = zarr.open(os.path.join(self.data_folder_path, "ag_posy.zarr"), mode='r')
+                    self.agent_data['orientation'] = zarr.open(os.path.join(self.data_folder_path, "ag_ori.zarr"), mode='r')
+                    self.agent_data['velocity'] = zarr.open(os.path.join(self.data_folder_path, "ag_vel.zarr"), mode='r')
+                    self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, "ag_w.zarr"), mode='r')
+                    self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, "ag_u.zarr"), mode='r')
+                    self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, "ag_ipriv.zarr"), mode='r')
+                    self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, "ag_mode.zarr"), mode='r')
+                    self.agent_data['collresource'] = zarr.open(os.path.join(self.data_folder_path, "ag_collr.zarr"), mode='r')
+                    self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, "ag_explr.zarr"), mode='r')
+                else:
+                    raise Exception("No json, csv or zarr archive found for agent data!")
             print("agent_data loaded")
 
             if not self.only_agent:

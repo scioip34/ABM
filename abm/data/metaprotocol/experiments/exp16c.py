@@ -9,10 +9,8 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       04.05.2022
-Goal:       exp16: We test the total number of resources on the depletion timescale by keeping a small number of agents
-            and decreaste the total number of distributed resource units. We expect to get back the original shape
-            of the fficiency curve even with a small number of agents (for which we needed to use very long simulations)
+Date:       11.05.2022
+Goal:       exp16c: we test the usage of new zarr data format!
 Defined by: mezdahun
 """
 
@@ -22,6 +20,7 @@ arena_h = 500
 fixed_criteria = [
     Constant("USE_IFDB_LOGGING", 1),
     Constant("USE_RAM_LOGGING", 1),  # as we have plenty of resources we don't have to deal with IFDB on HPC
+    Constant("USE_ZARR_FORMAT", 1),
     Constant("SAVE_CSV_FILES", 1),
     Constant("WITH_VISUALIZATION", 0),  # how does the simulation speed scale with N
     Constant("TELEPORT_TO_MIDDLE", 0),

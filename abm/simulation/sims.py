@@ -62,8 +62,8 @@ class Simulation:
                  N_resc=10, min_resc_perpatch=200, max_resc_perpatch=1000, min_resc_quality=0.1, max_resc_quality=1,
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
-                 use_ifdb_logging=False, save_csv_files=False, ghost_mode=True, patchwise_exclusion=True,
-                 parallel=False):
+                 use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
+                 patchwise_exclusion=True, parallel=False, use_zarr=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -100,12 +100,15 @@ class Simulation:
         :param show_vision_range: bool to switch visualization of visual range for agents. If true the limit of far
                                 and near field visual field will be drawn around the agents
         :param use_ifdb_logging: Switch to turn IFDB save on or off
+        :param use_ram_logging: log data into memory (RAM) only use this if ifdb is problematic and you have enough
+            resources
         :param save_csv_files: Save all recorded IFDB data as csv file. Only works if IFDB looging was turned on
         :param ghost_mode: if turned on, exploiting agents behave as ghosts and others can pass through them
         :param patchwise_exclusion: excluding agents from social v field if they are exploiting the same patch as the
             focal agent
         :param parallel: if True we request to run the simulation parallely with other simulation instances and hence
             the influxDB saving will be handled accordingly.
+        :param use_zarr: using zarr compressed data format to save single run data
         """
         # Arena parameters
         self.WIDTH = width
@@ -121,7 +124,7 @@ class Simulation:
             self.framerate_orig = framerate
         else:
             # this is more than what is possible withy pygame so it will use the maximal framerate
-            self.framerate_orig = 200
+            self.framerate_orig = 500
         self.framerate = self.framerate_orig
         self.is_paused = False
 
@@ -174,6 +177,7 @@ class Simulation:
         self.clock = pygame.time.Clock()
 
         # Monitoring
+        self.use_zarr = use_zarr
         self.write_batch_size = None
         self.parallel = parallel
         if self.parallel:
@@ -181,7 +185,12 @@ class Simulation:
         else:
             self.ifdb_hash = ""
         self.save_in_ifd = use_ifdb_logging
+        self.save_in_ram = use_ram_logging
         self.save_csv_files = save_csv_files
+        if self.save_in_ram:
+            self.save_in_ifd = False
+            print("Turned off IFDB logging as RAM logging was explicitly requested!!!")
+
         if self.save_in_ifd:
             self.ifdb_client = ifdb.create_ifclient()
             if not self.parallel:
@@ -195,9 +204,11 @@ class Simulation:
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         self.env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
-    def proove_sprite(self, sprite):
+    def proove_sprite(self, sprite, prove_with_agents=True, prove_with_res=True):
         """Checks if the proposed agent or resource is valid according to some rules, e.g. no overlap with resource
-        patches or agents"""
+        patches or agents
+        overlap check for individual sprite groups, i.e. agents or resources can be turn off with the
+        prove_with... parameters set to False"""
         # Checking for collision with already existing resources
         new_res_group = pygame.sprite.Group()
         new_res_group.add(sprite)
@@ -215,7 +226,14 @@ class Simulation:
             False,
             pygame.sprite.collide_circle
         )
-        if len(collision_group) > 0 or len(collision_group_a) > 0:
+
+        is_proven = True
+        if prove_with_agents:
+            is_proven = is_proven and not (len(collision_group_a) > 0)
+        if prove_with_res:
+            is_proven = is_proven and not (len(collision_group) > 0)
+
+        if not is_proven:
             return False
         else:
             return True
@@ -286,31 +304,47 @@ class Simulation:
 
     def kill_resource(self, resource):
         """Killing (and regenerating) a given resource patch"""
+        res_id = resource.id
+        resource.kill()
         if self.regenerate_resources:
-            rid = self.add_new_resource_patch()
+            rid = self.add_new_resource_patch(force_id=res_id)
             if resource.show_stats:
                 for res in self.rescources:
                     if res.id == rid:
                         res.show_stats = True
-        resource.kill()
 
-    def add_new_resource_patch(self):
+    def add_new_resource_patch(self, force_id = None):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
         prove_resource method so that the distribution and overlap is following some predefined rules"""
+        max_retries = 7000
         resource_proven = 0
-        if len(self.rescources) > 0:
-            id = max([resc.id for resc in self.rescources])
+        if force_id is None:
+            # Id is not specified so we find a new one
+            if len(self.rescources) > 0:
+                id = max([resc.id for resc in self.rescources])
+            else:
+                id = 0
         else:
-            id = 0
+            id = force_id
+        retries = 0
         while not resource_proven:
+            if retries > max_retries:
+                raise Exception("Reached timeout while trying to create resources without overlap!")
             radius = self.resc_radius
             x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
             y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
-            resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
-                                 quality)
-            resource_proven = self.proove_sprite(resource)
+            if force_id is None:
+                resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
+                                     quality)
+            else:
+                resource = Rescource(id, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
+                                     units, quality)
+            # we initialize the resources so that there is no resource-resource overlap, but there can be
+            # a resource-agent overlap
+            resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)
+            retries+=1
         self.rescources.add(resource)
         return resource.id
 
@@ -531,19 +565,24 @@ class Simulation:
     def start(self):
 
         start_time = datetime.now()
+        print(f"Running simulation start method!")
 
         # Creating N agents in the environment
+        print("Creating agents!")
         self.create_agents()
 
         # Creating resource patches
+        print("Creating resources!")
         self.create_resources()
 
         # Creating surface to show visual fields
+        print("Creating visual field graph!")
         self.stats, self.stats_pos = self.create_vis_field_graph()
 
         # local var to decide when to show visual fields
         turned_on_vfield = 0
 
+        print("Starting main simulation loop!")
         # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 
@@ -680,14 +719,18 @@ class Simulation:
 
             # Monitoring with IFDB
             if self.save_in_ifd:
-                ifdb.save_agent_data(self.ifdb_client, self.agents, exp_hash=self.ifdb_hash,
+                ifdb.save_agent_data(self.ifdb_client, self.agents, self.t, exp_hash=self.ifdb_hash,
                                      batch_size=self.write_batch_size)
-                ifdb.save_resource_data(self.ifdb_client, self.rescources, exp_hash=self.ifdb_hash,
+                ifdb.save_resource_data(self.ifdb_client, self.rescources, self.t, exp_hash=self.ifdb_hash,
                                         batch_size=self.write_batch_size)
+            elif self.save_in_ram:
+                ifdb.save_agent_data_RAM(self.agents, self.t)
+                ifdb.save_resource_data_RAM(self.rescources, self.t)
 
             # Moving time forward
-            if self.t % 500 == 0:
+            if self.t % 500 == 0 or self.t == 1:
                 print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
+                print(f"Simulation FPS: {self.clock.get_fps()}")
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
@@ -695,12 +738,13 @@ class Simulation:
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
-            if self.save_in_ifd:
-                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash)
+            if self.save_in_ifd or self.save_in_ram:
+                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
+                                      save_extracted_vfield=False)
                 env_saver.save_env_vars([self.env_path], "env_params.json")
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
-                                "but IFDB logging was turned off. Nothing to save! Please turn on IFDB logging"
+                                "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
                                 " or turn off CSV saving feature.")
 
         end_save_time = datetime.now()

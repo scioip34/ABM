@@ -3,18 +3,20 @@
 @description: Helper functions for InfluxDB
 """
 import datetime
+import importlib
 import os
-import numpy as np
+import sys
 
+import numpy as np
 from influxdb import InfluxDBClient, DataFrameClient
-from influxdb.exceptions import InfluxDBServerError
 
 import abm.contrib.ifdb_params as ifdbp
-
-import importlib
+from abm.loader.helper import reconstruct_VPF
 
 batch_bodies_agents = []
 batch_bodies_resources = []
+resources_dict = {}
+agents_dict = {}
 
 def create_ifclient():
     """Connecting to the InfluxDB defined with environmental variables and returning a client instance.
@@ -48,8 +50,50 @@ def pad_to_n_digits(number, n=3):
     else:
         return str(number)
 
+def save_agent_data_RAM(agents, t):
+    """Saving relevant agent data into InfluxDB intance
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database
+    """
+    global agents_dict
+    if t % 500 == 0:
+        print(f"Agent data size in memory: {sys.getsizeof(agents_dict)/1024} MB", )
+    for agent in agents:
+        if agent.id not in list(agents_dict.keys()):
+            agents_dict[agent.id] = {}
+            agent_name = f"agent-{pad_to_n_digits(agent.id, n=2)}"
+            agents_dict[agent.id]['agent_name'] = agent_name
+            agents_dict[agent.id][f"posx"] = []
+            agents_dict[agent.id][f"posy"] = []
+            agents_dict[agent.id][f"orientation"] = []
+            agents_dict[agent.id][f"velocity"] = []
+            agents_dict[agent.id][f"w"] = []
+            agents_dict[agent.id][f"u"] = []
+            agents_dict[agent.id][f"Ipriv"] = []
+            agents_dict[agent.id][f"mode"] = []
+            agents_dict[agent.id][f"collectedr"] = []
+            agents_dict[agent.id][f"expl_patch_id"] = []
+            # only storing visual field edges to compress data and keep real time simulations
+            agents_dict[agent.id][f"vfield_up"] = []
+            agents_dict[agent.id][f"vfield_down"] = []
 
-def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
+        # format the data as a single measurement for influx
+        agents_dict[agent.id][f"posx"].append(int(agent.position[0]))
+        agents_dict[agent.id][f"posy"].append(int(agent.position[1]))
+        agents_dict[agent.id][f"orientation"].append(float(agent.orientation))
+        agents_dict[agent.id][f"velocity"].append(float(agent.velocity))
+        agents_dict[agent.id][f"w"].append(float(agent.w))
+        agents_dict[agent.id][f"u"].append(float(agent.u))
+        agents_dict[agent.id][f"Ipriv"].append(float(agent.I_priv))
+        agents_dict[agent.id][f"mode"].append(int(mode_to_int(agent.mode)))
+        agents_dict[agent.id][f"collectedr"].append(float(agent.collected_r))
+        agents_dict[agent.id][f"expl_patch_id"].append(int(agent.exploited_patch_id))
+        # only storing visual field edges to compress data and keep real time simulations
+        agents_dict[agent.id][f"vfield_up"].append(f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}")
+        agents_dict[agent.id][f"vfield_down"].append(f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}")
+
+
+def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database
@@ -57,6 +101,7 @@ def save_agent_data(ifclient, agents, exp_hash="", batch_size=None):
     global batch_bodies_agents
     measurement_name = f"agent_data{exp_hash}"
     fields = {}
+    fields['t'] = t
     for agent in agents:
         agent_name = f"agent-{pad_to_n_digits(agent.id, n=2)}"
         # take a timestamp for this measurement
@@ -124,13 +169,53 @@ def mode_to_int(mode):
         return int(3)
 
 
-def save_resource_data(ifclient, resources, exp_hash="", batch_size=None):
+def save_resource_data_RAM(resources, t):
+    """Saving relevant resource patch data into InfluxDB instance
+    if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
+    the unique measurement in the database"""
+    global resources_dict
+    if t % 500 == 0:
+        print(f"Resource data size in memory: {sys.getsizeof(resources_dict)/1024} MB", )
+    ids_in_run = []
+    for res in resources:
+        if res.id not in list(resources_dict.keys()):
+            resources_dict[res.id] = {}
+            resources_dict[res.id]["start_time"] = t
+            resources_dict[res.id]["end_time"] = None
+
+            res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
+            resources_dict[res.id]["res_name"] = res_name
+
+            # format the data as a single measurement for influx
+            # pos and radius are enough to calculate center
+            # (only important in spatially moving res, otherwise take the first element)
+            # wasteful with resources but generalizable for later with no effort
+            resources_dict[res.id]["pos_x"] = []
+            resources_dict[res.id]["pos_y"] = []
+            resources_dict[res.id]["radius"] = int(res.radius)
+            resources_dict[res.id]["resc_left"] = []
+            resources_dict[res.id]["quality"] = []
+
+        resources_dict[res.id]["pos_x"].append(int(res.position[0]))
+        resources_dict[res.id]["pos_y"].append(int(res.position[1]))
+        resources_dict[res.id]["resc_left"].append(float(res.resc_left))
+        resources_dict[res.id]["quality"].append(float(res.unit_per_timestep))
+        # ids_in_run.append(res.id)
+    # global_ids = set(list(resources_dict.keys()))
+    # disappeared_patch_ids = list(global_ids.difference(set(ids_in_run)))
+    # for res_id in disappeared_patch_ids:
+    #     if resources_dict[res_id]["end_time"] is None:
+    #         resources_dict[res_id]["end_time"] = t
+
+
+def save_resource_data(ifclient, resources, t, exp_hash="", batch_size=None):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     global batch_bodies_resources
     measurement_name = f"resource_data{exp_hash}"
     fields = {}
+    fields['t'] = t
     for res in resources:
         res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
         # take a timestamp for this measurement
@@ -209,30 +294,147 @@ def save_simulation_params(ifclient, sim, exp_hash=""):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv(exp_hash=""):
+def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfield=False):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
+    global resources_dict, agents_dict
     importlib.reload(ifdbp)
-    ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
-                               ifdbp.INFLUX_PORT,
-                               ifdbp.INFLUX_USER,
-                               ifdbp.INFLUX_PSWD,
-                               ifdbp.INFLUX_DB_NAME,
-                               timeout=ifdbp.INFLUX_TIMEOUT,
-                               retries=ifdbp.INFLUX_RETRIES)
+    if not use_ram:
+        print("Saving data with client timeout of 600s")
+        ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
+                                   ifdbp.INFLUX_PORT,
+                                   ifdbp.INFLUX_USER,
+                                   ifdbp.INFLUX_PSWD,
+                                   ifdbp.INFLUX_DB_NAME,
+                                   timeout=600,  # using larger timeout for data saving
+                                   retries=ifdbp.INFLUX_RETRIES)
 
-    # create base folder in data
-    save_dir = ifdbp.TIMESTAMP_SAVE_DIR
-    os.makedirs(save_dir, exist_ok=True)
+        # create base folder in data
+        save_dir = ifdbp.TIMESTAMP_SAVE_DIR
+        os.makedirs(save_dir, exist_ok=True)
 
-    measurement_names = [f"agent_data{exp_hash}", f"resource_data{exp_hash}"]
-    for mes_name in measurement_names:
-        data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=100000)
-        ret = data_dict[mes_name]
-        if exp_hash != "":
-            filename = mes_name.split(exp_hash)[0]
+        measurement_names = [f"agent_data{exp_hash}", f"resource_data{exp_hash}"]
+        for mes_name in measurement_names:
+            print(f"Querying data with measurement name: {mes_name}")
+            data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
+            print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
+            print("Keys: ", list(data_dict.keys()))
+            ret = data_dict[mes_name]
+            if exp_hash != "":
+                filename = mes_name.split(exp_hash)[0]
+            else:
+                filename = mes_name
+            print("Saving csv file...")
+            save_file_path = os.path.join(save_dir, f'{filename}.csv')
+            ret.to_csv(save_file_path, sep=",", encoding="utf-8")
+            print(f"Cleaning up measurement from IFDB: {mes_name}")
+            ifclient.delete_series(ifdbp.INFLUX_DB_NAME, mes_name)
+            print(f"Remaining measurements: {ifclient.get_list_measurements()}")
+
+    else:
+        save_dir = ifdbp.TIMESTAMP_SAVE_DIR
+        os.makedirs(save_dir, exist_ok=True)
+        if not as_zar:
+            import json
+            print("Saving resource data as json file...")
+            mes_name = f"resource_data{exp_hash}"
+            if exp_hash != "":
+                filename = mes_name.split(exp_hash)[0]
+            else:
+                filename = mes_name
+            save_file_path = os.path.join(save_dir, f'{filename}.json')
+            with open(save_file_path, "w") as f:
+                json.dump(resources_dict, f,)
+
+            print("Saving agent data as json file...")
+            mes_name = f"agent_data{exp_hash}"
+            if exp_hash != "":
+                filename = mes_name.split(exp_hash)[0]
+            else:
+                filename = mes_name
+            save_file_path = os.path.join(save_dir, f'{filename}.json')
+            with open(save_file_path, "w") as f:
+                json.dump(agents_dict, f)
         else:
-            filename = mes_name
-        save_file_path = os.path.join(save_dir, f'{filename}.csv')
-        ret.to_csv(save_file_path, sep=",", encoding="utf-8")
+            import zarr, json
+            print("Saving resource data as compressed zarr arrays...")
+            num_res = len(resources_dict)
+            t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
+            posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
+                                 chunks = (num_res, t_len), dtype = 'float')
+            posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zarr"), mode='w', shape=(num_res, t_len),
+                                 chunks = (num_res, t_len), dtype = 'float')
+            rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
+                                  chunks = (num_res, t_len), dtype = 'float')
+            qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
+                                 chunks = (num_res, t_len), dtype = 'float')
+            resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
+                               chunks = (num_res, t_len), dtype = 'float')
+            for res_id, res_dict in resources_dict.items():
+                posxzarr[res_id-1, :] = resources_dict[res_id]['pos_x']
+                posyzarr[res_id-1, :] = resources_dict[res_id]['pos_y']
+                rleftzarr[res_id-1, :] = resources_dict[res_id]['resc_left']
+                qualzarr[res_id-1, :] = resources_dict[res_id]['quality']
+                resrad[res_id-1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
+
+            print("Saving agent data as compressed zarr arrays...")
+            num_ag = len(agents_dict)
+            v_field_len = int(float(ifdbp.envconf.get("VISUAL_FIELD_RESOLUTION")))
+            aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            aposyzarr = zarr.open(os.path.join(save_dir, "ag_posy.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            aorizarr = zarr.open(os.path.join(save_dir, "ag_ori.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            avelzarr = zarr.open(os.path.join(save_dir, "ag_vel.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            awzarr = zarr.open(os.path.join(save_dir, "ag_w.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            auzarr = zarr.open(os.path.join(save_dir, "ag_u.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            aiprivzarr = zarr.open(os.path.join(save_dir, "ag_ipriv.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            amodezarr = zarr.open(os.path.join(save_dir, "ag_mode.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zarr"), mode='w', shape=(num_ag, t_len),
+                                  chunks=(num_ag, t_len), dtype='float')
+            aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zarr"), mode='w', shape=(num_ag, t_len),
+                                  chunks=(num_ag, t_len), dtype='float')
+            if v_field_len is not None and save_extracted_vfield:
+                avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zarr"), mode='w', shape=(num_ag, t_len, v_field_len),
+                                      chunks=(num_ag, 1, v_field_len), dtype='float')
+
+            for ag_id, ag_ict in agents_dict.items():
+                aposxzarr[ag_id-1, :] = agents_dict[ag_id]['posx']
+                aposyzarr[ag_id-1, :] = agents_dict[ag_id]['posy']
+                aorizarr[ag_id-1, :] = agents_dict[ag_id]['orientation']
+                avelzarr[ag_id-1, :] = agents_dict[ag_id]['velocity']
+                awzarr[ag_id-1, :] = agents_dict[ag_id]['w']
+                auzarr[ag_id-1, :] = agents_dict[ag_id]['u']
+                aiprivzarr[ag_id-1, :] = agents_dict[ag_id]['Ipriv']
+                amodezarr[ag_id-1, :] = agents_dict[ag_id]['mode']
+                acollrzarr[ag_id-1, :] = agents_dict[ag_id]['collectedr']
+                aexplrzarr[ag_id-1, :] = agents_dict[ag_id]['expl_patch_id']
+                if v_field_len is not None and save_extracted_vfield:
+                    agents_dict[ag_id]['vfield_up'] = np.array(
+                        [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                            "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_up']], dtype=object)
+                    agents_dict[ag_id]['vfield_down'] = np.array(
+                        [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                            "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_down']], dtype=object)
+                    for t in range(t_len):
+                        vfup = json.loads(agents_dict[ag_id]['vfield_up'][t])
+                        vfdown = json.loads(agents_dict[ag_id]['vfield_down'][t])
+                        if vfup != []:
+                            vfup = [int(float(v)) for v in vfup]
+                            vfdown = [int(float(v)) for v in vfdown]
+                            vf = reconstruct_VPF(v_field_len, vfup, vfdown)
+                        else:
+                            vf = np.zeros(v_field_len)
+                        avfzarr[ag_id-1, t, :] = vf
+
+        print("Cleaning global data structure!")
+        resources_dict = {}
+        agents_dict = {}
+

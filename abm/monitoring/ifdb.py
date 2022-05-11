@@ -11,6 +11,7 @@ from influxdb import InfluxDBClient, DataFrameClient
 from influxdb.exceptions import InfluxDBServerError
 
 import abm.contrib.ifdb_params as ifdbp
+from abm.loader.helper import reconstruct_VPF
 
 import importlib
 
@@ -295,7 +296,7 @@ def save_simulation_params(ifclient, sim, exp_hash=""):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv(exp_hash="", use_ram = False):
+def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=False):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -336,26 +337,105 @@ def save_ifdb_as_csv(exp_hash="", use_ram = False):
     else:
         save_dir = ifdbp.TIMESTAMP_SAVE_DIR
         os.makedirs(save_dir, exist_ok=True)
-        import json
-        print("Saving resource data as json file...")
-        mes_name = f"resource_data{exp_hash}"
-        if exp_hash != "":
-            filename = mes_name.split(exp_hash)[0]
-        else:
-            filename = mes_name
-        save_file_path = os.path.join(save_dir, f'{filename}.json')
-        with open(save_file_path, "w") as f:
-            json.dump(resources_dict, f,)
+        if not as_zar:
+            import json
+            print("Saving resource data as json file...")
+            mes_name = f"resource_data{exp_hash}"
+            if exp_hash != "":
+                filename = mes_name.split(exp_hash)[0]
+            else:
+                filename = mes_name
+            save_file_path = os.path.join(save_dir, f'{filename}.json')
+            with open(save_file_path, "w") as f:
+                json.dump(resources_dict, f,)
 
-        print("Saving agent data as json file...")
-        mes_name = f"agent_data{exp_hash}"
-        if exp_hash != "":
-            filename = mes_name.split(exp_hash)[0]
+            print("Saving agent data as json file...")
+            mes_name = f"agent_data{exp_hash}"
+            if exp_hash != "":
+                filename = mes_name.split(exp_hash)[0]
+            else:
+                filename = mes_name
+            save_file_path = os.path.join(save_dir, f'{filename}.json')
+            with open(save_file_path, "w") as f:
+                json.dump(agents_dict, f)
         else:
-            filename = mes_name
-        save_file_path = os.path.join(save_dir, f'{filename}.json')
-        with open(save_file_path, "w") as f:
-            json.dump(agents_dict, f)
+            import zarr, json
+            print("Saving resource data as compressed zarr arrays...")
+            num_res = len(resources_dict)
+            print(list(resources_dict.keys()))
+            t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
+            posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
+                                 chunks = (num_res, t_len), dtype = 'float')
+            posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zarr"), mode='w', shape=(num_res, t_len),
+                                 chunks = (num_res, t_len), dtype = 'float')
+            rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
+                                  chunks = (num_res, t_len), dtype = 'float')
+            qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
+                                 chunks = (num_res, t_len), dtype = 'float')
+            resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
+                               chunks = (num_res, t_len), dtype = 'float')
+            for res_id, res_dict in resources_dict.items():
+                posxzarr[res_id-1, :] = resources_dict[res_id]['pos_x']
+                posyzarr[res_id-1, :] = resources_dict[res_id]['pos_y']
+                rleftzarr[res_id-1, :] = resources_dict[res_id]['resc_left']
+                qualzarr[res_id-1, :] = resources_dict[res_id]['quality']
+                resrad[res_id-1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
+
+            print("Saving agent data as compressed zarr arrays...")
+            num_ag = len(agents_dict)
+            v_field_len = int(float(ifdbp.envconf.get("VISUAL_FIELD_RESOLUTION")))
+            aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            aposyzarr = zarr.open(os.path.join(save_dir, "ag_posy.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            aorizarr = zarr.open(os.path.join(save_dir, "ag_ori.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            avelzarr = zarr.open(os.path.join(save_dir, "ag_vel.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            awzarr = zarr.open(os.path.join(save_dir, "ag_w.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            auzarr = zarr.open(os.path.join(save_dir, "ag_u.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            aiprivzarr = zarr.open(os.path.join(save_dir, "ag_ipriv.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            amodezarr = zarr.open(os.path.join(save_dir, "ag_mode.zarr"), mode='w', shape=(num_ag, t_len),
+                                 chunks=(num_ag, t_len), dtype='float')
+            acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zarr"), mode='w', shape=(num_ag, t_len),
+                                  chunks=(num_ag, t_len), dtype='float')
+            aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zarr"), mode='w', shape=(num_ag, t_len),
+                                  chunks=(num_ag, t_len), dtype='float')
+            if v_field_len is not None:
+                avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zarr"), mode='w', shape=(num_ag, t_len, v_field_len),
+                                      chunks=(num_ag, 1, v_field_len), dtype='float')
+
+            for ag_id, ag_ict in agents_dict.items():
+                aposxzarr[ag_id-1, :] = agents_dict[ag_id]['posx']
+                aposyzarr[ag_id-1, :] = agents_dict[ag_id]['posy']
+                aorizarr[ag_id-1, :] = agents_dict[ag_id]['orientation']
+                avelzarr[ag_id-1, :] = agents_dict[ag_id]['velocity']
+                awzarr[ag_id-1, :] = agents_dict[ag_id]['posx']
+                auzarr[ag_id-1, :] = agents_dict[ag_id]['w']
+                aiprivzarr[ag_id-1, :] = agents_dict[ag_id]['u']
+                amodezarr[ag_id-1, :] = agents_dict[ag_id]['Ipriv']
+                acollrzarr[ag_id-1, :] = agents_dict[ag_id]['mode']
+                aexplrzarr[ag_id-1, :] = agents_dict[ag_id]['expl_patch_id']
+                agents_dict[ag_id]['vfield_up'] = np.array(
+                    [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                        "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_up']], dtype=object)
+                agents_dict[ag_id]['vfield_down'] = np.array(
+                    [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                        "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_down']], dtype=object)
+                if v_field_len is not None:
+                    for t in range(t_len):
+                        vfup = json.loads(agents_dict[ag_id]['vfield_up'][t])
+                        vfdown = json.loads(agents_dict[ag_id]['vfield_down'][t])
+                        if vfup != []:
+                            vfup = [int(float(v)) for v in vfup]
+                            vfdown = [int(float(v)) for v in vfdown]
+                            vf = reconstruct_VPF(v_field_len, vfup, vfdown)
+                        else:
+                            vf = np.zeros(v_field_len)
+                        avfzarr[ag_id-1, t, :] = vf
 
         print("Cleaning global data structure!")
         resources_dict = {}

@@ -1,9 +1,7 @@
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
 import os
-EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
-if EXP_NAME == "":
-    raise Exception("No experiment name has been passed")
+EXP_NAME = "testram"
 
 description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
@@ -64,7 +62,7 @@ sum_resources = 3000
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
-num_patches = [100]
+num_patches = [50, 100]
 criteria_exp = [
     Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
@@ -77,7 +75,7 @@ criteria_exp = [
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 100000)
+    Constant("T", 1000)
 ]
 
 # Creating metaprotocol and add defined criteria

@@ -25,4 +25,4 @@ for hashed_sf in hashed_subfolders:
         shutil.move(batch_folder, os.path.join(distributed_exp_path, f"batch_{batch_num}"))
         batch_num += 1
     print(f"removing hashed folder {hashed_sf}")
-    os.rmdir(hashed_sf)
+    shutil.rmtree(hashed_sf)

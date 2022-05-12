@@ -203,10 +203,11 @@ class MetaProtocol:
     def save_description(self):
         """Saving description text as txt file in the experiment folder"""
         if self.description is not None:
+            root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
             if self.experiment_name is None:
-                experiment_folder = os.path.join("abm/data/simulation_data", "UnknownExp")
+                experiment_folder = os.path.join(root_abm_dir, "abm/data/simulation_data", "UnknownExp")
             else:
-                experiment_folder = os.path.join("abm/data/simulation_data", self.experiment_name)
+                experiment_folder = os.path.join(root_abm_dir, "abm/data/simulation_data", self.experiment_name)
             description_path = os.path.join(experiment_folder, "README.txt")
             os.makedirs(experiment_folder, exist_ok=True)
             with open(description_path, "w") as readmefile:

@@ -10,9 +10,9 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       12.05.2022
-Goal:       exp16c: testing efficiency plot and data amount (with zarr compression) for 3 agents with 1200 total units
-                    and relatively long 50k simulation times. In further subversions of the experiment we test how
-                    efficiency landscape changes with the number of agents if we keep everything else fixed.
+Goal:       exp16d: testing efficiency plot and data amount (with zarr compression) for 4 agents with 1200 total units
+                    and relatively long 50k simulation times. We would like to see how the efficiency landscape changes
+                    with increasing number of agents and why (especially in limit cases where the group is very small).
 Defined by: mezdahun
 """
 

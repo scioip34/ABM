@@ -491,16 +491,16 @@ class ExperimentLoader:
                             expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
                     else:
                         ind = (i,) + tuple(index)
-                        posx_array[ind] = agent_data['posx']
-                        posy_array[ind] = agent_data['posy']
-                        rew_array[ind] = agent_data['collresource']
-                        ori_array[ind] = agent_data['orientation']
-                        vel_array[ind] = agent_data['velocity']
-                        w_array[ind] = agent_data['w']
-                        u_array[ind] = agent_data['u']
-                        Ip_array[ind] = agent_data['Ipriv']
-                        mode_array[ind] = agent_data['mode']
-                        expl_patch_array[ind] = agent_data['expl_patch_id']
+                        posx_array[ind] = agent_data['posx'][..., self.t_start:self.t_end:self.undersample]
+                        posy_array[ind] = agent_data['posy'][..., self.t_start:self.t_end:self.undersample]
+                        rew_array[ind] = agent_data['collresource'][..., self.t_start:self.t_end:self.undersample]
+                        ori_array[ind] = agent_data['orientation'][..., self.t_start:self.t_end:self.undersample]
+                        vel_array[ind] = agent_data['velocity'][..., self.t_start:self.t_end:self.undersample]
+                        w_array[ind] = agent_data['w'][..., self.t_start:self.t_end:self.undersample]
+                        u_array[ind] = agent_data['u'][..., self.t_start:self.t_end:self.undersample]
+                        Ip_array[ind] = agent_data['Ipriv'][..., self.t_start:self.t_end:self.undersample]
+                        mode_array[ind] = agent_data['mode'][..., self.t_start:self.t_end:self.undersample]
+                        expl_patch_array[ind] = agent_data['expl_patch_id'][..., self.t_start:self.t_end:self.undersample]
 
                     del agent_data
 
@@ -682,10 +682,10 @@ class ExperimentLoader:
                     num_res_in_run = res_data['posx'].shape[0]
                     for pid in range(num_res_in_run):
                         ind = (i,) + tuple(index) + (pid,)
-                        r_posx_array[ind] = res_data['posx'][pid]
-                        r_posy_array[ind] = res_data['posy'][pid]
-                        r_qual_array[ind] = res_data['quality'][pid]
-                        r_rescleft_array[ind] = res_data['resc_left'][pid]
+                        r_posx_array[ind] = res_data['posx'][pid, self.t_start:self.t_end:self.undersample]
+                        r_posy_array[ind] = res_data['posy'][pid, self.t_start:self.t_end:self.undersample]
+                        r_qual_array[ind] = res_data['quality'][pid, self.t_start:self.t_end:self.undersample]
+                        r_rescleft_array[ind] = res_data['resc_left'][pid, self.t_start:self.t_end:self.undersample]
 
         print("Saving resource summary...")
         # np.savez(os.path.join(summary_path, "resource_summary.npz"),

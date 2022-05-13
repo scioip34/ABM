@@ -70,7 +70,7 @@ class ExperimentReplay:
         self.is_paused = True
         self.show_stats = False
         self.show_paths = False
-        self.path_length = 100
+        self.path_length = 5
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -657,6 +657,11 @@ class ExperimentReplay:
                     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     pygame.draw.line(self.screen, colors.GREY, point1, point2, 3)
+                for t in range(1, path_length):
+                    point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
+                    point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
+                    pygame.gfxdraw.pixel(self.screen, int(point1[0]), int(point1[1]), colors.BLACK)
+                    pygame.gfxdraw.pixel(self.screen, int(point2[0]), int(point2[1]), colors.BLACK)
         except IndexError as e:
             pass
 

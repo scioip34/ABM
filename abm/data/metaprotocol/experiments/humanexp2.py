@@ -10,10 +10,8 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       13.05.2022
-Goal:       humanexp1: With this batch of experiments we first match the parameters of the simulation environment with
-            those planned to be used for human experimentation by MPIB. We then try to see if theoretically a difference
-            in search efficiency can be shown for different search strategies with the planned parameter set. This 
-            experiment serves as a preparation before real human experiments.
+Goal:       humanexp2: we continue matching parameters with those planned in human experimentation, but now we keep the
+            discoverable area fixed so that we can see the effect on the results.
 Defined by: mezdahun
 """
 
@@ -65,6 +63,7 @@ fixed_criteria = [
 # Defining decision param
 sum_resources = 240
 arena_size = arena_w * arena_h
+overall_res_area = int(arena_size * 0.1)
 num_patches = [2, 5, 10, 20, 40]
 criteria_exp = [
     Constant("N", 4),
@@ -74,7 +73,7 @@ criteria_exp = [
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here
-    Constant("RADIUS_RESOURCE", 15),
+    Tunable("RADIUS_RESOURCE", values_override=[np.sqrt(overall_res_area/(np.pi*nup)) for nup in num_patches]),
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
@@ -92,6 +91,10 @@ for crit in criteria_exp:
 # Locking the overall resource units in environment
 constant_runits = TunedPairRestrain("N_RESOURCES", "MIN_RESOURCE_PER_PATCH", sum_resources)
 mp.add_tuned_pair(constant_runits)
+
+# keeping sicoverable area fixed
+constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
+mp.add_quadratic_tuned_pair(constant_r_area)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due
 # to interruption

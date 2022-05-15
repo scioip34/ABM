@@ -887,7 +887,7 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
                 for i in range(num_plots):
-                    img = ax[i].imshow(self.mean_efficiency[i, :, :], vmin=0, vmax=2500)
+                    img = ax[i].imshow(self.mean_efficiency[i, :, :], vmin=0, vmax=0.1)
                     ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
                     if i == 0:
@@ -966,7 +966,7 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        rel_reloc_matrix = np.mean((self.agent_summary["mode"] == 2).astype(int), axis=time_dim)
+        rel_reloc_matrix = np.mean((self.agent_summary["mode"][:] == 2).astype(int), axis=time_dim)
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
         std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 

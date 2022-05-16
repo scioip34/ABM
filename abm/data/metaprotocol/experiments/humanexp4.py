@@ -70,7 +70,7 @@ criteria_exp = [
     Constant("N", 4),
     Constant("VISUAL_EXCLUSION", 1),  # no visual occlusion
     Constant("AGENT_FOV", 0.21),  # unlimited
-    Tunable("DEC_EPSW", values_override=[0, 5, 10, 25, 50, 100, 150, 200]),
+    Tunable("DEC_EPSW", values_override=[0, 5, 10, 25, 50]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here

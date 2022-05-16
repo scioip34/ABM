@@ -10,14 +10,15 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       16.05.2022
-Goal:       humanexp3: we continue matching parameters with those planned in human experimentation, but now we keep the
-            discoverable area fixed and increase the number of agents by one to 5.
+Goal:       humanexp4: we continue matching parameters with those planned in human experimentation, but now we keep the
+            discoverable area fixed and decrease the arena size by 20 percent. To keep the patch sizes as in previous
+            experiments we increase the discoverable area from 10 percent of the arena to 15.625 percent.
 Defined by: mezdahun
 """
 
 # Defining fixed criteria for all automized simulations/experiments
-arena_w = 500
-arena_h = 500
+arena_w = 400
+arena_h = 400
 fixed_criteria = [
     Constant("USE_IFDB_LOGGING", 1),
     Constant("USE_RAM_LOGGING", 1),  # as we have plenty of resources we don't have to deal with IFDB on HPC
@@ -63,10 +64,10 @@ fixed_criteria = [
 # Defining decision param
 sum_resources = 240
 arena_size = arena_w * arena_h
-overall_res_area = int(arena_size * 0.1)
+overall_res_area = int(arena_size * 0.15625)
 num_patches = [2, 5, 10, 20, 40]
 criteria_exp = [
-    Constant("N", 5),
+    Constant("N", 4),
     Constant("VISUAL_EXCLUSION", 1),  # no visual occlusion
     Constant("AGENT_FOV", 0.21),  # unlimited
     Tunable("DEC_EPSW", values_override=[0, 5, 10, 25, 50, 100, 150, 200]),

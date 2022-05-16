@@ -762,6 +762,7 @@ class ExperimentLoader:
                                            mode='r')  # self.experiment.agent_summary['mode']
                 self.agent_summary['collresource'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_rew.zarr"),
                                              mode='r')  # self.experiment.agent_summary['collresource']
+                self.num_batches = self.agent_summary['posx'].shape[0]
             else:
                 self.agent_summary = None
         if not os.path.isfile(os.path.join(self.experiment_path, "summary", "resource_summary.npz")):

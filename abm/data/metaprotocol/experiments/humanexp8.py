@@ -9,15 +9,14 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       13.05.2022
-Goal:       humanexp6: We repeat humanexp1 but with more different patch numbers to see a gradual change in the
-            efficiency plot.
+Date:       17.05.2022
+Goal:       humanexp8: We repeat humanexp7 but with more datapoints also in efficiency.
 Defined by: mezdahun
 """
 
 # Defining fixed criteria for all automized simulations/experiments
-arena_w = 500
-arena_h = 500
+arena_w = 400
+arena_h = 400
 fixed_criteria = [
     Constant("USE_IFDB_LOGGING", 1),
     Constant("USE_RAM_LOGGING", 1),  # as we have plenty of resources we don't have to deal with IFDB on HPC
@@ -63,20 +62,21 @@ fixed_criteria = [
 # Defining decision param
 sum_resources = 240
 arena_size = arena_w * arena_h
+overall_res_area = int(arena_size * 0.15625)
 num_patches = [1, 2, 3, 4, 5, 8, 10, 20, 40]
 criteria_exp = [
     Constant("N", 4),
     Constant("VISUAL_EXCLUSION", 1),  # no visual occlusion
     Constant("AGENT_FOV", 0.21),  # unlimited
-    Tunable("DEC_EPSW", values_override=[0, 5, 10, 25, 50, 100]),
+    Tunable("DEC_EPSW", values_override=[0, 1, 3, 5, 10, 25, 50, 100]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here
-    Constant("RADIUS_RESOURCE", 15),
+    Tunable("RADIUS_RESOURCE", values_override=[np.sqrt(overall_res_area/(np.pi*nup)) for nup in num_patches]),
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 2000)
+    Constant("T", 4000)
 ]
 
 # Creating metaprotocol and add defined criteria
@@ -90,6 +90,10 @@ for crit in criteria_exp:
 # Locking the overall resource units in environment
 constant_runits = TunedPairRestrain("N_RESOURCES", "MIN_RESOURCE_PER_PATCH", sum_resources)
 mp.add_tuned_pair(constant_runits)
+
+# keeping sicoverable area fixed
+constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
+mp.add_quadratic_tuned_pair(constant_r_area)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due
 # to interruption

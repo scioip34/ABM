@@ -10,7 +10,7 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       17.05.2022
-Goal:       humanexp7: We repeat humanexp5 but with more datapoints to see gradual change in efficiency
+Goal:       humanexp9: Same as humanexp8 but with 5 robots to see how the slope changes for more rorbots
 Defined by: mezdahun
 """
 
@@ -65,10 +65,10 @@ arena_size = arena_w * arena_h
 overall_res_area = int(arena_size * 0.15625)
 num_patches = [1, 2, 3, 4, 5, 8, 10, 20, 40]
 criteria_exp = [
-    Constant("N", 4),
+    Constant("N", 5),
     Constant("VISUAL_EXCLUSION", 1),  # no visual occlusion
     Constant("AGENT_FOV", 0.21),  # unlimited
-    Tunable("DEC_EPSW", values_override=[0, 5, 10, 25, 50, 100]),
+    Tunable("DEC_EPSW", values_override=[0, 1, 3, 5, 10, 25, 50, 100]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here
@@ -76,7 +76,7 @@ criteria_exp = [
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 2000)
+    Constant("T", 4000)
 ]
 
 # Creating metaprotocol and add defined criteria

@@ -967,7 +967,10 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        rel_reloc_matrix = np.mean((self.agent_summary["mode"][:] == 2).astype(int), axis=time_dim)
+        print(self.agent_summary["mode"].shape[0:-1])
+        rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
+        for i in range(self.num_batches):
+            rel_reloc_matrix[i] = np.mean((self.agent_summary["mode"][i] == 2).astype(int), axis=time_dim-1)
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
         std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 
@@ -996,7 +999,16 @@ class ExperimentLoader:
             ax.set_xticklabels(self.varying_params[keys[1]])
             ax.set_xlabel(keys[1])
 
-        elif num_var_params == 3:
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(mean_rel_reloc.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                new_mean_rel_reloc = np.zeros((mean_rel_reloc.shape[0:3]))
+                print(mean_rel_reloc.shape)
+                for j in range(mean_rel_reloc.shape[0]):
+                    for i in range(mean_rel_reloc.shape[1]):
+                        new_mean_rel_reloc[j, i, :] = mean_rel_reloc[j, i, :, i]
+                mean_rel_reloc = new_mean_rel_reloc
+
             if self.collapse_plot is None:
                 num_plots = mean_rel_reloc.shape[0]
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
@@ -1050,7 +1062,7 @@ class ExperimentLoader:
                             f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
                     labels.append(label)
 
-                ax.imshow(collapsed_data)
+                img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
                 ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
                 ax.set_ylabel(keys[self.collapse_fixedvar_ind])
@@ -1061,6 +1073,12 @@ class ExperimentLoader:
                 #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
                 ax.set_xticklabels(labels, rotation=45)
                 ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+                fig.set_tight_layout(True)
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \

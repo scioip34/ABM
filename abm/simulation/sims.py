@@ -331,8 +331,8 @@ class Simulation:
             if retries > max_retries:
                 raise Exception("Reached timeout while trying to create resources without overlap!")
             radius = self.resc_radius
-            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
-            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
+            x = np.random.randint(self.window_pad - radius, self.WIDTH + self.window_pad - radius)
+            y = np.random.randint(self.window_pad - radius, self.HEIGHT + self.window_pad - radius)
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             if force_id is None:

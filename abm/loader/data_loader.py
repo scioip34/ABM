@@ -970,7 +970,10 @@ class ExperimentLoader:
         print(self.agent_summary["mode"].shape[0:-1])
         rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
         for i in range(self.num_batches):
-            rel_reloc_matrix[i] = np.mean((self.agent_summary["mode"][i] == 2).astype(int), axis=time_dim-1)
+            a = np.mean((self.agent_summary["mode"][i, ..., ::10] == 2).astype(int), axis=time_dim-1)
+            print(a.shape)
+            rel_reloc_matrix[i] = a.copy()
+            del a
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
         std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 

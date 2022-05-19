@@ -55,7 +55,7 @@ def start(parallel=False, headless=False):
                          parallel=parallel,
                          window_pad=window_pad
                          )
-        sim.write_batch_size = 100
+        sim.write_batch_size = 1
         sim.start()
 
 

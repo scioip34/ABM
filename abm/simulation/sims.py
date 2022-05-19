@@ -150,7 +150,6 @@ class Simulation:
 
         # Rescource parameters
         self.N_resc = N_resc
-        self.allow_border_patch_overlap = allow_border_patch_overlap
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch

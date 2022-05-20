@@ -4,7 +4,7 @@
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
 import os
-EXP_NAME = os.getenv("EXPERIMENT_NAME", "patch_place_distr_reproduce_L-shape_prove_with_agents=True")
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "patch_place_distr_bugfix3")
 if EXP_NAME == "":
     raise Exception("No experiment name has been passed")
 

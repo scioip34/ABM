@@ -63,7 +63,7 @@ class Simulation:
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
-                 patchwise_exclusion=True, parallel=False, use_zarr=True):
+                 patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -109,6 +109,7 @@ class Simulation:
         :param parallel: if True we request to run the simulation parallely with other simulation instances and hence
             the influxDB saving will be handled accordingly.
         :param use_zarr: using zarr compressed data format to save single run data
+        :param allow_border_patch_overlap: boolean switch to allow resource patches to overlap arena border
         """
         # Arena parameters
         self.WIDTH = width
@@ -149,6 +150,7 @@ class Simulation:
 
         # Rescource parameters
         self.N_resc = N_resc
+        self.allow_border_patch_overlap = allow_border_patch_overlap
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch
@@ -332,13 +334,14 @@ class Simulation:
                 raise Exception("Reached timeout while trying to create resources without overlap!")
             radius = self.resc_radius
 
-            # allowing patches to overlap arena borders (maximum overlap is radius of patch)
-            x = np.random.randint(self.window_pad - radius, self.WIDTH + self.window_pad - radius)
-            y = np.random.randint(self.window_pad - radius, self.HEIGHT + self.window_pad - radius)
-
-            # for inhibiting patches to overlap arena borders comment the previous two lines  and uncomment following two lines
-            # x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - 2 * radius)
-            # y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - 2 * radius)
+            if self.allow_border_patch_overlap:
+                # allowing patches to overlap arena borders (maximum overlap is radius of patch)
+                x = np.random.randint(self.window_pad - radius, self.WIDTH + self.window_pad - radius)
+                y = np.random.randint(self.window_pad - radius, self.HEIGHT + self.window_pad - radius)
+            else:
+                # for inhibiting patches to overlap arena borders comment the previous two lines  and uncomment following two lines
+                x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - 2 * radius)
+                y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - 2 * radius)
 
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)

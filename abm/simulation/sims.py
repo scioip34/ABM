@@ -350,7 +350,7 @@ class Simulation:
                                      units, quality)
             # we initialize the resources so that there is no resource-resource overlap, but there can be
             # a resource-agent overlap
-            resource_proven = self.proove_sprite(resource, prove_with_agents=True, prove_with_res=True)
+            resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)
             retries+=1
         self.rescources.add(resource)
         return resource.id

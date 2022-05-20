@@ -434,12 +434,12 @@ class Simulation:
         for i in range(self.N):
 
             # allowing agents to overlap arena borders (maximum overlap is radius of patch)
-            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad)
-            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad)
+            x = np.random.randint(self.window_pad - self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
+            y = np.random.randint(self.window_pad - self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
 
             # for inhibiting patches to overlap arena borders comment the previous two lines  and uncomment following two lines
-            # x = np.random.randint(self.window_pad + self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
-            # y = np.random.randint(self.window_pad + self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
+            # x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - 2 * self.agent_radii)
+            # y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - 2 * self.agent_radii)
 
             orient = np.random.uniform(0, 2*np.pi)
             self.add_new_agent(i, x, y, orient)

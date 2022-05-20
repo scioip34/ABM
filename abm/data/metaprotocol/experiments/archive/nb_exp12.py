@@ -4,7 +4,7 @@
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
 import os
-EXP_NAME = os.getenv("EXPERIMENT_NAME", "patch_place_distr")
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "patch_place_distr_reproduce_L-shape_prove_with_agents=True")
 if EXP_NAME == "":
     raise Exception("No experiment name has been passed")
 
@@ -83,8 +83,9 @@ sum_resources = 3000
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
-# num_patches = [1, 3, 5, 10, 30]
-num_patches = [1,5,10,30,100]
+
+# num_patches = [1,5,10,30,100]
+num_patches = [1, 5]
 criteria_exp = [
     # arbitrarily chosen parameters not making a difference for the experiment
     Constant("N", 3),
@@ -106,7 +107,7 @@ criteria_exp = [
 # one can also change number of batches num_batches
 
 # Creating metaprotocol and add defined criteria
-mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=2, parallel=True,
+mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1000, parallel=True,
                   description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)

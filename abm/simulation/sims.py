@@ -83,7 +83,7 @@ class Simulation:
         :param N_resc: number of rescource patches in the environment
         :param min_resc_perpatch: minimum rescaurce unit per patch
         :param max_resc_perpatch: maximum rescaurce units per patch
-        :param min_resc_quality: minimum resource quality in unit/timesteps that is allowed for each agent on a patch 
+        :param min_resc_quality: minimum resource quality in unit/timesteps that is allowed for each agent on a patch
             to exploit from the patch
         : param max_resc_quality: maximum resource quality in unit/timesteps that is allowed for each agent on a patch
             to exploit from the patch
@@ -331,8 +331,18 @@ class Simulation:
             if retries > max_retries:
                 raise Exception("Reached timeout while trying to create resources without overlap!")
             radius = self.resc_radius
-            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
-            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
+            # # original code
+            # x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
+            # y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
+
+            # # inhibiting overlap simulation
+            # x = np.random.randint(self.window_pad + radius, self.WIDTH + self.window_pad - radius)
+            # y = np.random.randint(self.window_pad + radius, self.HEIGHT + self.window_pad - radius)
+
+            # # overlap-case simulation
+            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad)
+            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad)
+
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             if force_id is None:
@@ -343,7 +353,7 @@ class Simulation:
                                      units, quality)
             # we initialize the resources so that there is no resource-resource overlap, but there can be
             # a resource-agent overlap
-            resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)
+            resource_proven = self.proove_sprite(resource, prove_with_agents=True, prove_with_res=True)
             retries+=1
         self.rescources.add(resource)
         return resource.id

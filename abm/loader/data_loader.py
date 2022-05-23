@@ -334,6 +334,7 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.iid_matrix = None
         self.undersample = int(undersample)
         self.chunksize = None  # chunk size in zarr array
         self.env = None
@@ -837,6 +838,200 @@ class ExperimentLoader:
 
         self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
         self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+
+    def calculate_interindividual_distance_slice(self, posx, posy):
+        """Calculating iid just in a point of time and for just a specific parameter combination.
+        In this case posx and posy is already indexed/sliced, so that both has a shape of (num_agents)"""
+        num_agents = len(posx)
+        iid = np.zeros((num_agents, num_agents))
+        for agi in range(num_agents):
+            distance = supcalc.distance_coords(posx, posy, np.roll(posx, -agi), np.roll(posy, -agi), vectorized=True)
+            for i in range(len(distance)):
+                j = (i + agi) % num_agents
+                iid[i, j] = distance[i]
+        return iid
+
+    def calculate_interindividual_distance(self, undersample=1, avg_over_time=False):
+        """Method to calculate inter-individual distance array from posx and posy arrays of agents. The final
+        array has the same dimension as any of the input arrays, i.e.:
+        (num_batches, *[dims of varying params], num_agents, time)
+        and defines the mean (across group members) inter-individual distance for a given agent i in timestep t.
+        """
+        agposx = self.agent_summary['posx']
+        agposy = self.agent_summary['posy']
+
+        t_idx = -1
+        num_batches = agposx.shape[0]
+        num_agents = agposx.shape[-2]
+
+        new_shape = list(agposx.shape)
+        new_shape.insert(-1, num_agents)
+        if avg_over_time:
+            # collapsing along time dimension as we will average here
+            new_shape[t_idx] = 1
+        else:
+            new_shape[t_idx] = int(new_shape[t_idx]/undersample)
+        new_shape = tuple(new_shape)
+
+        # ----IID matrix----
+        # will have dim (num_batches, *[dim of varying params], num_agents, num_agents, t)
+        # and includes the interindividual distance between agent i and j in time t at the index:
+        # iid[..., i, j, t] where the first dimensions will be the same as in our convention according to
+        # varying parameters. As an example if we changed the batch radius along 3 different cases and
+        # the agent radius along 5 different cases and we had 20 batches with 10 agents we can get the iid between
+        # agent 2 and 7 at time 100 as
+        # iid[..., 2, 7, 100] which has the shape of (20, 3, 5) according to the different scenarios
+        # The time dimension can vary according to undersampling rate!
+        iid = np.zeros(new_shape)
+
+
+        for batchi in range(num_batches):
+            print(f"Calculating iid for batch {batchi}")
+            for agi in range(num_agents):
+                for agj in range(num_agents):
+                    if agj > agi:
+                        x1s = agposx[batchi, ..., agi, ::undersample]
+                        y1s = agposy[batchi, ..., agi, ::undersample]
+                        x2s = agposx[batchi, ..., agj, ::undersample]
+                        y2s = agposy[batchi, ..., agj, ::undersample]
+                        distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
+                        if not avg_over_time:
+                            iid[batchi, ..., agi, agj, :] = distance_matrix
+                        else:
+                            iid[batchi, ..., agi, agj, 0] = np.mean(distance_matrix, axis=-1)
+
+        self.iid_matrix = iid
+        # for the mean we restrict the iid matrix as upper triangular in the agent dimensions so that we
+        # don't calculate IIDs in mean twice (as IID is symmetric, i.e. the distance between agent i and j
+        # is the same as between j and i)
+        restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1], :]
+        # Then we take the mean along the flattened dimension in which we defined the previous restriction and we also
+        # take the mean along all the repeated batches (0dim)
+        self.mean_iid = np.mean(np.mean(restr_m, axis=-2)[..., 0], axis=0)
+        self.iid_matrix = self.iid_matrix[..., 0]
+
+    def plot_mean_iid(self, from_script=False, undersample=1):
+        """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the
+        experiments."""
+        cbar = None
+        if self.iid_matrix is None:
+            self.calculate_interindividual_distance(avg_over_time=True, undersample=undersample)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Inter-individual distance (mean)")
+            plt.plot(self.mean_iid)
+            num_agents = self.iid_matrix.shape[-2]
+            restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1]]
+            for run_i in range(self.iid_matrix.shape[0]):
+                plt.plot(restr_m[run_i, :, :], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Inter-individual distance (mean)")
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_iid)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_iid.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_iid = np.zeros((self.mean_iid.shape[0:3]))
+                print(self.new_mean_iid.shape)
+                for j in range(self.mean_iid.shape[0]):
+                    for i in range(self.mean_iid.shape[1]):
+                        self.new_mean_iid[j, i, :] = self.mean_iid[j, i, :, i]
+                self.mean_iid = self.new_mean_iid
+
+            if self.collapse_plot is None:
+                num_plots = self.mean_iid.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_iid[i, :, :])
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                shape_along_fixed_ind = self.mean_iid.shape[self.collapse_fixedvar_ind]
+                labels = []
+                # collapsing data
+                for i in range(shape_along_fixed_ind):
+                    if self.collapse_fixedvar_ind == 0:
+                        collapsed_data_row = self.collapse_method(self.mean_iid[i, :, :], axis=0)
+                        ind = np.argmax(self.mean_iid[i, :, :], axis=0)
+                        max1_ind = 1
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 1:
+                        collapsed_data_row = self.collapse_method(self.mean_iid[:, i, :], axis=0)
+                        ind = np.argmax(self.mean_iid[:, i, :], axis=0)
+                        max1_ind = 0
+                        max2_ind = 2
+                    elif self.collapse_fixedvar_ind == 2:
+                        collapsed_data_row = self.collapse_method(self.mean_iid[:, :, i], axis=0)
+                        ind = np.argmax(self.mean_iid[:, :, i], axis=0)
+                        max1_ind = 0
+                        max2_ind = 1
+
+                    if i == 0:
+                        collapsed_data = collapsed_data_row
+                    else:
+                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+                for j in range(len(ind)):
+                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
+                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
+                    labels.append(label)
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+                # ax.set_xlabel(f"Combined Parameters\n"
+                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
+                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
+
+        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
+                           f"of inter-individual distance between agents.\n"
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
 
     def plot_search_efficiency(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot search efficiency irrespectively of how many parameters have been tuned during the

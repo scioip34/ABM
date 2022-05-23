@@ -205,8 +205,26 @@ class ExperimentReplay:
             borderThickness=1
         )
 
+        button_start_y += self.button_height
+        self.plot_iid_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Plot I.I.D.',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_print_iid(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
         # Plotting Button Line
-        button_start_y += 2 * self.button_height
+        button_start_y += self.button_height
         self.plot_efficiency = Button(
             # Mandatory Parameters
             self.screen,  # Surface to place button on
@@ -404,6 +422,19 @@ class ExperimentReplay:
         fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end,
                                                                from_script=self.from_script,
                                                                used_batches=used_batches)
+        return fig, ax, cbar
+
+    def on_print_iid(self, with_read_collapse_param=True, used_batches=None):
+        """print mean inter-individual distance"""
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.T > 1000:
+            undersample = int(self.T / 1000)
+            print(f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
+        else:
+            undersample = 1
+        fig, ax, cbar = self.experiment.plot_mean_iid(from_script=self.from_script, undersample=undersample)
         return fig, ax, cbar
 
     def on_set_t_start(self):
@@ -739,6 +770,8 @@ class ExperimentReplay:
         status.append(" ")
         status.append("CALCULATED METRICS (t):")
         status.append(f"Collected resource: Mean:{np.mean(coll_resc):10.2f} ± {np.std(coll_resc):10.2f}")
+        iid = self.experiment.calculate_interindividual_distance_slice(posx, posy)
+        status.append(f"mean IID: {np.mean(iid[iid!=0])/2:10.2f} ± {np.std(iid[iid!=0]):10.2f}")
 
         for i, stat_i in enumerate(status):
             if i - line_count_before < 0 or i - line_count_before >= len(ids):

@@ -334,6 +334,7 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.mean_iid = None
         self.iid_matrix = None
         self.undersample = int(undersample)
         self.chunksize = None  # chunk size in zarr array
@@ -412,7 +413,7 @@ class ExperimentLoader:
             self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
     def read_all_data(self, only_res=False):
-        """reading all data in the experiment folder and saving them as numpy files"""
+        """reading all data in the experiment folder and saving them as zarr summary archives"""
         max_r_in_runs = None
         if not only_res:
             print("Reading all experimental data first...")
@@ -463,16 +464,46 @@ class ExperimentLoader:
                         # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                         summary_path = os.path.join(self.experiment_path, "summary")
                         ax_chunk = [1 for i in range(len(axes_lens))]
-                        posx_array = zarr.open(os.path.join(summary_path, "agent_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') #np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        posy_array = zarr.open(os.path.join(summary_path, "agent_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1,num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        rew_array = zarr.open(os.path.join(summary_path, "agent_rew.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        ori_array = zarr.open(os.path.join(summary_path, "agent_ori.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')# np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        vel_array = zarr.open(os.path.join(summary_path, "agent_vel.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        w_array = zarr.open(os.path.join(summary_path, "agent_w.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1,num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        u_array = zarr.open(os.path.join(summary_path, "agent_u.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        Ip_array = zarr.open(os.path.join(summary_path, "agent_Ip.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        mode_array = zarr.open(os.path.join(summary_path, "agent_mode.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        expl_patch_array = zarr.open(os.path.join(summary_path, "agent_explpatch.zarr"), mode='w', shape=(self.num_batches, *axes_lens, num_agents, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        posx_array = zarr.open(os.path.join(summary_path, "agent_posx.zarr"), mode='w',
+                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                               # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        posy_array = zarr.open(os.path.join(summary_path, "agent_posy.zarr"), mode='w',
+                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                               chunks=(1, *ax_chunk, 1,num_timesteps), dtype='float')
+                                               # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        rew_array = zarr.open(os.path.join(summary_path, "agent_rew.zarr"), mode='w',
+                                              shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                              # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        ori_array = zarr.open(os.path.join(summary_path, "agent_ori.zarr"), mode='w',
+                                              shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                              # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        vel_array = zarr.open(os.path.join(summary_path, "agent_vel.zarr"), mode='w',
+                                              shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                              # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        w_array = zarr.open(os.path.join(summary_path, "agent_w.zarr"), mode='w',
+                                            shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                            chunks=(1, *ax_chunk, 1,num_timesteps), dtype='float')
+                                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        u_array = zarr.open(os.path.join(summary_path, "agent_u.zarr"), mode='w',
+                                            shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                            chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        Ip_array = zarr.open(os.path.join(summary_path, "agent_Ip.zarr"), mode='w',
+                                             shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                             # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        mode_array = zarr.open(os.path.join(summary_path, "agent_mode.zarr"), mode='w',
+                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                               # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        expl_patch_array = zarr.open(os.path.join(summary_path, "agent_explpatch.zarr"), mode='w',
+                                                     shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                     chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                                     # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
                              sorted(list(self.varying_params.keys()))]
@@ -509,6 +540,7 @@ class ExperimentLoader:
             print("Saving agent summary...")
             summary_path = os.path.join(self.experiment_path, "summary")
             os.makedirs(summary_path, exist_ok=True)
+            # legacy npz saving is not supported anymore
             # np.savez(os.path.join(summary_path, "agent_summary.npz"),
             #          # posx=posx_array,
             #          posy=posy_array,
@@ -543,23 +575,26 @@ class ExperimentLoader:
 
         if only_res:
             from pprint import pprint
-            print("!Agent and env data has been already summarized, continuing from there!")
-            # reading back saved env variables from previous interrzpted summary
+            print("Agent and env data has been already summarized, continuing from there!")
+            # reading back saved env variables from previous interrupted summary
             summary_path = os.path.join(self.experiment_path, "summary")
             with open(os.path.join(summary_path, "fixed_env.json"), "r") as fenvf:
                 self.env = json.loads(fenvf.read())
             print("Found fixed env parameters")
             pprint(self.env)
+
             with open(os.path.join(summary_path, "tuned_env.json"), "r") as tenvf:
                 self.varying_params = json.loads(tenvf.read())
             print("Found Varying parameters")
             pprint(self.varying_params)
+
             max_r_in_runs = int(float(self.env.get('SUMMARY_MAX_PATCHES')))
             self.undersample = int(float(self.env.get("SUMMARY_UNDERSAMPLE", "1")))
             self.t_start = self.env.get('SUMMARY_TSTART', 0)
             self.t_end = self.env.get('SUMMARY_TEND', self.env['T'])
             num_timesteps = int((self.t_end - self.t_start) / self.undersample)
             axes_lens = []
+
             for k in sorted(list(self.varying_params.keys())):
                 axes_lens.append(len(self.varying_params[k]))
             print(f"Previous summary had parameters t_start={self.t_start} : us-{self.undersample}-us : {self.t_end}=t_end")
@@ -585,10 +620,22 @@ class ExperimentLoader:
                     # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                     # where the value is -1 the resource does not exist in time
                     ax_chunk = [1 for i in range(len(axes_lens))]
-                    r_posx_array = zarr.open(os.path.join(summary_path, "res_posx.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_posy_array = zarr.open(os.path.join(summary_path, "res_posy.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = zarr.open(os.path.join(summary_path, "res_qual.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = zarr.open(os.path.join(summary_path, "res_rescleft.zarr"), mode='w', shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps), chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float') # np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posx_array = zarr.open(os.path.join(summary_path, "res_posx.zarr"), mode='w',
+                                             shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
+                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                             # legacy noz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = zarr.open(os.path.join(summary_path, "res_posy.zarr"), mode='w',
+                                             shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
+                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                             # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = zarr.open(os.path.join(summary_path, "res_qual.zarr"), mode='w',
+                                             shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
+                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                             # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = zarr.open(os.path.join(summary_path, "res_rescleft.zarr"), mode='w',
+                                                 shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
+                                                 chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                                                 # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
@@ -598,7 +645,7 @@ class ExperimentLoader:
                     env_num_res_in_run = int(float(env_data['N_RESOURCES']))
                     num_res_in_run = len([k for k in list(res_data.keys()) if k.find("posx_res") > -1])
 
-                    # recording times of patch depletion so that we can continously log data into a single
+                    # recording times of patch depletion so that we can continuously log data into a single
                     # column instead of saving new patches in new columns
                     depletion_times = np.zeros(env_num_res_in_run)
                     for ri in range(num_res_in_run):
@@ -618,9 +665,9 @@ class ExperimentLoader:
                                     depletion_times[ri] = len(data)
                                 collapsed_ri = ri
                             else:
-                                # if the columnid is larger than how many resources we defined in the env file
-                                # that will mean we have a regenereted patch. We need to find which previous patch disappeard
-                                # when this one appeared so we can continously store data in less columns
+                                # if the columnid is larger than how many resources we defined in the env file that
+                                # will mean we have a regenerated patch. We need to find which previous patch
+                                # disappeared when this one appeared so we can continuously store data in less columns
                                 # print(ri, "depletion_times: ", depletion_times)
                                 data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']
                                 data = np.array([float(d) if d != "" else 0.0 for d in data])
@@ -688,7 +735,8 @@ class ExperimentLoader:
                         r_qual_array[ind] = res_data['quality'][pid, self.t_start:self.t_end:self.undersample]
                         r_rescleft_array[ind] = res_data['resc_left'][pid, self.t_start:self.t_end:self.undersample]
 
-        print("Saving resource summary...")
+        # print("Saving resource summary...")
+        # legacy npz saving is not used anymore due to memory issues and data handling
         # np.savez(os.path.join(summary_path, "resource_summary.npz"),
         #          posx=r_posx_array,
         #          posy=r_posy_array,
@@ -705,7 +753,7 @@ class ExperimentLoader:
         print("Summary saved!")
 
     def get_changing_variables(self):
-        """Collecting env variables along which the initialization has changed across runs"""
+        """Collecting env variables along which the initialization has changed across runs in experiment"""
         print("Checking for changing parameters along runs...")
         all_env = {}
         for i, batch_path in enumerate(self.batch_folders):
@@ -742,16 +790,19 @@ class ExperimentLoader:
             print("Experiment is already summarized!")
             return True
         else:
-            print("experiment is not summarized yet!")
+            print("Experiment is not summarized yet!")
             return False
 
     def reload_summarized_data(self):
         """Loading an already summarized experiment to spare time and resources"""
         print("Reloading previous experiment summary!")
         if os.path.isfile(os.path.join(self.experiment_path, "summary", "agent_summary.npz")):
+            # found npz summary for agent data
             self.agent_summary = np.load(os.path.join(self.experiment_path, "summary", "agent_summary.npz"))
         else:
+            # no npz summary available for agent data
             if os.path.isdir(os.path.join(self.experiment_path, "summary", "agent_posx.zarr")):
+                # found zarr summary for agent data
                 self.agent_summary={}
                 self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"), mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
@@ -765,25 +816,43 @@ class ExperimentLoader:
                                              mode='r')  # self.experiment.agent_summary['collresource']
                 self.num_batches = self.agent_summary['posx'].shape[0]
             else:
+                print("No npz or zarr format summary has been found for agent data!")
                 self.agent_summary = None
         if not os.path.isfile(os.path.join(self.experiment_path, "summary", "resource_summary.npz")):
+            # no npz summary found for resources
             if not os.path.isdir(os.path.join(self.experiment_path, "summary", "res_posx.zarr")):
                 print("Previous summary folder has been found but does not contain resource data. Summarizing resource data!")
                 self.read_all_data(only_res=True)
             else:
-                self.res_summary = None
+                # we found zarr format summary for resources
+                self.res_summary = {}
+                self.res_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posx.zarr"),
+                                             mode='r')
+                self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zarr"),
+                                             mode='r')
+                self.res_summary['resc_left'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
+                                             mode='r')
+                self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
+                                                mode='r')
+
         else:
+            # found npz summary for resources
             self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"), mmap_mode="r+")
+
         with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
             self.env = json.loads(fixf.read())
+
         print("Overwriting undersample ratio with the one read from env file...")
         self.t_start = self.env.get('SUMMARY_TSTART')
         self.t_end = self.env.get('SUMMARY_TEND')
         self.undersample = int(float(self.env.get("SUMMARY_UNDERSAMPLE", "1")))
         print(f"Previous summary had parameters t_start={self.t_start} : us-{self.undersample}-us : {self.t_end}=t_end")
+
         with open(os.path.join(self.experiment_path, "summary", "tuned_env.json"), "r") as tunedf:
             self.varying_params = json.loads(tunedf.read())
+
         print("Agent, resource and parameter data reloaded!")
+
         description_path = os.path.join(self.experiment_path, "summary", "README.txt")
         if os.path.isfile(description_path):
             with open(description_path, "r") as readmefile:
@@ -873,17 +942,14 @@ class ExperimentLoader:
             new_shape[t_idx] = int(new_shape[t_idx]/undersample)
         new_shape = tuple(new_shape)
 
-        # ----IID matrix----
-        # will have dim (num_batches, *[dim of varying params], num_agents, num_agents, t)
-        # and includes the interindividual distance between agent i and j in time t at the index:
-        # iid[..., i, j, t] where the first dimensions will be the same as in our convention according to
-        # varying parameters. As an example if we changed the batch radius along 3 different cases and
-        # the agent radius along 5 different cases and we had 20 batches with 10 agents we can get the iid between
-        # agent 2 and 7 at time 100 as
-        # iid[..., 2, 7, 100] which has the shape of (20, 3, 5) according to the different scenarios
-        # The time dimension can vary according to undersampling rate!
+        # ----IID matrix---- will have dim (num_batches, *[dim of varying params], num_agents, num_agents,
+        # t) and includes the inter individual distance between agent i and j in time t at the index: iid[..., i, j,
+        # t] where the first dimensions will be the same as in our convention according to varying parameters. As an
+        # example if we changed the batch radius along 3 different cases and the agent radius along 5 different
+        # cases, and we had 20 batches with 10 agents we can get the iid between agent 2 and 7 at time 100 as
+        # iid[..., 2, 7, 100] which has the shape of (20, 3, 5) according to the different scenarios and number of
+        # batches The time dimension can vary according to undersampling rate!
         iid = np.zeros(new_shape)
-
 
         for batchi in range(num_batches):
             print(f"Calculating iid for batch {batchi}")
@@ -905,10 +971,14 @@ class ExperimentLoader:
         # don't calculate IIDs in mean twice (as IID is symmetric, i.e. the distance between agent i and j
         # is the same as between j and i)
         restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1], :]
-        # Then we take the mean along the flattened dimension in which we defined the previous restriction and we also
+        # Then we take the mean along the flattened dimension in which we defined the previous restriction, and we also
         # take the mean along all the repeated batches (0dim)
-        self.mean_iid = np.mean(np.mean(restr_m, axis=-2)[..., 0], axis=0)
-        self.iid_matrix = self.iid_matrix[..., 0]
+        if avg_over_time:
+            # in this case the last dimension (time) is unnecessary as we have shape 1 along this
+            self.mean_iid = np.mean(np.mean(restr_m, axis=-2)[..., 0], axis=0)
+            self.iid_matrix = self.iid_matrix[..., 0]
+        else:
+            self.mean_iid = np.mean(np.mean(restr_m, axis=-2), axis=0)
 
     def plot_mean_iid(self, from_script=False, undersample=1):
         """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the

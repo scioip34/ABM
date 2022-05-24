@@ -53,14 +53,10 @@ class ExperimentReplay:
         self.agmodes_z = self.experiment.agent_summary['mode']
         self.coll_resc_z = self.experiment.agent_summary['collresource']
 
-        self.res_pos_x_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posx.zarr"),
-                                     mode='r')  # self.experiment.res_summary['posx']
-        self.res_pos_y_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posy.zarr"),
-                                     mode='r')  # self.experiment.res_summary['posy']
-        self.resc_left_z = zarr.open(os.path.join(data_folder_path, "summary", "res_rescleft.zarr"),
-                                     mode='r')  # self.experiment.res_summary['resc_left']
-        self.resc_quality_z = zarr.open(os.path.join(data_folder_path, "summary", "res_qual.zarr"),
-                                        mode='r')  # self.experiment.res_summary['quality']
+        self.res_pos_x_z = self.experiment.res_summary['posx']
+        self.res_pos_y_z = self.experiment.res_summary['posy']
+        self.resc_left_z = self.experiment.res_summary['resc_left']
+        self.resc_quality_z = self.experiment.res_summary['quality']
 
         self.varying_params = self.experiment.varying_params
         self.index_prev = None

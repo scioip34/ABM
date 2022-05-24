@@ -651,9 +651,9 @@ class ExperimentLoader:
                     for ri in range(num_res_in_run):
                         print(f"Processing patch {ri}/{num_res_in_run}")
                         if patch_id_dict is None:
-                            # we try to collapse data according to generated raw csv if data was not saved in json, otherwise
-                            # already done with preprocessing
-                            # in the numpy array we only have N_RESOURCES column
+                            # we try to collapse data according to generated raw csv if data was not saved in json,
+                            # otherwise already done with preprocessing in the numpy array we only have N_RESOURCES
+                            # column
                             if ri < env_num_res_in_run:
                                 # we check which timestep the patch is depleted and store these in switching time
                                 data = res_data[f'posx_res-{pad_to_n_digits(ri + 1, n=3)}']

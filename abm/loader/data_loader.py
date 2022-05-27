@@ -1114,6 +1114,8 @@ class ExperimentLoader:
                 #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
                 #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
 
+                fig.set_tight_layout(True)
+
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of inter-individual distance between agents.\n"
@@ -1240,6 +1242,7 @@ class ExperimentLoader:
                 # ax.set_xlabel(f"Combined Parameters\n"
                 #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
                 #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
+                fig.set_tight_layout(True)
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
@@ -1256,11 +1259,10 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        print(self.agent_summary["mode"].shape[0:-1])
         rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
         for i in range(self.num_batches):
+            print(f"Calculating relocation time in batch {i}")
             a = np.mean((self.agent_summary["mode"][i, ..., ::10] == 2).astype(int), axis=time_dim-1)
-            print(a.shape)
             rel_reloc_matrix[i] = a.copy()
             del a
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)

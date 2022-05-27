@@ -926,59 +926,76 @@ class ExperimentLoader:
         (num_batches, *[dims of varying params], num_agents, time)
         and defines the mean (across group members) inter-individual distance for a given agent i in timestep t.
         """
-        agposx = self.agent_summary['posx']
-        agposy = self.agent_summary['posy']
-
-        t_idx = -1
-        num_batches = agposx.shape[0]
-        num_agents = agposx.shape[-2]
-
-        new_shape = list(agposx.shape)
-        new_shape.insert(-1, num_agents)
-        if avg_over_time:
-            # collapsing along time dimension as we will average here
-            new_shape[t_idx] = 1
+        summary_path = os.path.join(self.experiment_path, "summary")
+        iidpath = os.path.join(summary_path, "iid.npy")
+        meaniid_path = os.path.join(summary_path, "meaniid.npy")
+        if os.path.isfile(iidpath):
+            print("Found saved I.I.D array in summary, reloading it...")
+            self.iid_matrix = np.load(iidpath)
         else:
-            new_shape[t_idx] = int(new_shape[t_idx]/undersample)
-        new_shape = tuple(new_shape)
+            agposx = self.agent_summary['posx']
+            agposy = self.agent_summary['posy']
 
-        # ----IID matrix---- will have dim (num_batches, *[dim of varying params], num_agents, num_agents,
-        # t) and includes the inter individual distance between agent i and j in time t at the index: iid[..., i, j,
-        # t] where the first dimensions will be the same as in our convention according to varying parameters. As an
-        # example if we changed the batch radius along 3 different cases and the agent radius along 5 different
-        # cases, and we had 20 batches with 10 agents we can get the iid between agent 2 and 7 at time 100 as
-        # iid[..., 2, 7, 100] which has the shape of (20, 3, 5) according to the different scenarios and number of
-        # batches The time dimension can vary according to undersampling rate!
-        iid = np.zeros(new_shape)
+            t_idx = -1
+            num_batches = agposx.shape[0]
+            num_agents = agposx.shape[-2]
 
-        for batchi in range(num_batches):
-            print(f"Calculating iid for batch {batchi}")
-            for agi in range(num_agents):
-                for agj in range(num_agents):
-                    if agj > agi:
-                        x1s = agposx[batchi, ..., agi, ::undersample]
-                        y1s = agposy[batchi, ..., agi, ::undersample]
-                        x2s = agposx[batchi, ..., agj, ::undersample]
-                        y2s = agposy[batchi, ..., agj, ::undersample]
-                        distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
-                        if not avg_over_time:
-                            iid[batchi, ..., agi, agj, :] = distance_matrix
-                        else:
-                            iid[batchi, ..., agi, agj, 0] = np.mean(distance_matrix, axis=-1)
+            new_shape = list(agposx.shape)
+            new_shape.insert(-1, num_agents)
+            if avg_over_time:
+                # collapsing along time dimension as we will average here
+                new_shape[t_idx] = 1
+            else:
+                new_shape[t_idx] = int(new_shape[t_idx]/undersample)
+            new_shape = tuple(new_shape)
 
-        self.iid_matrix = iid
-        # for the mean we restrict the iid matrix as upper triangular in the agent dimensions so that we
-        # don't calculate IIDs in mean twice (as IID is symmetric, i.e. the distance between agent i and j
-        # is the same as between j and i)
-        restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1], :]
-        # Then we take the mean along the flattened dimension in which we defined the previous restriction, and we also
-        # take the mean along all the repeated batches (0dim)
-        if avg_over_time:
-            # in this case the last dimension (time) is unnecessary as we have shape 1 along this
-            self.mean_iid = np.mean(np.mean(restr_m, axis=-2)[..., 0], axis=0)
-            self.iid_matrix = self.iid_matrix[..., 0]
+            # ----IID matrix---- will have dim (num_batches, *[dim of varying params], num_agents, num_agents,
+            # t) and includes the inter individual distance between agent i and j in time t at the index: iid[..., i, j,
+            # t] where the first dimensions will be the same as in our convention according to varying parameters. As an
+            # example if we changed the batch radius along 3 different cases and the agent radius along 5 different
+            # cases, and we had 20 batches with 10 agents we can get the iid between agent 2 and 7 at time 100 as
+            # iid[..., 2, 7, 100] which has the shape of (20, 3, 5) according to the different scenarios and number of
+            # batches The time dimension can vary according to undersampling rate!
+            iid = np.zeros(new_shape)
+
+            for batchi in range(num_batches):
+                print(f"Calculating iid for batch {batchi}")
+                for agi in range(num_agents):
+                    for agj in range(num_agents):
+                        if agj > agi:
+                            x1s = agposx[batchi, ..., agi, ::undersample]
+                            y1s = agposy[batchi, ..., agi, ::undersample]
+                            x2s = agposx[batchi, ..., agj, ::undersample]
+                            y2s = agposy[batchi, ..., agj, ::undersample]
+                            distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
+                            if not avg_over_time:
+                                iid[batchi, ..., agi, agj, :] = distance_matrix
+                            else:
+                                iid[batchi, ..., agi, agj, 0] = np.mean(distance_matrix, axis=-1)
+
+            self.iid_matrix = iid
+
+        if os.path.isfile(meaniid_path):
+            print("Found mean I.I.D matrix in summary. Reloading it...")
+            self.mean_iid = np.load(meaniid_path)
         else:
-            self.mean_iid = np.mean(np.mean(restr_m, axis=-2), axis=0)
+            # for the mean we restrict the iid matrix as upper triangular in the agent dimensions so that we
+            # don't calculate IIDs in mean twice (as IID is symmetric, i.e. the distance between agent i and j
+            # is the same as between j and i)
+            restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1], :]
+            # Then we take the mean along the flattened dimension in which we defined the previous restriction, and we also
+            # take the mean along all the repeated batches (0dim)
+            if avg_over_time:
+                # in this case the last dimension (time) is unnecessary as we have shape 1 along this
+                self.mean_iid = np.mean(np.mean(restr_m, axis=-2)[..., 0], axis=0)
+                self.iid_matrix = self.iid_matrix[..., 0]
+            else:
+                self.mean_iid = np.mean(np.mean(restr_m, axis=-2), axis=0)
+
+        # Saving calculated arrays for future use
+        print("Saving I.I.D and mean I.I.D arrays into summary!")
+        np.save(iidpath, self.iid_matrix)
+        np.save(meaniid_path, self.mean_iid)
 
     def plot_mean_iid(self, from_script=False, undersample=1):
         """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the

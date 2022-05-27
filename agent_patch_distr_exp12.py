@@ -31,7 +31,11 @@ from abm.replay.replay import ExperimentReplay
 # TODO see modifiy_pixel_array_circle()
 
 # for loading data from /summary
+<<<<<<< HEAD:agent_patch_distr_exp12.py
 filepath = '/ABM/abm/data/simulation_data/agent_patch_place_distr_01/'
+=======
+filepath = '/media/vollmich/Arbeit/SHK_ITB/repos/ABM/abm/data/simulation_data/agent_patch_place_distr_01/'
+>>>>>>> b4c79269458c22d49b73116388cdc2a223cc37c2:patch_exploitable_area_exp12.py
 # for storing plots of patch distribution
 folderpath = filepath + '/summary/agent_patch_distr'
 window_pad = 30 # hardcoded

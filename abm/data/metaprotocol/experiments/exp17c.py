@@ -9,8 +9,8 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       24.05.2022
-Goal:       exp17b: we rerun the same simulation as exp17 but we fix the resource radius to 15 instead of scaling it.
+Date:       28.05.2022
+Goal:       exp17c: we forbid patches to overlap with walls to see if causes qualitative difference.
 Defined by: mezdahun
 """
 
@@ -56,15 +56,12 @@ fixed_criteria = [
     Constant("DEC_GW", 0.085),
     Constant("DEC_GU", 0.085),
     Constant("DEC_TW", 0.5),
-    Constant("DEC_TU", 0.5)
+    Constant("DEC_TU", 0.5),
+    Constant("PATCH_BORDER_OVERLAP", 0)
 ]
 
 # Defining decision param
 sum_resources = 2400
-arena_size = arena_w * arena_h
-# keeping the covered area on 20% on overall area
-keep_covered_ratio = 0.2
-overall_res_area = int(arena_size * keep_covered_ratio)
 num_patches = [1, 3, 5, 8, 10, 20, 30, 50, 100]
 criteria_exp = [
     Constant("N", 10),
@@ -92,10 +89,6 @@ for crit in criteria_exp:
 # Locking the overall resource units in environment
 constant_runits = TunedPairRestrain("N_RESOURCES", "MIN_RESOURCE_PER_PATCH", sum_resources)
 mp.add_tuned_pair(constant_runits)
-
-# # keeping the covered area on 20% on overall area
-# constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
-# mp.add_quadratic_tuned_pair(constant_r_area)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due
 # to interruption

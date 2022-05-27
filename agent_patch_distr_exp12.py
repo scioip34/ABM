@@ -9,7 +9,7 @@ from abm.replay.replay import ExperimentReplay
 
 ########################### DOCUMENTATION ######################################
 #
-# What patch_exploitable_area.py does:
+# What agent_patch_distr_exp12.py does:
 # When doing an experiment with different values for RADIUS_RESOURCE the script creates
 # for each value a 2D heatmap plot of the exploitable area (area covered by patches)
 # and a plot of the locations of the centers of the patches for testing reasons. The
@@ -20,9 +20,9 @@ from abm.replay.replay import ExperimentReplay
 # How to use the scripts_
 # - run nb_exp12.py (define EXPERIMENT_NAME, e.g. patch_place_distr)
 # - adapt nb_exp12.py by varying `num_patches`. Define at least two values, e.g. `num_patches = [1, 5]`
-#   patch_exploitable_area_exp12.py fails if only one value is given!
-# - adapt filepath in patch_exploitable_area_exp12.py (e.g. filepath = 'home/ABM/abm/data/simulation_data/patch_place_distr')
-# - run patch_exploitable_area_exp12.py (the directory where to patch_exploitable_area.py is arbitrary)
+#   agent_patch_distr_exp12.py fails if only one value is given!
+# - adapt filepath in agent_patch_distr_exp12.py (e.g. filepath = 'home/ABM/abm/data/simulation_data/patch_place_distr')
+# - run agent_patch_distr_exp12.py (the directory where to patch_exploitable_area.py is arbitrary)
 # - a folder patch_place_distr/summary/agent_patch_distr will be created containing the plots named after
 #   the the different parameters used and the .npz-files for redoing the plots
 #
@@ -31,7 +31,7 @@ from abm.replay.replay import ExperimentReplay
 # TODO see modifiy_pixel_array_circle()
 
 # for loading data from /summary
-filepath = 'ABM/abm/data/simulation_data/patch_place_distr_bugfix3/'
+filepath = '/ABM/abm/data/simulation_data/agent_patch_place_distr_01/'
 # for storing plots of patch distribution
 folderpath = filepath + '/summary/agent_patch_distr'
 window_pad = 30 # hardcoded

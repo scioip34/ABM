@@ -1218,6 +1218,13 @@ class ExperimentLoader:
                             f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
                     labels.append(label)
 
+                # column-wise normalization
+                for coli in range(collapsed_data.shape[1]):
+                    print(f"Normalizing column {coli}")
+                    minval = np.min(collapsed_data[:, coli])
+                    maxval = np.max(collapsed_data[:, coli])
+                    collapsed_data[:, coli] = (collapsed_data[:, coli] - minval)/(maxval - minval)
+
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
                 ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])

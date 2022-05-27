@@ -82,12 +82,19 @@ def modifiy_pixel_array_circle(pixel_array, m_x, m_y, radius):
 
 def loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad):
     for i in range(0,nr_of_radii):
+        if agent_or_patch == 'patch':
+            number_of_entities = N_RESOURCES[i] # "entity" as abstraction for agent and patch
+            radius_of_entity = RADIUS_RESOURCE[nr_of_radii - 1 - i]
+        else:
+            number_of_entities = N
+            radius_of_entity = RADIUS_AGENT
+
         x_values = []
         y_values = []
         for j in range(0,num_batches):
             # TODO check again: see x = np.random.randint(float, float) in sims.py. For float it rounds down so here we need to ceil
-            x_values = np.append(x_values, posx[j,i,nr_of_radii - 1 - i,:,0][:int(N_RESOURCES[i])] - window_pad + int(RADIUS_RESOURCE[nr_of_radii - 1 - i]))
-            y_values = np.append(y_values, posy[j,i,nr_of_radii - 1 - i,:,0][:int(N_RESOURCES[i])] - window_pad + int(RADIUS_RESOURCE[nr_of_radii - 1 - i]))
+            x_values = np.append(x_values, posx[j,i,nr_of_radii - 1 - i,:,0][:int(number_of_entities)] - window_pad + int(radius_of_entity))
+            y_values = np.append(y_values, posy[j,i,nr_of_radii - 1 - i,:,0][:int(number_of_entities)] - window_pad + int(radius_of_entity))
 
         # making sure that no drawn location is outside the arena borders
         max_x_values = np.max(x_values)
@@ -98,7 +105,7 @@ def loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx,
         # loop through agent/patch locations and "create" a filled CIRCLE for each location in pixel array
         pixel_array = np.zeros([ENV_HEIGHT,ENV_WIDTH])
         for k in range(0,len(x_values)):
-            pixel_array = modifiy_pixel_array_circle(pixel_array, x_values[k], y_values[k], RADIUS_RESOURCE[nr_of_radii - 1 - i])
+            pixel_array = modifiy_pixel_array_circle(pixel_array, x_values[k], y_values[k], radius_of_entity)
         # normalized_pixel_array = pixel_array / pixel_array.sum() # this is the probability density for num_batches initializations
         normalized_pixel_array = pixel_array / num_batches # this is the frequency a pixel is covered
         # save pixel array for adapting plots (computation of pixel array is slow)
@@ -166,6 +173,7 @@ with open(filepath + '/summary/tuned_env.json', 'r') as k:
 # get resource parameters
 RADIUS_RESOURCE = tuned_env['RADIUS_RESOURCE'] # different radii used in experiment
 N_RESOURCES = tuned_env['N_RESOURCES']
+
 res_posx = data.res_pos_x_z
 res_posy = data.res_pos_y_z
 num_batches, nr_of_radii, length_num_patches, max_N_RESOURCES , T = res_posx.shape
@@ -178,3 +186,5 @@ posy = data.posy_z
 
 agent_or_patch = 'patch'
 loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, res_posx, res_posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad)
+agent_or_patch = 'agent'
+loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad)

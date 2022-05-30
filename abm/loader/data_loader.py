@@ -347,6 +347,7 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.zarr_extension = ".zip"
         self.mean_iid = None
         self.iid_matrix = None
         self.undersample = int(undersample)
@@ -477,46 +478,47 @@ class ExperimentLoader:
                         # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                         summary_path = os.path.join(self.experiment_path, "summary")
                         ax_chunk = [1 for i in range(len(axes_lens))]
-                        posx_array = zarr.open(os.path.join(summary_path, "agent_posx.zarr"), mode='w',
+                        os.makedirs(summary_path, exist_ok=True)
+                        posx_array = zarr.open(os.path.join(summary_path, f"agent_posx{self.zarr_extension}"), mode='w',
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                               # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        posy_array = zarr.open(os.path.join(summary_path, "agent_posy.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        posy_array = zarr.open(os.path.join(summary_path, f"agent_posy{self.zarr_extension}"), mode='w',
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                               chunks=(1, *ax_chunk, 1,num_timesteps), dtype='float')
-                                               # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        rew_array = zarr.open(os.path.join(summary_path, "agent_rew.zarr"), mode='w',
+                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"), mode='w',
                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                              # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        ori_array = zarr.open(os.path.join(summary_path, "agent_ori.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        ori_array = zarr.open(os.path.join(summary_path, f"agent_ori{self.zarr_extension}"), mode='w',
                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                              # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        vel_array = zarr.open(os.path.join(summary_path, "agent_vel.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        vel_array = zarr.open(os.path.join(summary_path, f"agent_vel{self.zarr_extension}"), mode='w',
                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                              # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        w_array = zarr.open(os.path.join(summary_path, "agent_w.zarr"), mode='w',
-                                            shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                            chunks=(1, *ax_chunk, 1,num_timesteps), dtype='float')
-                                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        u_array = zarr.open(os.path.join(summary_path, "agent_u.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        w_array = zarr.open(os.path.join(summary_path, f"agent_w{self.zarr_extension}"), mode='w',
                                             shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        Ip_array = zarr.open(os.path.join(summary_path, "agent_Ip.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        u_array = zarr.open(os.path.join(summary_path, f"agent_u{self.zarr_extension}"), mode='w',
+                                            shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                            chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        Ip_array = zarr.open(os.path.join(summary_path, f"agent_Ip{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                             # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        mode_array = zarr.open(os.path.join(summary_path, "agent_mode.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        mode_array = zarr.open(os.path.join(summary_path, f"agent_mode{self.zarr_extension}"), mode='w',
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                               # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        expl_patch_array = zarr.open(os.path.join(summary_path, "agent_explpatch.zarr"), mode='w',
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        expl_patch_array = zarr.open(os.path.join(summary_path, f"agent_explpatch{self.zarr_extension}"), mode='w',
                                                      shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                      chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                                     # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
                              sorted(list(self.varying_params.keys()))]
@@ -545,7 +547,8 @@ class ExperimentLoader:
                         u_array[ind] = agent_data['u'][..., self.t_start:self.t_end:self.undersample]
                         Ip_array[ind] = agent_data['Ipriv'][..., self.t_start:self.t_end:self.undersample]
                         mode_array[ind] = agent_data['mode'][..., self.t_start:self.t_end:self.undersample]
-                        expl_patch_array[ind] = agent_data['expl_patch_id'][..., self.t_start:self.t_end:self.undersample]
+                        expl_patch_array[ind] = agent_data['expl_patch_id'][...,
+                                                self.t_start:self.t_end:self.undersample]
 
                     del agent_data
 
@@ -610,7 +613,8 @@ class ExperimentLoader:
 
             for k in sorted(list(self.varying_params.keys())):
                 axes_lens.append(len(self.varying_params[k]))
-            print(f"Previous summary had parameters t_start={self.t_start} : us-{self.undersample}-us : {self.t_end}=t_end")
+            print(
+                f"Previous summary had parameters t_start={self.t_start} : us-{self.undersample}-us : {self.t_end}=t_end")
             print(f"Previous summary will have varying axes dimensions: {axes_lens}")
 
         # Calculating res data
@@ -633,22 +637,22 @@ class ExperimentLoader:
                     # criteria as in self.varying_params and ALWAYS IN ALPHABETIC ORDER
                     # where the value is -1 the resource does not exist in time
                     ax_chunk = [1 for i in range(len(axes_lens))]
-                    r_posx_array = zarr.open(os.path.join(summary_path, "res_posx.zarr"), mode='w',
+                    r_posx_array = zarr.open(os.path.join(summary_path, f"res_posx{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                             # legacy noz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_posy_array = zarr.open(os.path.join(summary_path, "res_posy.zarr"), mode='w',
+                    # legacy noz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_posy_array = zarr.open(os.path.join(summary_path, f"res_posy{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                             # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = zarr.open(os.path.join(summary_path, "res_qual.zarr"), mode='w',
+                    # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_qual_array = zarr.open(os.path.join(summary_path, f"res_qual{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                             # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = zarr.open(os.path.join(summary_path, "res_rescleft.zarr"), mode='w',
+                    # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    r_rescleft_array = zarr.open(os.path.join(summary_path, f"res_rescleft{self.zarr_extension}"), mode='w',
                                                  shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                                                 # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                    # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
@@ -816,41 +820,78 @@ class ExperimentLoader:
             # no npz summary available for agent data
             if os.path.isdir(os.path.join(self.experiment_path, "summary", "agent_posx.zarr")):
                 # found zarr summary for agent data
-                self.agent_summary={}
-                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"), mode='r')
+                self.agent_summary = {}
+                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"),
+                                                       mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zarr"),
                                                        mode='r')
-                self.agent_summary['orientation'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),
-                                               mode='r')  # self.experiment.agent_summary['orientation']
+                self.agent_summary['orientation'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),
+                    mode='r')  # self.experiment.agent_summary['orientation']
                 self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_mode.zarr"),
-                                           mode='r')  # self.experiment.agent_summary['mode']
-                self.agent_summary['collresource'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_rew.zarr"),
-                                             mode='r')  # self.experiment.agent_summary['collresource']
+                                                       mode='r')  # self.experiment.agent_summary['mode']
+                self.agent_summary['collresource'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", "agent_rew.zarr"),
+                    mode='r')  # self.experiment.agent_summary['collresource']
+                self.num_batches = self.agent_summary['posx'].shape[0]
+            elif os.path.isfile(os.path.join(self.experiment_path, "summary", "agent_posx.zip")):
+                # found zarr summary for agent data
+                self.agent_summary = {}
+                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zip"),
+                                                       mode='r')
+                self.chunksize = int(self.agent_summary['posx'].shape[-1])
+                self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zip"),
+                                                       mode='r')
+                self.agent_summary['orientation'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", "agent_ori.zip"),
+                    mode='r')  # self.experiment.agent_summary['orientation']
+                self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_mode.zip"),
+                                                       mode='r')  # self.experiment.agent_summary['mode']
+                self.agent_summary['collresource'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", "agent_rew.zip"),
+                    mode='r')  # self.experiment.agent_summary['collresource']
                 self.num_batches = self.agent_summary['posx'].shape[0]
             else:
                 print("No npz or zarr format summary has been found for agent data!")
                 self.agent_summary = None
         if not os.path.isfile(os.path.join(self.experiment_path, "summary", "resource_summary.npz")):
             # no npz summary found for resources
-            if not os.path.isdir(os.path.join(self.experiment_path, "summary", "res_posx.zarr")):
-                print("Previous summary folder has been found but does not contain resource data. Summarizing resource data!")
-                self.read_all_data(only_res=True)
-            else:
+            if os.path.isdir(os.path.join(self.experiment_path, "summary", "res_posx.zarr")):
                 # we found zarr format summary for resources
                 self.res_summary = {}
                 self.res_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posx.zarr"),
-                                             mode='r')
+                                                     mode='r')
                 self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zarr"),
-                                             mode='r')
-                self.res_summary['resc_left'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
-                                             mode='r')
+                                                     mode='r')
+                self.res_summary['resc_left'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
+                    mode='r')
                 self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
-                                                mode='r')
+                                                        mode='r')
+            elif os.path.isfile(os.path.join(self.experiment_path, "summary", "res_posx.zip")):
+                # we found zarr format summary for resources
+                self.res_summary = {}
+                self.res_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posx.zip"),
+                                                     mode='r')
+                self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zip"),
+                                                     mode='r')
+                self.res_summary['resc_left'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", "res_rescleft.zip"),
+                    mode='r')
+                self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zip"),
+                                                        mode='r')
+
+            else:
+                print(
+                    "Previous summary folder has been found but does not contain resource data. Summarizing resource data!")
+                self.read_all_data(only_res=True)
+
 
         else:
             # found npz summary for resources
-            self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"), mmap_mode="r+")
+            self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"),
+                                       mmap_mode="r+")
 
         with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
             self.env = json.loads(fixf.read())
@@ -959,7 +1000,7 @@ class ExperimentLoader:
                 # collapsing along time dimension as we will average here
                 new_shape[t_idx] = 1
             else:
-                new_shape[t_idx] = int(new_shape[t_idx]/undersample)
+                new_shape[t_idx] = int(new_shape[t_idx] / undersample)
             new_shape = tuple(new_shape)
 
             # ----IID matrix---- will have dim (num_batches, *[dim of varying params], num_agents, num_agents,
@@ -1238,7 +1279,7 @@ class ExperimentLoader:
                     print(f"Normalizing column {coli}")
                     minval = np.min(collapsed_data[:, coli])
                     maxval = np.max(collapsed_data[:, coli])
-                    collapsed_data[:, coli] = (collapsed_data[:, coli] - minval)/(maxval - minval)
+                    collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
@@ -1275,7 +1316,7 @@ class ExperimentLoader:
         rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
         for i in range(self.num_batches):
             print(f"Calculating relocation time in batch {i}")
-            a = np.mean((self.agent_summary["mode"][i, ..., ::10] == 2).astype(int), axis=time_dim-1)
+            a = np.mean((self.agent_summary["mode"][i, ..., ::10] == 2).astype(int), axis=time_dim - 1)
             rel_reloc_matrix[i] = a.copy()
             del a
         mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)

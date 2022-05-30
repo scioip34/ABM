@@ -361,15 +361,15 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
             print("Saving resource data as compressed zarr arrays...")
             num_res = len(resources_dict)
             t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
-            posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
+            posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zip"), mode='w', shape=(num_res, t_len),
                                  chunks = (num_res, t_len), dtype = 'float')
-            posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zarr"), mode='w', shape=(num_res, t_len),
+            posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zip"), mode='w', shape=(num_res, t_len),
                                  chunks = (num_res, t_len), dtype = 'float')
-            rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
+            rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zip"), mode='w', shape=(num_res, t_len),
                                   chunks = (num_res, t_len), dtype = 'float')
-            qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
+            qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zip"), mode='w', shape=(num_res, t_len),
                                  chunks = (num_res, t_len), dtype = 'float')
-            resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
+            resrad = zarr.open(os.path.join(save_dir, "res_rad.zip"), mode='w', shape=(num_res, t_len),
                                chunks = (num_res, t_len), dtype = 'float')
             for res_id, res_dict in resources_dict.items():
                 posxzarr[res_id-1, :] = resources_dict[res_id]['pos_x']
@@ -381,28 +381,28 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
             print("Saving agent data as compressed zarr arrays...")
             num_ag = len(agents_dict)
             v_field_len = int(float(ifdbp.envconf.get("VISUAL_FIELD_RESOLUTION")))
-            aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zarr"), mode='w', shape=(num_ag, t_len),
+            aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            aposyzarr = zarr.open(os.path.join(save_dir, "ag_posy.zarr"), mode='w', shape=(num_ag, t_len),
+            aposyzarr = zarr.open(os.path.join(save_dir, "ag_posy.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            aorizarr = zarr.open(os.path.join(save_dir, "ag_ori.zarr"), mode='w', shape=(num_ag, t_len),
+            aorizarr = zarr.open(os.path.join(save_dir, "ag_ori.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            avelzarr = zarr.open(os.path.join(save_dir, "ag_vel.zarr"), mode='w', shape=(num_ag, t_len),
+            avelzarr = zarr.open(os.path.join(save_dir, "ag_vel.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            awzarr = zarr.open(os.path.join(save_dir, "ag_w.zarr"), mode='w', shape=(num_ag, t_len),
+            awzarr = zarr.open(os.path.join(save_dir, "ag_w.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            auzarr = zarr.open(os.path.join(save_dir, "ag_u.zarr"), mode='w', shape=(num_ag, t_len),
+            auzarr = zarr.open(os.path.join(save_dir, "ag_u.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            aiprivzarr = zarr.open(os.path.join(save_dir, "ag_ipriv.zarr"), mode='w', shape=(num_ag, t_len),
+            aiprivzarr = zarr.open(os.path.join(save_dir, "ag_ipriv.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            amodezarr = zarr.open(os.path.join(save_dir, "ag_mode.zarr"), mode='w', shape=(num_ag, t_len),
+            amodezarr = zarr.open(os.path.join(save_dir, "ag_mode.zip"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zarr"), mode='w', shape=(num_ag, t_len),
+            acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zip"), mode='w', shape=(num_ag, t_len),
                                   chunks=(num_ag, t_len), dtype='float')
-            aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zarr"), mode='w', shape=(num_ag, t_len),
+            aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zip"), mode='w', shape=(num_ag, t_len),
                                   chunks=(num_ag, t_len), dtype='float')
             if v_field_len is not None and save_extracted_vfield:
-                avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zarr"), mode='w', shape=(num_ag, t_len, v_field_len),
+                avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zip"), mode='w', shape=(num_ag, t_len, v_field_len),
                                       chunks=(num_ag, 1, v_field_len), dtype='float')
 
             for ag_id, ag_ict in agents_dict.items():

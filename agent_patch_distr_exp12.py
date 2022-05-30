@@ -186,5 +186,8 @@ posy = data.posy_z
 
 agent_or_patch = 'patch'
 loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, res_posx, res_posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad)
+
+if N == 0:
+    sys.exit('No plots for agents created as number of agents N=0. Plots for patches created successfully.')
 agent_or_patch = 'agent'
 loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad)

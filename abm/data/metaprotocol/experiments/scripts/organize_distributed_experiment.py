@@ -3,7 +3,7 @@ import os
 import shutil
 
 # folder in which the individual hashed exp folders are
-distributed_exp_path = "/home/mezey/Desktop/clustermount/ABM/abm/data/simulation_data/exp11"
+distributed_exp_path = "/home/mezey/Desktop/Database/simulation_data/expFig1p1"
 
 hashed_subfolders = glob(os.path.join(distributed_exp_path, "*/"), recursive=False)
 batch_num = 0

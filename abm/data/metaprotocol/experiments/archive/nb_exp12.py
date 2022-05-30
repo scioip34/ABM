@@ -70,16 +70,6 @@ fixed_criteria = [
     Constant("DEC_TU", 0.5)
 ]
 
-# # quick check that restricted_overall_res_area is not larger than 20% of restricted_arena_size
-# radius = 30
-# restricted_arena_w = arena_w - 2 * radius
-# restricted_arena_h = arena_h - 2 * radius
-# restricted_arena_size = restricted_arena_w * restricted_arena_h
-# restricted_overall_res_area = int(restricted_arena_size * 0.2)
-# restricted_overall_res_area
-# nup = restricted_overall_res_area/(np.pi*radius*radius)
-# nup
-
 # Defining decision param
 sum_resources = 3000
 arena_size = arena_w * arena_h

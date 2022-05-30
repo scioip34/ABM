@@ -440,7 +440,7 @@ class Simulation:
             x = np.random.randint(self.window_pad - self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
             y = np.random.randint(self.window_pad - self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
 
-            # for inhibiting patches to overlap arena borders comment the previous two lines  and uncomment following two lines
+            # for inhibiting agents to overlap arena borders comment the previous two lines  and uncomment following two lines
             # x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - 2 * self.agent_radii)
             # y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - 2 * self.agent_radii)
 

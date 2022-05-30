@@ -4,7 +4,7 @@
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
 import os
-EXP_NAME = os.getenv("EXPERIMENT_NAME", "agent_patch_place_distr_test")
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "agent_patch_place_distr")
 if EXP_NAME == "":
     raise Exception("No experiment name has been passed")
 
@@ -16,7 +16,7 @@ Date:       09.05.2022
 Goal:       Changing the number of patches such that 20% of the arena is covered.
             Starting with one patch covering 20% of the arena.
             When placing the recources in the arena we want to get a uniform
-            distribution of their locations. In this experiment, we want to
+            distribution of their locations. In this experiment, we also want to
             compare two different cases. In the first case, the resource
             patches are allowed to cross the borders of the arena. In the
             second case they are not. We want to check how the distribution of
@@ -86,10 +86,9 @@ arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 overall_res_area = int(arena_size * 0.2)
 
-# num_patches = [1,5,10,30,100]
 num_patches = [1, 5, 10]
 criteria_exp = [
-    Constant("N", 3),
+    Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),
     Constant("AGENT_FOV", 1),  # unlimited
     Constant("DEC_EPSW", 0.25), # social excitability

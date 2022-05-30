@@ -87,9 +87,9 @@ arena_size = arena_w * arena_h
 overall_res_area = int(arena_size * 0.2)
 
 # num_patches = [1,5,10,30,100]
-num_patches = [1, 5, 10]
+num_agents = [5, 10]
 criteria_exp = [
-    Constant("N", 3),
+    Tunable("N", values_override=num_agents),
     Constant("VISUAL_EXCLUSION", 0),
     Constant("AGENT_FOV", 1),  # unlimited
     Constant("DEC_EPSW", 0.25), # social excitability
@@ -98,8 +98,8 @@ criteria_exp = [
     Constant("MIN_RESOURCE_PER_PATCH", 30),
     Constant("DEC_SWU", 0),
     Constant("DEC_SUW", 0),
-    Tunable("RADIUS_RESOURCE", values_override=[np.sqrt(overall_res_area/(np.pi*nup)) for nup in num_patches]),
-    Tunable("N_RESOURCES", values_override=num_patches),
+    Constant("RADIUS_RESOURCE", 5),
+    Constant("N_RESOURCES", 0),
     Constant("T", 1)
 ]
 
@@ -119,8 +119,8 @@ for crit in criteria_exp:
 # mp.add_tuned_pair(constant_runits)
 
 # keeping the covered area on 20% on overall area
-constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
-mp.add_quadratic_tuned_pair(constant_r_area)
+# constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
+# mp.add_quadratic_tuned_pair(constant_r_area)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due
 # to interruption

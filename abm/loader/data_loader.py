@@ -67,6 +67,7 @@ class DataLoader:
         self.patch_id_dict = None
 
         self.zarr_compressed_runs = False
+        self.zarr_extension = None
 
         # Defining path for agent data
         self.agent_csv_path = os.path.join(self.data_folder_path, "agent_data.csv")
@@ -76,9 +77,15 @@ class DataLoader:
             if not os.path.isfile(self.agent_json_path):
                 print("Neither json nor csv data found for agent data, looking for zarr!")
                 self.agent_json_path = None
-                if os.path.isdir(os.path.join(self.data_folder_path, "ag_posx.zarr")):
+                if os.path.isdir(os.path.join(self.data_folder_path, "ag_posx.zarr")) or \
+                        os.path.isfile(os.path.join(self.data_folder_path, "ag_posx.zip")):
                     print("Found zarr archives, using them!")
                     self.zarr_compressed_runs = True
+                    if os.path.isdir(os.path.join(self.data_folder_path, "ag_posx.zarr")):
+                        self.zarr_extension = ".zarr"
+                    else:
+                        self.zarr_extension = ".zip"
+                    print(f"Using zarr format with filetype {self.zarr_extension}")
                 else:
                     print("No zarr archives found!")
         else:
@@ -211,16 +218,20 @@ class DataLoader:
             else:
                 if self.zarr_compressed_runs:
                     self.agent_data = {}
-                    self.agent_data['posx'] = zarr.open(os.path.join(self.data_folder_path, "ag_posx.zarr"), mode='r')
-                    self.agent_data['posy'] = zarr.open(os.path.join(self.data_folder_path, "ag_posy.zarr"), mode='r')
-                    self.agent_data['orientation'] = zarr.open(os.path.join(self.data_folder_path, "ag_ori.zarr"), mode='r')
-                    self.agent_data['velocity'] = zarr.open(os.path.join(self.data_folder_path, "ag_vel.zarr"), mode='r')
-                    self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, "ag_w.zarr"), mode='r')
-                    self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, "ag_u.zarr"), mode='r')
-                    self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, "ag_ipriv.zarr"), mode='r')
-                    self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, "ag_mode.zarr"), mode='r')
-                    self.agent_data['collresource'] = zarr.open(os.path.join(self.data_folder_path, "ag_collr.zarr"), mode='r')
-                    self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, "ag_explr.zarr"), mode='r')
+                    self.agent_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"ag_posx{self.zarr_extension}"), mode='r')
+                    self.agent_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"ag_posy{self.zarr_extension}"), mode='r')
+                    self.agent_data['orientation'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ori{self.zarr_extension}"),
+                                                               mode='r')
+                    self.agent_data['velocity'] = zarr.open(os.path.join(self.data_folder_path, f"ag_vel{self.zarr_extension}"),
+                                                            mode='r')
+                    self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, f"ag_w{self.zarr_extension}"), mode='r')
+                    self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, f"ag_u{self.zarr_extension}"), mode='r')
+                    self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ipriv{self.zarr_extension}"), mode='r')
+                    self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, f"ag_mode{self.zarr_extension}"), mode='r')
+                    self.agent_data['collresource'] = zarr.open(os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
+                                                                mode='r')
+                    self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
+                                                                 mode='r')
                 else:
                     raise Exception("No json, csv or zarr archive found for agent data!")
             print("agent_data loaded")
@@ -236,16 +247,17 @@ class DataLoader:
                 else:
                     if self.zarr_compressed_runs:
                         self.resource_data = {}
-                        self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, "res_posx.zarr"),
-                                                            mode='r')
-                        self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, "res_posy.zarr"),
-                                                            mode='r')
-                        self.resource_data['resc_left'] = zarr.open(os.path.join(self.data_folder_path, "res_left.zarr"),
-                                                                   mode='r')
-                        self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, "res_qual.zarr"),
-                                                                mode='r')
-                        self.resource_data['radius'] = zarr.open(os.path.join(self.data_folder_path, "res_rad.zarr"),
+                        self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
+                                                               mode='r')
+                        self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
+                                                               mode='r')
+                        self.resource_data['resc_left'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
+                            mode='r')
+                        self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
                                                                   mode='r')
+                        self.resource_data['radius'] = zarr.open(os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
+                                                                 mode='r')
 
                 print("resource data loaded")
                 print(sys.getsizeof(self.agent_data))

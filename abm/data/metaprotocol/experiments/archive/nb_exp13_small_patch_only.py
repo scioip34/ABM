@@ -50,6 +50,7 @@ fixed_criteria = [
     Constant("MOV_REL_TH_MAX", 0.5),
     Constant("CONS_STOP_RATIO", 0.1),
     Constant("REGENERATE_PATCHES", 1),
+    Constant("PATCH_BORDER_OVERLAP", 1),     
     Constant("DEC_FN", 0.5),
     Constant("DEC_FR", 0.5),
     Constant("DEC_TAU", 10),

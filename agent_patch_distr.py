@@ -85,21 +85,51 @@ def modifiy_pixel_array_circle(pixel_array, m_x, m_y, radius):
 
     return pixel_array
 
-def loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad):
+def save_pixel_array(normalized_pixel_array, locations_or_circles, agent_or_patch,
+                    R, N, radii_resources, N_R, num_batches, folderpath):
+    """ Saves a pixel array for adapting plots."""
+    filename = (f'{agent_or_patch}_normalized_pixel_array_{locations_or_circles}_R_{R}'
+                f'_N_{N}_R_R_{radii_resources}'
+                f'_N_R_{N_R}_batches_{num_batches}.npz')
+    final_path = os.path.join(folderpath, filename)
+    np.savez(final_path, normalized_pixel_array=normalized_pixel_array)
+    return
+
+def loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy,
+                        RADIUS_AGENT, N, values_N_RESOURCES, radii_resources, nr_of_radii,
+                        num_batches, window_pad):
+    """ Loops through the different radii values of the patches and
+        saves plots of either the patches or the agents and the respective pixel arrays
+        from which the plots are genereated.
+
+    Parameters:
+
+    agent_or_patch : (string) Set to 'patch' for plotting patches or 'agent' for plotting agents.
+    folderpath : Path where plots and pixel arrays are saved.
+    ENV_HEIGHT : Height of arena in pixels.
+    ENV_WIDTH : Width of arena in pixels.
+    posx : numpy.ndarray containing x-positions of either patches or agents depending agent_or_patch
+    posy : numpy.ndarray containing y-positions of either patches or agents depending agent_or_patch
+    RADIUS_AGENT : (float) Radius of the agents.
+    N : (int) Number of agents.
+    values_N_RESOURCES : (list) Different values of the number of resources
+    radii_resources : (list) Different values of the radii of the resources
+    nr_of_radii : (int) Number of different radii.
+    num_batches : (int) number of batches
+    window_pad : (int) parameter for padding of arena in pygame window.
+    """
     for i in range(0, nr_of_radii):
         if agent_or_patch == 'patch':
-            number_of_entities = N_RESOURCES[i] # "entity" as abstraction for agent and patch
-            radius_of_entity = RADIUS_RESOURCE[nr_of_radii - 1 - i]
+            number_of_entities = values_N_RESOURCES[i] # "entity" as abstraction for agent and patch
+            radius_of_entity = radii_resources[nr_of_radii - 1 - i]
         else:
             number_of_entities = N
             radius_of_entity = RADIUS_AGENT
 
-        x_values = []
-        y_values = []
-        for j in range(0,num_batches):
-            # TODO check again: see x = np.random.randint(float, float) in sims.py. For float it rounds down so here we need to ceil
-            x_values = np.append(x_values, posx[j,i,nr_of_radii - 1 - i,:,0][:int(number_of_entities)] - window_pad + int(radius_of_entity))
-            y_values = np.append(y_values, posy[j,i,nr_of_radii - 1 - i,:,0][:int(number_of_entities)] - window_pad + int(radius_of_entity))
+        # See x = np.random.randint(self.window_pad - radius, self.WIDTH + self.window_pad - radius) in sims.py.
+        # For x = np.random.randint(float, float) it rounds down so here we might need to ceil.
+        x_values = posx[:, i, nr_of_radii - 1 - i, 0:int(number_of_entities), 0].flatten() - window_pad + int(radius_of_entity)
+        y_values = posy[:, i, nr_of_radii - 1 - i, 0:int(number_of_entities), 0].flatten() - window_pad + int(radius_of_entity)
 
         # making sure that no drawn location is outside the arena borders
         max_x_values = np.max(x_values)
@@ -137,13 +167,32 @@ def loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx,
                     N, radii_resources[nr_of_radii - 1 - i], values_N_RESOURCES[i], num_batches, folderpath)
     return
 
-def loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, num_batches, window_pad):
-    x_values = []
-    y_values = []
-    for j in range(0, num_batches):
-        # see x = np.random.randint(float, float) in sims.py. For float it rounds down so here we need to ceil
-        x_values = np.append(x_values, posx[j, :, 0][:int(N)] - window_pad + int(RADIUS_AGENT))
-        y_values = np.append(y_values, posy[j, :, 0][:int(N)] - window_pad + int(RADIUS_AGENT))
+def loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH,
+                            posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE,
+                            num_batches, window_pad):
+    """ Saves plots of the agents for a fixed set of parameters and
+        and the respective pixel arrays from which the plots are genereated. It is made
+        for plotting the agents for the case of only one resource patch af radius 1.
+
+    Parameters:
+
+    agent_or_patch : (string) Set to 'patch' for plotting patches or 'agent' for plotting agents.
+    folderpath : Path where plots and pixel arrays are saved.
+    ENV_HEIGHT : Height of arena in pixels.
+    ENV_WIDTH : Width of arena in pixels.
+    posx : numpy.ndarray containing x-positions of agents.
+    posy : numpy.ndarray containing y-positions of agents.
+    RADIUS_AGENT : (float) Radius of the agents.
+    N : (int) Number of agents.
+    N_RESOURCES : (int) Number of resources
+    RADIUS_RESOURCE : (int) Radius of the resources.
+    num_batches : (int) number of batches
+    window_pad : (int) parameter for padding of arena in pygame window.
+    """
+    # See x = np.random.randint(self.window_pad - radius, self.WIDTH + self.window_pad - radius) in sims.py.
+    # For x = np.random.randint(float, float) it rounds down so here we might need to ceil.
+    x_values = posx[:, 0:int(N), 0].flatten() - window_pad + int(RADIUS_AGENT)
+    y_values = posy[:, 0:int(N), 0].flatten() - window_pad + int(RADIUS_AGENT)
 
     # making sure that no drawn location is outside the arena borders
     max_x_values = np.max(x_values)
@@ -165,10 +214,9 @@ def loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, 
     plot_circles(agent_or_patch, normalized_pixel_array, RADIUS_AGENT, N,
                 RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath)
 
-    # loop through agent/patch locations and add + 1 for each PIXEL location in pixel array
+    # for all agent/patch locations add + 1 PIXEL in pixel array
     pixel_array = np.zeros([ENV_HEIGHT, ENV_WIDTH])
-    for k in range(0, len(x_values)):
-        pixel_array[int(y_values[k]), int(x_values[k])] = pixel_array[int(y_values[k]), int(x_values[k])] + 1
+    pixel_array[[int(i) for i in y_values], [int(i) for i in x_values]] += 1
 
     # probability density for num_batches initializations
     normalized_pixel_array = pixel_array / pixel_array.sum()
@@ -181,7 +229,9 @@ def loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, 
     return
 
 
-def plot_circles(agent_or_patch,pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath):
+def plot_circles(agent_or_patch, pixel_array, RADIUS_AGENT, N,
+                RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath):
+    """ Plots filled circles for agents and patches."""
     plt.figure()
     plt.xlabel('location x')
     plt.ylabel('location y')
@@ -197,7 +247,9 @@ def plot_circles(agent_or_patch,pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N
     plt.savefig(final_path)
     return
 
-def plot_centers(agent_or_patch, pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath):
+def plot_centers(agent_or_patch, pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE,
+                N_RESOURCES, num_batches, folderpath):
+    """ Plots locations (centers) of agents and patches."""
     plt.figure()
     plt.xlabel('location x')
     plt.ylabel('location y')

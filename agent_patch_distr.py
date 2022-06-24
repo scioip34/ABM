@@ -31,13 +31,13 @@ from abm.replay.replay import ExperimentReplay
 #
 ################################################################################
 
-# TODO see modifiy_pixel_array_circle()
 
 # for loading data from /summary
 filepath = '/ABM/abm/data/simulation_data/agent_patch_place_distr/'
+
 # for storing plots of patch distribution
-folderpath = filepath + '/summary/agent_patch_distr'
-window_pad = 30 # hardcoded
+folderpath = os.path.join(filepath, 'summary/agent_patch_distr')
+window_pad = 30  # hardcoded
 
 # see "Equation of a circle" in  https://en.wikipedia.org/wiki/Circle#Equations
 def modifiy_pixel_array_circle(pixel_array, m_x, m_y, radius):
@@ -53,10 +53,9 @@ def modifiy_pixel_array_circle(pixel_array, m_x, m_y, radius):
 
     Returns: modified pixel_array
     """
+    # presuming that arena consists of pixel id = 0 until pixel id = ENV_WIDTH-1
+    # instead of id = 1 until pixel id = ENV_WIDTH (and respectively for ENV_HEIGHT)
     ENV_HEIGHT, ENV_WIDTH = np.shape(pixel_array)
-    # TODO Check if arena consists of pixel id = 0 until pixel id = ENV_WIDTH-1 or
-    #      id = 1 until pixel id = ENV_WIDTH (and respectively for ENV_HEIGHT)
-    #      => If necessary adapt range().
 
     left_end_circle = int(m_x - radius)
     right_end_circle = int(m_x + radius + 1)
@@ -74,7 +73,6 @@ def modifiy_pixel_array_circle(pixel_array, m_x, m_y, radius):
         lower_end_circle = ENV_HEIGHT
 
     # create numpy mask
-
 
     for x in range(left_end_circle, right_end_circle):
         for y in range(upper_end_circle, lower_end_circle):
@@ -110,24 +108,33 @@ def loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx,
             sys.exit('At least one patch location is outside the arena borders.')
 
         # loop through agent/patch locations and "create" a filled CIRCLE for each location in pixel array
-        pixel_array = np.zeros([ENV_HEIGHT,ENV_WIDTH])
-        for k in range(0,len(x_values)):
+        pixel_array = np.zeros([ENV_HEIGHT, ENV_WIDTH])
+        for k in range(0, len(x_values)):
             pixel_array = modifiy_pixel_array_circle(pixel_array, x_values[k], y_values[k], radius_of_entity)
-        # normalized_pixel_array = pixel_array / pixel_array.sum() # this is the probability density for num_batches initializations
-        normalized_pixel_array = pixel_array / num_batches # this is the frequency a pixel is covered
-        # save pixel array for adapting plots (computation of pixel array is slow)
-        np.savez(folderpath +'/{}_normalized_pixel_array_circles_R_{}_N_{}_R_R_{}_N_R_{}_batches_{}.npz'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE[nr_of_radii - 1 - i],2),int(N_RESOURCES[i]),num_batches),normalized_pixel_array=normalized_pixel_array)
-        plot_circles(agent_or_patch, normalized_pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE[nr_of_radii - 1 - i], N_RESOURCES[i], num_batches, folderpath)
 
-        # loop through agent/patch locations and add + 1 for each PIXEL location in pixel array
-        pixel_array = np.zeros([ENV_HEIGHT,ENV_WIDTH])
-        for k in range(0,len(x_values)):
-            pixel_array[int(y_values[k]),int(x_values[k])] = pixel_array[int(y_values[k]),int(x_values[k])] + 1
-        # normalized_pixel_array = pixel_array / pixel_array.sum() # this is the probability density for num_batches initializations
-        normalized_pixel_array = pixel_array / num_batches # this is the frequency a pixel is covered
-        # save pixel array for adapting plots (computation of pixel array is slow)
-        np.savez(folderpath +'/{}_normalized_pixel_array_locations_R_{}_N_{}_R_R_{}_N_R_{}_batches_{}.npz'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE[nr_of_radii - 1 - i],2),int(N_RESOURCES[i]),num_batches),normalized_pixel_array=normalized_pixel_array)
-        plot_centers(agent_or_patch,normalized_pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE[nr_of_radii - 1 - i], N_RESOURCES[i], num_batches, folderpath)
+        # probability density for num_batches initializations
+        normalized_pixel_array = pixel_array / pixel_array.sum()
+
+        save_pixel_array(normalized_pixel_array, 'circles', agent_or_patch, round(RADIUS_AGENT, 2),
+                        int(N), round(radii_resources[nr_of_radii - 1 - i], 2),
+                        int(values_N_RESOURCES[i]), num_batches, folderpath)
+
+        plot_circles(agent_or_patch, normalized_pixel_array, RADIUS_AGENT, N,
+                    radii_resources[nr_of_radii - 1 - i], values_N_RESOURCES[i], num_batches, folderpath)
+
+        # for all agent/patch locations add + 1 PIXEL in pixel array
+        pixel_array = np.zeros([ENV_HEIGHT, ENV_WIDTH])
+        pixel_array[[int(i) for i in y_values], [int(i) for i in x_values]] += 1
+
+        # probability density for num_batches initializations
+        normalized_pixel_array = pixel_array / pixel_array.sum()
+
+        save_pixel_array(normalized_pixel_array, 'locations', agent_or_patch, round(RADIUS_AGENT, 2),
+                        int(N), round(radii_resources[nr_of_radii - 1 - i], 2),
+                        int(values_N_RESOURCES[i]), num_batches, folderpath)
+
+        plot_centers(agent_or_patch,normalized_pixel_array, RADIUS_AGENT,
+                    N, radii_resources[nr_of_radii - 1 - i], values_N_RESOURCES[i], num_batches, folderpath)
     return
 
 def loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, num_batches, window_pad):
@@ -149,57 +156,64 @@ def loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, 
     for k in range(0, len(x_values)):
         pixel_array = modifiy_pixel_array_circle(pixel_array, x_values[k], y_values[k], RADIUS_AGENT)
 
-    # normalized_pixel_array = pixel_array / pixel_array.sum() # this is the probability density for num_batches
-    # initializations
-    normalized_pixel_array = pixel_array / num_batches  # this is the frequency a pixel is covered
+    # probability density for num_batches initializations
+    normalized_pixel_array = pixel_array / pixel_array.sum()
 
-    # save pixel array for adapting plots (computation of pixel array is slow)
-    filename = f"{agent_or_patch}_normalized_pixel_array_circles_R_{round(RADIUS_AGENT,2)}_N_{int(N)}_R_R_{round(RADIUS_RESOURCE,2)}_N_R_{int(N_RESOURCES)}_batches_{num_batches}.npz"
-    final_path = os.path.join(folderpath, filename)
-    np.savez(final_path, normalized_pixel_array=normalized_pixel_array)
-    plot_circles(agent_or_patch, normalized_pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath)
+    save_pixel_array(normalized_pixel_array, 'circles', agent_or_patch, round(RADIUS_AGENT, 2),
+                    int(N), round(RADIUS_RESOURCE, 2), int(N_RESOURCES), num_batches, folderpath)
+
+    plot_circles(agent_or_patch, normalized_pixel_array, RADIUS_AGENT, N,
+                RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath)
 
     # loop through agent/patch locations and add + 1 for each PIXEL location in pixel array
     pixel_array = np.zeros([ENV_HEIGHT, ENV_WIDTH])
     for k in range(0, len(x_values)):
         pixel_array[int(y_values[k]), int(x_values[k])] = pixel_array[int(y_values[k]), int(x_values[k])] + 1
 
-    # normalized_pixel_array = pixel_array / pixel_array.sum() # this is the probability density for num_batches
-    # initializations
-    normalized_pixel_array = pixel_array / num_batches  # this is the frequency a pixel is covered
+    # probability density for num_batches initializations
+    normalized_pixel_array = pixel_array / pixel_array.sum()
 
-    # save pixel array for adapting plots (computation of pixel array is slow)
-    np.savez(folderpath +'/{}_normalized_pixel_array_locations_R_{}_N_{}_R_R_{}_N_R_{}_batches_{}.npz'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE,2),int(N_RESOURCES),num_batches),normalized_pixel_array=normalized_pixel_array)
-    plot_centers(agent_or_patch,normalized_pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath)
+    save_pixel_array(normalized_pixel_array, 'locations', agent_or_patch, round(RADIUS_AGENT, 2),
+                    int(N), round(RADIUS_RESOURCE, 2), int(N_RESOURCES), num_batches, folderpath)
+
+    plot_centers(agent_or_patch, normalized_pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE,
+                N_RESOURCES, num_batches, folderpath)
     return
-
 
 
 def plot_circles(agent_or_patch,pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath):
     plt.figure()
     plt.xlabel('location x')
     plt.ylabel('location y')
-    plt.title('{} R={} N={} R_R={} N_R={} batches={}'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE,2),int(N_RESOURCES),num_batches))
+    plt.title(f'{agent_or_patch} R={round(RADIUS_AGENT, 2)} N={int(N)} '
+              f'R_R={round(RADIUS_RESOURCE, 2)} N_R={int(N_RESOURCES)} batches={num_batches}')
     color_map = plt.imshow(pixel_array)
     color_map.set_cmap("viridis")
-    plt.colorbar(label='Frequency')
-    # plt.colorbar(label='Probability density')
+    plt.colorbar(label='Probability density')
     plt.tight_layout()
-    plt.savefig(folderpath +'/{}_covered_area_R_{}_N_{}_R_R_{}_N_R_{}_batches_{}.png'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE,2),int(N_RESOURCES),num_batches))
+    filename = (f'{agent_or_patch}_covered_area_R_{round(RADIUS_AGENT, 2)}_N_{int(N)}'
+                f'_R_R_{round(RADIUS_RESOURCE, 2)}_N_R_{int(N_RESOURCES)}_batches_{num_batches}.png')
+    final_path = os.path.join(folderpath, filename)
+    plt.savefig(final_path)
     return
 
 def plot_centers(agent_or_patch, pixel_array, RADIUS_AGENT, N, RADIUS_RESOURCE, N_RESOURCES, num_batches, folderpath):
     plt.figure()
     plt.xlabel('location x')
     plt.ylabel('location y')
-    plt.title('{} R={} N={} R_R={} N_R={} batches={}'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE,2),int(N_RESOURCES),num_batches))
+    plt.title(f'{agent_or_patch} R={round(RADIUS_AGENT, 2)} N={int(N)} R_R={round(RADIUS_RESOURCE, 2)} '
+              f'N_R={int(N_RESOURCES)} batches={num_batches}')
     color_map = plt.imshow(pixel_array)
     color_map.set_cmap("viridis")
-    plt.colorbar(label='Frequency')
-    # plt.colorbar(label='Probability density')
+    plt.colorbar(label='Probability density')
     plt.tight_layout()
-    plt.savefig(folderpath +'/{}_locations_R_{}_N_{}_R_R_{}_N_R_{}_batches_{}.png'.format(agent_or_patch,round(RADIUS_AGENT,2),int(N),round(RADIUS_RESOURCE,2),int(N_RESOURCES),num_batches))
+    filename = (f'{agent_or_patch}_locations_R_{round(RADIUS_AGENT, 2)}_N_{int(N)}'
+                f'_R_R_{round(RADIUS_RESOURCE, 2)}_N_R_{int(N_RESOURCES)}_batches_{num_batches}.png')
+    final_path = os.path.join(folderpath, filename)
+    plt.savefig(final_path)
+
     return
+
 
 # load data from /summary
 data = ExperimentReplay(filepath, undersample=1)
@@ -211,47 +225,51 @@ if os.path.exists(folderpath) == False:
 # read out parameters from .json-files for printing/showing them in plots and filesnames
 # fixed_env
 # abm/data/simulation_data/experiment_name/summary/fixed_env.json
-with open(filepath + '/summary/fixed_env.json', 'r') as k:
-     fixed_env =  json.loads(k.read())
+with open(os.path.join(filepath, 'summary/fixed_env.json'), 'r') as k:
+    fixed_env = json.loads(k.read())
 
 ENV_WIDTH = fixed_env['ENV_WIDTH']
 ENV_HEIGHT = fixed_env['ENV_HEIGHT']
 
-# tuned_env
-# abm/data/simulation_data/experiment_name/summary/tuned_env.json
-with open(filepath + '/summary/tuned_env.json', 'r') as k:
-     tuned_env =  json.loads(k.read())
-
 # get agent parameters
-RADIUS_AGENT = fixed_env['RADIUS_AGENT'] # different radii used in experiment
+RADIUS_AGENT = fixed_env['RADIUS_AGENT']
 N = fixed_env['N']
 posx = data.posx_z
 posy = data.posy_z
 
-
 # for experiments with N_RESOURCES=1 RADIUS_RESOURCE=1
 if len(posx.shape) == 3:
     agent_or_patch = 'agent'
-    RADIUS_RESOURCE = fixed_env['RADIUS_RESOURCE'] # different radii used in experiment
+    RADIUS_RESOURCE = fixed_env['RADIUS_RESOURCE']
     N_RESOURCES = fixed_env['N_RESOURCES']
     num_batches = posx.shape[0]
-    loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, num_batches, window_pad)
+    loop_batches_small_patch(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH,
+                            posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE,
+                            num_batches, window_pad)
     sys.exit()
 
+# tuned_env
+# abm/data/simulation_data/experiment_name/summary/tuned_env.json
+with open(os.path.join(filepath, 'summary/tuned_env.json'), 'r') as k:
+    tuned_env = json.loads(k.read())
 
 # get resource parameters
-RADIUS_RESOURCE = tuned_env['RADIUS_RESOURCE'] # different radii used in experiment
-N_RESOURCES = tuned_env['N_RESOURCES']
+radii_resources = tuned_env['RADIUS_RESOURCE'] # different radii used in experiment
+values_N_RESOURCES = tuned_env['N_RESOURCES']
 res_posx = data.res_pos_x_z
 res_posy = data.res_pos_y_z
 
-num_batches, nr_of_radii, length_num_patches, max_N_RESOURCES , T = res_posx.shape
+num_batches, nr_of_radii, length_num_patches, max_N_RESOURCES, T = res_posx.shape
 
 agent_or_patch = 'patch'
-loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, res_posx, res_posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad)
+loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH,
+                    res_posx, res_posy, RADIUS_AGENT, N, values_N_RESOURCES, radii_resources,
+                    nr_of_radii, num_batches, window_pad)
 
-# in case of N=0 no agents are created, so plotting is not executed
+# in case of N=0 no agents are created, so plotting in following lines is not executed
 if N == 0:
     sys.exit('No plots for agents created as number of agents N=0. Plots for patches created successfully.')
 agent_or_patch = 'agent'
-loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy, RADIUS_AGENT, N, N_RESOURCES, RADIUS_RESOURCE, nr_of_radii, num_batches, window_pad)
+loop_params_batches(agent_or_patch, folderpath, ENV_HEIGHT, ENV_WIDTH, posx, posy,
+                    RADIUS_AGENT, N, values_N_RESOURCES, radii_resources,
+                    nr_of_radii, num_batches, window_pad)

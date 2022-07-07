@@ -57,33 +57,16 @@ def modifiy_pixel_array_circle(pixel_array, m_x, m_y, radius):
     # instead of id = 1 until pixel id = ENV_WIDTH (and respectively for ENV_HEIGHT)
     ENV_HEIGHT, ENV_WIDTH = np.shape(pixel_array)
 
-    left_end_circle = int(m_x - radius)
-    right_end_circle = int(m_x + radius + 1)
-    upper_end_circle = int(m_y - radius)
-    lower_end_circle = int(m_y + radius + 1)
-
-    # adapt _end_circle such that no pixels are placed outside arena.
-    if left_end_circle < 0:
-        left_end_circle = 0
-    if right_end_circle > ENV_WIDTH:
-        right_end_circle = ENV_WIDTH
-    if upper_end_circle < 0:
-        upper_end_circle = 0
-    if lower_end_circle > ENV_HEIGHT:
-        lower_end_circle = ENV_HEIGHT
+    #  create arrays of indices
+    x_ind = np.arange(0, ENV_WIDTH)
+    y_ind = np.arange(0, ENV_HEIGHT)
 
     # create numpy mask
-
-    for x in range(left_end_circle, right_end_circle):
-        for y in range(upper_end_circle, lower_end_circle):
-            dx = x - m_x
-            dy = y - m_y
-            distance_squared = dx * dx + dy * dy
-
-            if distance_squared <= (radius * radius):
-                pixel_array[y, x] = pixel_array[y, x] + 1
+    mask_circle = (x_ind[np.newaxis, :] - m_x)**2 + (y_ind[:, np.newaxis] - m_y)**2 <= radius**2
+    pixel_array[mask_circle] += 1
 
     return pixel_array
+
 
 def save_pixel_array(normalized_pixel_array, locations_or_circles, agent_or_patch,
                     R, N, radii_resources, N_R, num_batches, folderpath):

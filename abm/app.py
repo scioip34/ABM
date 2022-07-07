@@ -35,6 +35,7 @@ def start(parallel=False, headless=False):
                          pooling_prob=float(envconf["POOLING_PROBABILITY"]),
                          agent_radius=int(float(envconf["RADIUS_AGENT"])),
                          N_resc=int(float(envconf["N_RESOURCES"])),
+                         allow_border_patch_overlap=bool(int(float(envconf["PATCH_BORDER_OVERLAP"]))),
                          min_resc_perpatch=int(float(envconf["MIN_RESOURCE_PER_PATCH"])),
                          max_resc_perpatch=int(float(envconf["MAX_RESOURCE_PER_PATCH"])),
                          min_resc_quality=float(envconf["MIN_RESOURCE_QUALITY"]),

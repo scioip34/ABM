@@ -116,6 +116,8 @@ class Simulation:
         self.HEIGHT = height
         self.window_pad = window_pad
 
+        self.allow_border_patch_overlap = allow_border_patch_overlap
+
         # Simulation parameters
         self.N = N
         self.T = T

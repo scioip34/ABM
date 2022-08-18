@@ -716,7 +716,7 @@ class Simulation:
                 # Update agents according to current visible obstacles
                 self.agents.update(self.agents)
 
-                # move to next simulation timestep
+                # move to next simulation timestep (only when not paused)
                 self.t += 1
 
             # Simulation is paused
@@ -730,15 +730,17 @@ class Simulation:
                 self.draw_frame(self.stats, self.stats_pos)
                 pygame.display.flip()
 
-            # Monitoring with IFDB
+            # Monitoring with IFDB (also when paused)
             if self.save_in_ifd:
                 ifdb.save_agent_data(self.ifdb_client, self.agents, self.t, exp_hash=self.ifdb_hash,
                                      batch_size=self.write_batch_size)
                 ifdb.save_resource_data(self.ifdb_client, self.rescources, self.t, exp_hash=self.ifdb_hash,
                                         batch_size=self.write_batch_size)
             elif self.save_in_ram:
-                ifdb.save_agent_data_RAM(self.agents, self.t)
-                ifdb.save_resource_data_RAM(self.rescources, self.t)
+                # saving data in ram for data processing, only when not paused
+                if not self.is_paused:
+                    ifdb.save_agent_data_RAM(self.agents, self.t)
+                    ifdb.save_resource_data_RAM(self.rescources, self.t)
 
             # Moving time forward
             if self.t % 500 == 0 or self.t == 1:

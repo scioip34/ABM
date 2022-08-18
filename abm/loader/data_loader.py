@@ -823,9 +823,15 @@ class ExperimentLoader:
                 self.agent_summary = {}
                 self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"),
                                                        mode='r')
+                self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_u.zarr"),
+                                                       mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zarr"),
                                                        mode='r')
+                self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_w.zarr"),
+                                                    mode='r')
+                self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_explpatch.zarr"),
+                                                    mode='r')
                 self.agent_summary['orientation'] = zarr.open(
                     os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),
                     mode='r')  # self.experiment.agent_summary['orientation']
@@ -840,9 +846,15 @@ class ExperimentLoader:
                 self.agent_summary = {}
                 self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zip"),
                                                        mode='r')
+                self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_u.zip"),
+                                                       mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zip"),
                                                        mode='r')
+                self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_w.zip"),
+                                                       mode='r')
+                self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_explpatch.zip"),
+                                                    mode='r')
                 self.agent_summary['orientation'] = zarr.open(
                     os.path.join(self.experiment_path, "summary", "agent_ori.zip"),
                     mode='r')  # self.experiment.agent_summary['orientation']

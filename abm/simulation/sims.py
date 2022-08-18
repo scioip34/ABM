@@ -116,6 +116,8 @@ class Simulation:
         self.HEIGHT = height
         self.window_pad = window_pad
 
+        self.allow_border_patch_overlap = allow_border_patch_overlap
+
         # Simulation parameters
         self.N = N
         self.T = T
@@ -125,7 +127,7 @@ class Simulation:
             self.framerate_orig = framerate
         else:
             # this is more than what is possible withy pygame so it will use the maximal framerate
-            self.framerate_orig = 500
+            self.framerate_orig = 2000
         self.framerate = self.framerate_orig
         self.is_paused = False
 
@@ -150,7 +152,6 @@ class Simulation:
 
         # Rescource parameters
         self.N_resc = N_resc
-        self.allow_border_patch_overlap = allow_border_patch_overlap
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch

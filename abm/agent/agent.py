@@ -548,7 +548,7 @@ class Agent(pygame.sprite.Sprite):
         if self.get_mode() == 'explore':
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
-                self.velocity = 1
+                self.velocity = movement_params.exp_vel_max # 1
 
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in

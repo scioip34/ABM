@@ -9,10 +9,9 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       12.05.2022
-Goal:       exp16c: testing efficiency plot and data amount (with zarr compression) for 3 agents with 1200 total units
-                    and relatively long 50k simulation times. In further subversions of the experiment we test how
-                    efficiency landscape changes with the number of agents if we keep everything else fixed.
+Date:       16.05.2022
+Goal:       exp17: first large-scale simulation for Figure1. where we show a detailed efficiency landscape for 10 agents with
+            idealistic parameters, i.e. no occlusion, full FOV, ghost mode.
 Defined by: mezdahun
 """
 
@@ -62,16 +61,17 @@ fixed_criteria = [
 ]
 
 # Defining decision param
-sum_resources = 1200
+sum_resources = 2400
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
-overall_res_area = int(arena_size * 0.2)
-num_patches = [1, 3, 5, 10, 30, 50, 100]
+keep_covered_ratio = 0.2
+overall_res_area = int(arena_size * keep_covered_ratio)
+num_patches = [1, 3, 5, 8, 10, 20, 30, 50, 100]
 criteria_exp = [
-    Constant("N", 3),
+    Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
     Constant("AGENT_FOV", 1),  # unlimited
-    Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),
+    Tunable("DEC_EPSW", values_override=[0, 0.25, 0.5, 0.75, 1, 1.5, 2, 3]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here
@@ -79,7 +79,7 @@ criteria_exp = [
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 50000)
+    Constant("T", 25000)
 ]
 
 # Creating metaprotocol and add defined criteria

@@ -9,10 +9,8 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       12.05.2022
-Goal:       exp16c: testing efficiency plot and data amount (with zarr compression) for 3 agents with 1200 total units
-                    and relatively long 50k simulation times. In further subversions of the experiment we test how
-                    efficiency landscape changes with the number of agents if we keep everything else fixed.
+Date:       24.05.2022
+Goal:       exp17b: we rerun the same simulation as exp17 but we fix the resource radius to 15 instead of scaling it.
 Defined by: mezdahun
 """
 
@@ -58,28 +56,30 @@ fixed_criteria = [
     Constant("DEC_GW", 0.085),
     Constant("DEC_GU", 0.085),
     Constant("DEC_TW", 0.5),
-    Constant("DEC_TU", 0.5)
+    Constant("DEC_TU", 0.5),
+    Constant("PATCH_BORDER_OVERLAP", 1)
 ]
 
 # Defining decision param
-sum_resources = 1200
+sum_resources = 2400
 arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
-overall_res_area = int(arena_size * 0.2)
-num_patches = [1, 3, 5, 10, 30, 50, 100]
+keep_covered_ratio = 0.2
+overall_res_area = int(arena_size * keep_covered_ratio)
+num_patches = [1, 3, 5, 8, 10, 20, 30, 50, 100]
 criteria_exp = [
-    Constant("N", 3),
+    Constant("N", 10),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
     Constant("AGENT_FOV", 1),  # unlimited
-    Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),
+    Tunable("DEC_EPSW", values_override=[0, 0.25, 0.5, 0.75, 1, 1.5, 2, 3]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here
-    Tunable("RADIUS_RESOURCE", values_override=[np.sqrt(overall_res_area/(np.pi*nup)) for nup in num_patches]),
+    Constant("RADIUS_RESOURCE", 15),
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 50000)
+    Constant("T", 25000)
 ]
 
 # Creating metaprotocol and add defined criteria
@@ -94,9 +94,9 @@ for crit in criteria_exp:
 constant_runits = TunedPairRestrain("N_RESOURCES", "MIN_RESOURCE_PER_PATCH", sum_resources)
 mp.add_tuned_pair(constant_runits)
 
-# keeping the covered area on 20% on overall area
-constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
-mp.add_quadratic_tuned_pair(constant_r_area)
+# # keeping the covered area on 20% on overall area
+# constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
+# mp.add_quadratic_tuned_pair(constant_r_area)
 
 # Generating temporary env files with criterion combinations. Comment this out if you want to continue simulating due
 # to interruption

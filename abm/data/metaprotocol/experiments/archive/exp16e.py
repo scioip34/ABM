@@ -10,9 +10,9 @@ Experiment file using the MetaRunner interfacing language to define a set of cri
 
 Title:      Experiment : {EXP_NAME}
 Date:       12.05.2022
-Goal:       exp16c: testing efficiency plot and data amount (with zarr compression) for 3 agents with 1200 total units
-                    and relatively long 50k simulation times. In further subversions of the experiment we test how
-                    efficiency landscape changes with the number of agents if we keep everything else fixed.
+Goal:       exp16e: testing efficiency plot and data amount (with zarr compression) for 5 agents with 1200 total units
+                    and relatively long 50k simulation times. We would like to see how the efficiency landscape changes
+                    with increasing number of agents and why (especially in limit cases where the group is very small).
 Defined by: mezdahun
 """
 
@@ -68,7 +68,7 @@ arena_size = arena_w * arena_h
 overall_res_area = int(arena_size * 0.2)
 num_patches = [1, 3, 5, 10, 30, 50, 100]
 criteria_exp = [
-    Constant("N", 3),
+    Constant("N", 5),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
     Constant("AGENT_FOV", 1),  # unlimited
     Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),

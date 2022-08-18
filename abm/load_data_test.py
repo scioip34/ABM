@@ -1,4 +1,4 @@
-from abm.loader.data_loader import ExperimentLoader
+from abm.replay.replay import ExperimentReplay
 
-loaded_experiment = ExperimentLoader("/home/david/Desktop/ABM/abm/data/simulation_data/Experiment1_3agents",
-                                     enforce_summary=False)
+loaded_experiment = ExperimentReplay("/home/david/Desktop/ABM/abm/data/simulation_data/DockerTest2")
+loaded_experiment.start()

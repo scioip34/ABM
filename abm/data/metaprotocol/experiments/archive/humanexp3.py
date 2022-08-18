@@ -9,10 +9,9 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       12.05.2022
-Goal:       exp16c: testing efficiency plot and data amount (with zarr compression) for 3 agents with 1200 total units
-                    and relatively long 50k simulation times. In further subversions of the experiment we test how
-                    efficiency landscape changes with the number of agents if we keep everything else fixed.
+Date:       16.05.2022
+Goal:       humanexp3: we continue matching parameters with those planned in human experimentation, but now we keep the
+            discoverable area fixed and increase the number of agents by one to 5.
 Defined by: mezdahun
 """
 
@@ -29,24 +28,24 @@ fixed_criteria = [
     Constant("GHOST_WHILE_EXPLOIT", 1),
     Constant("PATCHWISE_SOCIAL_EXCLUSION", 1),
     Constant("POOLING_TIME", 0),
-    Constant("MOV_EXP_VEL_MIN", 1),
-    Constant("MOV_EXP_VEL_MAX", 1),
-    Constant("MOV_REL_DES_VEL", 1),
+    Constant("MOV_EXP_VEL_MIN", 5),
+    Constant("MOV_EXP_VEL_MAX", 5),
+    Constant("MOV_REL_DES_VEL", 5),
     Constant("SHOW_VISUAL_FIELDS", 0),
     Constant("SHOW_VISUAL_FIELDS_RETURN", 0),
     Constant("SHOW_VISION_RANGE", 0),
     Constant("ENV_WIDTH", arena_w),
     Constant("ENV_HEIGHT", arena_h),
     Constant("VISUAL_FIELD_RESOLUTION", 1200),
-    Constant("VISION_RANGE", 2000),
+    Constant("VISION_RANGE", 5000),
     Constant("AGENT_CONSUMPTION", 1),
-    Constant("RADIUS_AGENT", 10),
+    Constant("RADIUS_AGENT", 3),
     Constant("MAX_RESOURCE_QUALITY", -1),  # so that the minimum value will be used as definite
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
-    Constant("MOV_EXP_TH_MIN", -0.25),
-    Constant("MOV_EXP_TH_MAX", 0.25),
-    Constant("MOV_REL_TH_MAX", 0.5),
-    Constant("CONS_STOP_RATIO", 0.1),
+    Constant("MOV_EXP_TH_MIN", -0.6),
+    Constant("MOV_EXP_TH_MAX", 0.6),
+    Constant("MOV_REL_TH_MAX", 2),
+    Constant("CONS_STOP_RATIO", 0.5),
     Constant("REGENERATE_PATCHES", 1),
     Constant("DEC_FN", 0.5),
     Constant("DEC_FR", 0.5),
@@ -62,16 +61,15 @@ fixed_criteria = [
 ]
 
 # Defining decision param
-sum_resources = 1200
+sum_resources = 240
 arena_size = arena_w * arena_h
-# keeping the covered area on 20% on overall area
-overall_res_area = int(arena_size * 0.2)
-num_patches = [1, 3, 5, 10, 30, 50, 100]
+overall_res_area = int(arena_size * 0.1)
+num_patches = [2, 5, 10, 20, 40]
 criteria_exp = [
-    Constant("N", 3),
-    Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
-    Constant("AGENT_FOV", 1),  # unlimited
-    Tunable("DEC_EPSW", values_override=[0, 0.5, 0.75, 1, 2, 3]),
+    Constant("N", 5),
+    Constant("VISUAL_EXCLUSION", 1),  # no visual occlusion
+    Constant("AGENT_FOV", 0.21),  # unlimited
+    Tunable("DEC_EPSW", values_override=[0, 5, 10, 25, 50, 100, 150, 200]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fix the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  #same here
@@ -79,7 +77,7 @@ criteria_exp = [
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
-    Constant("T", 50000)
+    Constant("T", 2000)
 ]
 
 # Creating metaprotocol and add defined criteria
@@ -94,7 +92,7 @@ for crit in criteria_exp:
 constant_runits = TunedPairRestrain("N_RESOURCES", "MIN_RESOURCE_PER_PATCH", sum_resources)
 mp.add_tuned_pair(constant_runits)
 
-# keeping the covered area on 20% on overall area
+# keeping sicoverable area fixed
 constant_r_area = TunedPairRestrain("N_RESOURCES", "RADIUS_RESOURCE", overall_res_area/np.pi)
 mp.add_quadratic_tuned_pair(constant_r_area)
 

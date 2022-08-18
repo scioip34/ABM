@@ -53,14 +53,10 @@ class ExperimentReplay:
         self.agmodes_z = self.experiment.agent_summary['mode']
         self.coll_resc_z = self.experiment.agent_summary['collresource']
 
-        self.res_pos_x_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posx.zarr"),
-                                     mode='r')  # self.experiment.res_summary['posx']
-        self.res_pos_y_z = zarr.open(os.path.join(data_folder_path, "summary", "res_posy.zarr"),
-                                     mode='r')  # self.experiment.res_summary['posy']
-        self.resc_left_z = zarr.open(os.path.join(data_folder_path, "summary", "res_rescleft.zarr"),
-                                     mode='r')  # self.experiment.res_summary['resc_left']
-        self.resc_quality_z = zarr.open(os.path.join(data_folder_path, "summary", "res_qual.zarr"),
-                                        mode='r')  # self.experiment.res_summary['quality']
+        self.res_pos_x_z = self.experiment.res_summary['posx']
+        self.res_pos_y_z = self.experiment.res_summary['posy']
+        self.resc_left_z = self.experiment.res_summary['resc_left']
+        self.resc_quality_z = self.experiment.res_summary['quality']
 
         self.varying_params = self.experiment.varying_params
         self.index_prev = None
@@ -70,7 +66,7 @@ class ExperimentReplay:
         self.is_paused = True
         self.show_stats = False
         self.show_paths = False
-        self.path_length = 100
+        self.path_length = 5
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -205,8 +201,26 @@ class ExperimentReplay:
             borderThickness=1
         )
 
+        button_start_y += self.button_height
+        self.plot_iid_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.slider_start_x,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Plot I.I.D.',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_print_iid(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
         # Plotting Button Line
-        button_start_y += 2 * self.button_height
+        button_start_y += self.button_height
         self.plot_efficiency = Button(
             # Mandatory Parameters
             self.screen,  # Surface to place button on
@@ -404,6 +418,19 @@ class ExperimentReplay:
         fig, ax, cbar = self.experiment.plot_search_efficiency(t_start=t_start, t_end=t_end,
                                                                from_script=self.from_script,
                                                                used_batches=used_batches)
+        return fig, ax, cbar
+
+    def on_print_iid(self, with_read_collapse_param=True, used_batches=None):
+        """print mean inter-individual distance"""
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.T > 1000:
+            undersample = int(self.T / 1000)
+            print(f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
+        else:
+            undersample = 1
+        fig, ax, cbar = self.experiment.plot_mean_iid(from_script=self.from_script, undersample=undersample)
         return fig, ax, cbar
 
     def on_set_t_start(self):
@@ -657,6 +684,11 @@ class ExperimentReplay:
                     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     pygame.draw.line(self.screen, colors.GREY, point1, point2, 3)
+                for t in range(1, path_length):
+                    point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
+                    point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
+                    pygame.gfxdraw.pixel(self.screen, int(point1[0]), int(point1[1]), colors.BLACK)
+                    pygame.gfxdraw.pixel(self.screen, int(point2[0]), int(point2[1]), colors.BLACK)
         except IndexError as e:
             pass
 
@@ -734,6 +766,8 @@ class ExperimentReplay:
         status.append(" ")
         status.append("CALCULATED METRICS (t):")
         status.append(f"Collected resource: Mean:{np.mean(coll_resc):10.2f} ± {np.std(coll_resc):10.2f}")
+        iid = self.experiment.calculate_interindividual_distance_slice(posx, posy)
+        status.append(f"mean IID: {np.mean(iid[iid!=0])/2:10.2f} ± {np.std(iid[iid!=0]):10.2f}")
 
         for i, stat_i in enumerate(status):
             if i - line_count_before < 0 or i - line_count_before >= len(ids):

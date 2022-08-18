@@ -63,7 +63,7 @@ class Simulation:
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
-                 patchwise_exclusion=True, parallel=False, use_zarr=True):
+                 patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -83,7 +83,7 @@ class Simulation:
         :param N_resc: number of rescource patches in the environment
         :param min_resc_perpatch: minimum rescaurce unit per patch
         :param max_resc_perpatch: maximum rescaurce units per patch
-        :param min_resc_quality: minimum resource quality in unit/timesteps that is allowed for each agent on a patch 
+        :param min_resc_quality: minimum resource quality in unit/timesteps that is allowed for each agent on a patch
             to exploit from the patch
         : param max_resc_quality: maximum resource quality in unit/timesteps that is allowed for each agent on a patch
             to exploit from the patch
@@ -109,6 +109,7 @@ class Simulation:
         :param parallel: if True we request to run the simulation parallely with other simulation instances and hence
             the influxDB saving will be handled accordingly.
         :param use_zarr: using zarr compressed data format to save single run data
+        :param allow_border_patch_overlap: boolean switch to allow resource patches to overlap arena border
         """
         # Arena parameters
         self.WIDTH = width
@@ -149,6 +150,7 @@ class Simulation:
 
         # Rescource parameters
         self.N_resc = N_resc
+        self.allow_border_patch_overlap = allow_border_patch_overlap
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
         self.max_resc_units = max_resc_perpatch
@@ -331,8 +333,16 @@ class Simulation:
             if retries > max_retries:
                 raise Exception("Reached timeout while trying to create resources without overlap!")
             radius = self.resc_radius
-            x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - radius)
-            y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - radius)
+
+            if self.allow_border_patch_overlap:
+                # allowing patches to overlap arena borders (maximum overlap is radius of patch)
+                x = np.random.randint(self.window_pad - radius, self.WIDTH + self.window_pad - radius)
+                y = np.random.randint(self.window_pad - radius, self.HEIGHT + self.window_pad - radius)
+            else:
+                # for inhibiting patches to overlap arena borders
+                x = np.random.randint(self.window_pad, self.WIDTH + self.window_pad - 2 * radius)
+                y = np.random.randint(self.window_pad, self.HEIGHT + self.window_pad - 2 * radius)
+
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             if force_id is None:
@@ -425,8 +435,10 @@ class Simulation:
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
-            x = np.random.randint(self.agent_radii, self.WIDTH - self.agent_radii)
-            y = np.random.randint(self.agent_radii, self.HEIGHT - self.agent_radii)
+
+            # allowing agents to overlap arena borders (maximum overlap is radius of patch)
+            x = np.random.randint(self.window_pad - self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
+            y = np.random.randint(self.window_pad - self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
             orient = np.random.uniform(0, 2*np.pi)
             self.add_new_agent(i, x, y, orient)
 

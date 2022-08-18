@@ -34,7 +34,8 @@ default_params = {
                 "save_csv_files": False,
                 "ghost_mode": True,  # interactive
                 "patchwise_exclusion": True,
-                "parallel": False
+                "parallel": False,
+                "allow_border_patch_overlap": True
 }
 
 help_messages = {

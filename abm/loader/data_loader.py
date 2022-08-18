@@ -347,7 +347,7 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
-        self.zarr_extension = ".zip"
+        self.zarr_extension = ".zarr"
         self.mean_iid = None
         self.iid_matrix = None
         self.undersample = int(undersample)

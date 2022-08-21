@@ -656,7 +656,8 @@ class ExperimentReplay:
         if self.show_paths:
             self.draw_agent_paths(self.posx[:, max(0, t_ind - self.path_length):t_ind],
                                   self.posy[:, max(0, t_ind - self.path_length):t_ind],
-                                  radius)
+                                  radius,
+                                  modes=self.agmodes[:, max(0, t_ind - self.path_length):t_ind])
         self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
 
         num_agents = len(posx)
@@ -675,7 +676,8 @@ class ExperimentReplay:
                                                    coll_resc, previous_metrics=time_dep_stats)
             self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
 
-    def draw_agent_paths(self, posx, posy, radius):
+    def draw_agent_paths(self, posx, posy, radius, modes=None):
+        path_cols = [colors.BLUE, colors.GREEN, colors.PURPLE, colors.RED]
         num_agents = posx.shape[0]
         path_length = posx.shape[1]
         try:
@@ -683,12 +685,13 @@ class ExperimentReplay:
                 for t in range(1, path_length):
                     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
-                    pygame.draw.line(self.screen, colors.GREY, point1, point2, 3)
-                for t in range(1, path_length):
-                    point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
-                    point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
-                    pygame.gfxdraw.pixel(self.screen, int(point1[0]), int(point1[1]), colors.BLACK)
-                    pygame.gfxdraw.pixel(self.screen, int(point2[0]), int(point2[1]), colors.BLACK)
+                    color = path_cols[int(modes[ai, t])]
+                    pygame.draw.line(self.screen, color, point1, point2, 3)
+                # for t in range(1, path_length):
+                #     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
+                #     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
+                #     pygame.gfxdraw.pixel(self.screen, int(point1[0]), int(point1[1]), colors.BLACK)
+                #     pygame.gfxdraw.pixel(self.screen, int(point2[0]), int(point2[1]), colors.BLACK)
         except IndexError as e:
             pass
 

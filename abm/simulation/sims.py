@@ -647,7 +647,6 @@ class Simulation:
                         agent.set_mode("explore")
 
                 # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
-                # Check if any 2 agents has been collided and reflect them from each other if so
                 collision_group_ar = pygame.sprite.groupcollide(
                     self.rescources,
                     self.agents,
@@ -672,24 +671,24 @@ class Simulation:
                         # One of previous agents on patch consumed the last unit
                         if destroy_resc:
                             notify_agent(agent, -1)
+                        else:
+                            # Agent finished pooling on a resource patch
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
+                                    or agent.pooling_time == 0:
+                                # Notify about the patch
+                                notify_agent(agent, 1, resc.id)
+                                # Teleport agent to the middle of the patch if needed
+                                if self.teleport_exploit:
+                                    agent.position = resc.position + resc.radius - agent.radius
 
-                        # Agent finished pooling on a resource patch
-                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
-                                or agent.pooling_time == 0:
-                            # Notify about the patch
-                            notify_agent(agent, 1, resc.id)
-                            # Teleport agent to the middle of the patch if needed
-                            if self.teleport_exploit:
-                                agent.position = resc.position + resc.radius - agent.radius
-
-                        # Agent was already exploiting this patch
-                        if agent.get_mode() == "exploit":
-                            # continue depleting the patch
-                            depl_units, destroy_resc = resc.deplete(agent.consumption)
-                            agent.collected_r_before = agent.collected_r  # rolling resource memory
-                            agent.collected_r += depl_units  # and increasing it's collected rescources
-                            if destroy_resc:  # consumed unit was the last in the patch
-                                notify_agent(agent, -1)
+                            # Agent was already exploiting this patch
+                            if agent.get_mode() == "exploit":
+                                # continue depleting the patch
+                                depl_units, destroy_resc = resc.deplete(agent.consumption)
+                                agent.collected_r_before = agent.collected_r  # rolling resource memory
+                                agent.collected_r += depl_units  # and increasing it's collected rescources
+                                if destroy_resc:  # consumed unit was the last in the patch
+                                    notify_agent(agent, -1)
 
                         # Collect all agents on resource patches
                         agents_on_rescs.append(agent)
@@ -699,7 +698,7 @@ class Simulation:
                         # we clear it from the memory and regenerate it somewhere else if needed
                         self.kill_resource(resc)
 
-                # Notifying agents that there is no resource patch in current position (they are not on patch)
+                # Notifying other agents that there is no resource patch in current position (they are not on patch)
                 for agent in self.agents.sprites():
                     if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                         if agent not in collided_agents:  # and are not colliding with each other currently

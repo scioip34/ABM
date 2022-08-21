@@ -2,13 +2,17 @@ from contextlib import ExitStack
 
 from abm.simulation.sims import Simulation
 from abm.simulation.isims import PlaygroundSimulation
+from abm.metarunner.metarunner import generate_env_file
+import abm.contrib.playgroundtool as pgt
 
 import os
 # loading env variables from dotenv file
 from dotenv import dotenv_values
 
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
-
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+envconf = dotenv_values(env_path)
 
 def start(parallel=False, headless=False):
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -66,5 +70,34 @@ def start_headless():
 
 
 def start_playground():
+    # changing env file according to playground default parameters before
+    # running any component of the SW
+    save_isims_env()
+    # Start interactive simulation
     sim = PlaygroundSimulation()
     sim.start()
+
+
+def save_isims_env():
+    """translating a default parameters dictionary to an environment
+    file and using env variable keys instead of class attribute names"""
+    def_params = pgt.default_params
+    def_env_vars = pgt.def_env_vars
+    translator_dict = pgt.def_params_to_env_vars
+    translated_dict = envconf
+
+    for k in def_params.keys():
+        if k in list(translator_dict.keys()):
+            v = def_params[k]
+            if v == "True" or v is True:
+                v = "1"
+            elif v == "False" or v is False:
+                v = "0"
+            translated_dict[translator_dict[k]] = v
+    for def_env_name, def_env_val in def_env_vars.items():
+        translated_dict[def_env_name] = def_env_val
+
+    print("Saving playground default params in env file under path ", root_abm_dir)
+    if os.path.isfile(os.path.join(root_abm_dir, f"{EXP_NAME}.env")):
+        os.remove(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
+    generate_env_file(translated_dict, f"{EXP_NAME}.env", root_abm_dir)

@@ -66,7 +66,7 @@ class ExperimentReplay:
         self.is_paused = True
         self.show_stats = False
         self.show_paths = False
-        self.path_length = 5
+        self.path_length = 500
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -770,7 +770,7 @@ class ExperimentReplay:
         status.append("CALCULATED METRICS (t):")
         status.append(f"Collected resource: Mean:{np.mean(coll_resc):10.2f} ± {np.std(coll_resc):10.2f}")
         iid = self.experiment.calculate_interindividual_distance_slice(posx, posy)
-        status.append(f"mean IID: {np.mean(iid[iid!=0])/2:10.2f} ± {np.std(iid[iid!=0]):10.2f}")
+        status.append(f"mean IID: {np.mean(iid[iid != 0]) / 2:10.2f} ± {np.std(iid[iid != 0]):10.2f}")
 
         for i, stat_i in enumerate(status):
             if i - line_count_before < 0 or i - line_count_before >= len(ids):

@@ -3,6 +3,7 @@ import sys
 
 from abm.loader.data_loader import ExperimentLoader
 from abm.contrib import colors
+from abm.monitoring.ifdb import pad_to_n_digits
 from pygame_widgets.slider import Slider
 from pygame_widgets.button import Button
 from pygame_widgets.textbox import TextBox
@@ -12,7 +13,12 @@ import pygame
 import numpy as np
 import zarr
 import os
+from abm.contrib import playgroundtool as pgt
+import shutil
+import cv2
 
+
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 class ExperimentReplay:
     def __init__(self, data_folder_path, undersample=1, t_start=None, t_end=None, collapse=None):
@@ -20,6 +26,10 @@ class ExperimentReplay:
         available for the experiment it will be summarized first
         the undersample parameter only matters if the data is not yet summarized, otherwise it is automatically
         read from the env file"""
+        self.image_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR) # path from collect screenshots
+        if os.path.isdir(self.image_save_path):
+            shutil.rmtree(self.image_save_path)
+        os.makedirs(self.image_save_path, exist_ok=True)
         self.from_script = False  # can be set to True for batch execution of plotting functions
         self.show_vfield = False
         self.experiment = ExperimentLoader(data_folder_path, enforce_summary=False, with_plotting=False,
@@ -66,7 +76,7 @@ class ExperimentReplay:
         self.is_paused = True
         self.show_stats = False
         self.show_paths = False
-        self.path_length = 500
+        self.path_length = 450
         self.t = 0
         self.framerate = 25
         self.num_batches = self.experiment.num_batches
@@ -200,6 +210,14 @@ class ExperimentReplay:
             onClick=lambda: self.on_run_show_vfield(),  # Function to call when clicked on
             borderThickness=1
         )
+        tb_start = self.button_start_x_2 + int(self.slider_width / 2)
+        small_textb_width = int(self.slider_width/2)
+        self.path_l_desc_tb = TextBox(self.screen, tb_start, button_start_y, small_textb_width,
+                                 self.button_height/2, fontSize=int(self.button_height / 3), borderThickness=1)
+        self.path_l_desc_tb.setText(f"path len.:")
+        self.path_l_tb = TextBox(self.screen, tb_start, button_start_y + self.button_height/2, small_textb_width,
+                                self.button_height/2, fontSize=int(self.button_height / 3), borderThickness=1)
+
 
         button_start_y += self.button_height
         self.plot_iid_b = Button(
@@ -216,6 +234,22 @@ class ExperimentReplay:
             margin=20,  # Minimum distance between text/image and edge of button
             inactiveColour=colors.GREY,
             onClick=lambda: self.on_print_iid(),  # Function to call when clicked on
+            borderThickness=1
+        )
+        self.snapshot_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.button_start_x_2,  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Take Snapshot',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.take_snapshot(),  # Function to call when clicked on
             borderThickness=1
         )
 
@@ -342,6 +376,35 @@ class ExperimentReplay:
         startx += 5 + small_textb_width
         self.connect_alias_tb = TextBox(self.screen, startx, button_start_y, int(self.slider_width / 2) - 5,
                                         self.button_height, fontSize=int(self.button_height / 2), borderThickness=1)
+
+    def take_snapshot(self):
+        """Taking a single picture of the current status of the replay into an image"""
+        filename = f"{pad_to_n_digits(self.t, n=6)}.png"
+        path = os.path.join(self.image_save_path, filename)
+        events = pygame.event.get()
+        self.draw_frame(events)
+        pygame.image.save(self.screen, path)
+        # cropping image
+        img = cv2.imread(path)
+        src = img[0:self.vis_area_end_height, 0:self.vis_area_end_width]
+        # Convert image to image gray
+        tmp = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+
+        # Applying thresholding technique
+        _, alpha = cv2.threshold(tmp, 254, 255, cv2.THRESH_BINARY_INV)
+
+        # Using cv2.split() to split channels
+        # of coloured image
+        b, g, r = cv2.split(src)
+
+        # Making list of Red, Green, Blue
+        # Channels and alpha
+        rgba = [b, g, r, alpha]
+
+        # Using cv2.merge() to merge rgba
+        # into a coloured/multi-channeled image
+        dst = cv2.merge(rgba, 4)
+        cv2.imwrite(path, dst)
 
     def on_connect_vars(self):
         """Connected parameters when they change together in dataset, by that we can create new calculated axes"""
@@ -485,6 +548,14 @@ class ExperimentReplay:
             self.show_vfield_button.inactiveColour = colors.GREY
 
     def on_run_show_path(self):
+        path_l_text = self.path_l_tb.getText()
+        if path_l_text is not None:
+            try:
+                self.path_length = int(path_l_text)
+            except:
+                pass
+        else:
+            pass
         self.show_paths = not self.show_paths
         if self.show_paths:
             self.show_path_button.inactiveColour = colors.GREEN
@@ -507,18 +578,18 @@ class ExperimentReplay:
 
     def draw_walls(self):
         """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
-        pygame.draw.line(self.screen, colors.RED,
-                         [self.window_pad, self.window_pad],
-                         [self.window_pad, self.window_pad + self.HEIGHT])
         pygame.draw.line(self.screen, colors.BLACK,
                          [self.window_pad, self.window_pad],
-                         [self.window_pad + self.WIDTH, self.window_pad])
+                         [self.window_pad, self.window_pad + self.HEIGHT], width=2)
+        pygame.draw.line(self.screen, colors.BLACK,
+                         [self.window_pad, self.window_pad],
+                         [self.window_pad + self.WIDTH, self.window_pad], width=2)
         pygame.draw.line(self.screen, colors.BLACK,
                          [self.window_pad + self.WIDTH, self.window_pad],
-                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT], width=2)
         pygame.draw.line(self.screen, colors.BLACK,
                          [self.window_pad, self.window_pad + self.HEIGHT],
-                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT], width=2)
 
     def draw_separator(self):
         """Drawing separation line between action area and visualization"""
@@ -682,11 +753,12 @@ class ExperimentReplay:
         path_length = posx.shape[1]
         try:
             for ai in range(num_agents):
-                for t in range(1, path_length):
+                for t in range(1, path_length, 1):
                     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     color = path_cols[int(modes[ai, t])]
-                    pygame.draw.line(self.screen, color, point1, point2, 3)
+                    #pygame.draw.line(self.screen, color, point1, point2, 4)
+                    pygame.draw.circle(self.screen, color, point2, 6)
                 # for t in range(1, path_length):
                 #     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                 #     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)

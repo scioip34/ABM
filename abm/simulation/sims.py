@@ -688,7 +688,12 @@ class Simulation:
                                 agent.collected_r_before = agent.collected_r  # rolling resource memory
                                 agent.collected_r += depl_units  # and increasing it's collected rescources
                                 if destroy_resc:  # consumed unit was the last in the patch
-                                    notify_agent(agent, -1)
+                                    # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
+                                    #       f"there are no more units before the next timestep, otherwise they stop"
+                                    #       f"exploiting with delays")
+                                    for agent_tob_notified in agents:
+                                        # print("C notify agent NO res ", agent_tob_notified.id)
+                                        notify_agent(agent_tob_notified, -1)
 
                         # Collect all agents on resource patches
                         agents_on_rescs.append(agent)

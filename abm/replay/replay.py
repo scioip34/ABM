@@ -913,12 +913,11 @@ class ExperimentReplay:
         image.fill(colors.BACKGROUND)
         image.set_colorkey(colors.BACKGROUND)
         agent_color = self.mode_to_color(mode)
-        pygame.draw.circle(
-            image, agent_color, (radius, radius), radius
-        )
+        pygame.gfxdraw.filled_circle(image, radius, radius, radius-1, agent_color)
+        pygame.gfxdraw.aacircle(image, radius, radius, radius - 1, colors.BLACK)
 
         # Showing agent orientation with a line towards agent orientation
-        pygame.draw.line(image, colors.BACKGROUND, (radius, radius),
+        pygame.draw.line(image, colors.GREY, (radius, radius),
                          ((1 + np.cos(orientation)) * radius, (1 - np.sin(orientation)) * radius), 3)
         self.screen.blit(image, (posx, posy))
 

@@ -100,6 +100,9 @@ class Agent(pygame.sprite.Sprite):
         self.F_N = decision_params.F_N
         self.F_R = decision_params.F_R
 
+        # movement
+        self.max_exp_vel = movement_params.exp_vel_max
+
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
         # dynamically)
@@ -559,7 +562,7 @@ class Agent(pygame.sprite.Sprite):
         if self.get_mode() == 'explore':
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
-                self.velocity = movement_params.exp_vel_max # 1
+                self.velocity = self.max_exp_vel # 1
 
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in

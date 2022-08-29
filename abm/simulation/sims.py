@@ -396,10 +396,10 @@ class Simulation:
                 elif np.pi < theta < 2 * np.pi:
                     agent2.orientation += np.pi / 8
 
-                if agent2.velocity == 1:
+                if agent2.velocity == agent2.max_exp_vel:
                     agent2.velocity += 0.5
                 else:
-                    agent2.velocity = 1
+                    agent2.velocity = agent2.max_exp_vel
 
             else:  # ghost mode is on, we do nothing on collision
                 pass

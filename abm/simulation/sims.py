@@ -611,6 +611,24 @@ class Simulation:
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
 
+    def generate_evo_summary(self):
+        """Generating a simple summary with indidviual and collective return and genotypes of agents for evolutionary
+        optimization. The method will generate a single json file with N dictionaries with the behave_param_list passed
+        to each agent interpreted as their genotypes as well as their collected units."""
+        evo_sum_dict = {}
+        sum_coll_r = 0
+        for ag in self.agents:
+            ag_sum = ag.behave_params.copy()
+            ag_sum["collected_individ"] = ag.collected_r
+            sum_coll_r += ag.collected_r
+            evo_sum_dict[ag.id] = ag_sum
+            if ag.id == 0:
+                sum_dict = ag.behave_params["evo_summary_path"]
+        evo_sum_dict["collected_collective"] = sum_coll_r
+        summary_path = os.path.join(sum_dict, "evo_agent_summary.json")
+        with open(summary_path, 'w') as f:
+            json.dump(evo_sum_dict, f, indent=4)
+
     def start(self):
 
         start_time = datetime.now()
@@ -789,7 +807,8 @@ class Simulation:
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
-        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ", (end_time - start_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ",
+              (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
         if self.save_csv_files:
@@ -803,6 +822,10 @@ class Simulation:
                                 " or turn off CSV saving feature.")
 
         end_save_time = datetime.now()
-        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:", (end_save_time - end_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:",
+              (end_save_time - end_time).total_seconds())
 
+        if self.agent_behave_param_list is not None:
+            if self.agent_behave_param_list[0].get("evo_summary_path") is not None:
+                self.generate_evo_summary()
         pygame.quit()

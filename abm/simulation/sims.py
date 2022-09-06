@@ -5,13 +5,14 @@ import sys
 from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
-from abm.contrib import colors, ifdb_params
+from abm.contrib import colors, ifdb_params, evolution
 from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
 from abm.monitoring import env_saver
 from math import atan2
 import os
 import uuid
+import json
 
 from datetime import datetime
 
@@ -63,7 +64,8 @@ class Simulation:
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
-                 patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False):
+                 patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
+                 agent_behave_param_list=None):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -110,6 +112,8 @@ class Simulation:
             the influxDB saving will be handled accordingly.
         :param use_zarr: using zarr compressed data format to save single run data
         :param allow_border_patch_overlap: boolean switch to allow resource patches to overlap arena border
+        :param agent_behave_param_list: list of dictionaries in which each dict is a copy of contrib.evolution.behave_params_template
+            including the init parameters of all agents in case of eheterogeneous agents.
         """
         # Arena parameters
         self.WIDTH = width
@@ -117,6 +121,13 @@ class Simulation:
         self.window_pad = window_pad
 
         self.allow_border_patch_overlap = allow_border_patch_overlap
+
+        # Heterogeneity
+        if agent_behave_param_list is not None:
+            self.heterogen_agents = True
+        else:
+            self.heterogen_agents = False
+        self.agent_behave_param_list = agent_behave_param_list
 
         # Simulation parameters
         self.N = N
@@ -316,7 +327,7 @@ class Simulation:
                     if res.id == rid:
                         res.show_stats = True
 
-    def add_new_resource_patch(self, force_id = None):
+    def add_new_resource_patch(self, force_id=None):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
         prove_resource method so that the distribution and overlap is following some predefined rules"""
         max_retries = 7000
@@ -347,7 +358,8 @@ class Simulation:
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             if force_id is None:
-                resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
+                resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
+                                     units,
                                      quality)
             else:
                 resource = Rescource(id, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
@@ -355,7 +367,7 @@ class Simulation:
             # we initialize the resources so that there is no resource-resource overlap, but there can be
             # a resource-agent overlap
             resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)
-            retries+=1
+            retries += 1
         self.rescources.add(resource)
         return resource.id
 
@@ -404,27 +416,48 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def add_new_agent(self, id, x, y, orient, with_proove=False):
+    def add_new_agent(self, id, x, y, orient, with_proove=False, behave_params=None):
         """Adding a single new agent into agent sprites"""
         agent_proven = False
         while not agent_proven:
-            agent = Agent(
-                id=id,
-                radius=self.agent_radii,
-                position=(x, y),
-                orientation=orient,
-                env_size=(self.WIDTH, self.HEIGHT),
-                color=colors.BLUE,
-                v_field_res=self.v_field_res,
-                FOV=self.agent_fov,
-                window_pad=self.window_pad,
-                pooling_time=self.pooling_time,
-                pooling_prob=self.pooling_prob,
-                consumption=self.agent_consumption,
-                vision_range=self.vision_range,
-                visual_exclusion=self.visual_exclusion,
-                patchwise_exclusion=self.patchwise_exclusion
-            )
+            if behave_params is None:
+                agent = Agent(
+                    id=id,
+                    radius=self.agent_radii,
+                    position=(x, y),
+                    orientation=orient,
+                    env_size=(self.WIDTH, self.HEIGHT),
+                    color=colors.BLUE,
+                    v_field_res=self.v_field_res,
+                    FOV=self.agent_fov,
+                    window_pad=self.window_pad,
+                    pooling_time=self.pooling_time,
+                    pooling_prob=self.pooling_prob,
+                    consumption=self.agent_consumption,
+                    vision_range=self.vision_range,
+                    visual_exclusion=self.visual_exclusion,
+                    patchwise_exclusion=self.patchwise_exclusion,
+                    behave_params=None
+                )
+            else:
+                agent = Agent(
+                    id=id,
+                    radius=behave_params["agent_radius"],
+                    position=(x, y),
+                    orientation=orient,
+                    env_size=(self.WIDTH, self.HEIGHT),
+                    color=colors.BLUE,
+                    v_field_res=behave_params["v_field_res"],
+                    FOV=(-float(behave_params["agent_fov"]) * np.pi, float(behave_params["agent_fov"]) * np.pi),
+                    window_pad=self.window_pad,
+                    pooling_time=behave_params["pooling_time"],
+                    pooling_prob=behave_params["pooling_prob"],
+                    consumption=behave_params["agent_consumption"],
+                    vision_range=behave_params["vision_range"],
+                    visual_exclusion=self.visual_exclusion,
+                    patchwise_exclusion=self.patchwise_exclusion,
+                    behave_params=behave_params
+                )
             if with_proove:
                 if self.proove_sprite(agent):
                     self.agents.add(agent)
@@ -436,12 +469,15 @@ class Simulation:
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
-
             # allowing agents to overlap arena borders (maximum overlap is radius of patch)
             x = np.random.randint(self.window_pad - self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
             y = np.random.randint(self.window_pad - self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
-            orient = np.random.uniform(0, 2*np.pi)
-            self.add_new_agent(i, x, y, orient)
+            orient = np.random.uniform(0, 2 * np.pi)
+            if not self.heterogen_agents:
+                # create agents according to environment variables homogeneously
+                self.add_new_agent(i, x, y, orient)
+            else:
+                self.add_new_agent(i, x, y, orient, behave_params=self.agent_behave_param_list[i])
 
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""

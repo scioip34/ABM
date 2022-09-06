@@ -13,7 +13,7 @@ root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 envconf = dotenv_values(env_path)
 
-def start(parallel=False, headless=False):
+def start(parallel=False, headless=False, agent_behave_param_list=None):
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
     window_pad = 30
@@ -57,7 +57,8 @@ def start(parallel=False, headless=False):
                          save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
                          use_zarr=bool(int(float(envconf["USE_ZARR_FORMAT"]))),
                          parallel=parallel,
-                         window_pad=window_pad
+                         window_pad=window_pad,
+                         agent_behave_param_list=agent_behave_param_list
                          )
         sim.write_batch_size = 100
         sim.start()

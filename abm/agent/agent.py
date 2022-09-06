@@ -18,7 +18,7 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, FOV, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True):
+                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True, behave_params=None):
         """
         Initalization method of main agent class of the simulations
 
@@ -37,6 +37,8 @@ class Agent(pygame.sprite.Sprite):
         :param vision_range: in px the range/radius in which the agent is able to see other agents
         :param visual_exclusion: if True social cues can be visually excluded by non social cues.
         :param patchwise_exclusion: exclude agents from visual field if exploiting the same patch
+        :param behave_params: dictionary of behavioral parameters can be passed to a given agent which will
+            overwrite the parameters defined in the env files. (e.g. when agents are heterogeneous)
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -78,30 +80,60 @@ class Agent(pygame.sprite.Sprite):
         # Decision Variables
         self.overriding_mode = None
 
-        ## w
-        self.S_wu = decision_params.S_wu
-        self.T_w = decision_params.T_w
-        self.w = 0
-        self.Eps_w = decision_params.Eps_w
-        self.g_w = decision_params.g_w
-        self.B_w = decision_params.B_w
-        self.w_max = decision_params.w_max
+        if behave_params is not None:
+            # the behavior parameters were passed as dictionary
+            self.behave_params = behave_params
+            ## w
+            self.S_wu = self.behave_params["S_wu"]
+            self.T_w = self.behave_params["T_w"]
+            self.w = 0
+            self.Eps_w = self.behave_params["Eps_w"]
+            self.g_w = self.behave_params["g_w"]
+            self.B_w = self.behave_params["B_w"]
+            self.w_max = self.behave_params["w_max"]
 
-        ## u
-        self.I_priv = 0  # saved
-        self.novelty = np.zeros(decision_params.Tau)
-        self.S_uw = decision_params.S_uw
-        self.T_u = decision_params.T_u
-        self.u = 0
-        self.Eps_u = decision_params.Eps_u
-        self.g_u = decision_params.g_u
-        self.B_u = decision_params.B_u
-        self.u_max = decision_params.u_max
-        self.F_N = decision_params.F_N
-        self.F_R = decision_params.F_R
+            ## u
+            self.I_priv = 0  # saved
+            self.novelty = np.zeros(self.behave_params["Tau"])
+            self.S_uw = self.behave_params["S_uw"]
+            self.T_u = self.behave_params["T_u"]
+            self.u = 0
+            self.Eps_u = self.behave_params["Eps_u"]
+            self.g_u = self.behave_params["g_u"]
+            self.B_u = self.behave_params["B_u"]
+            self.u_max = self.behave_params["u_max"]
+            self.F_N = self.behave_params["F_N"]
+            self.F_R = self.behave_params["F_R"]
+            self.max_exp_vel = self.behave_params["exp_vel_max"]
+            self.exp_stop_ratio = self.behave_params["exp_stop_ratio"]
 
-        # movement
-        self.max_exp_vel = movement_params.exp_vel_max
+        else:
+            # as no behavior parameters were passed they are read out from env file
+            ## w
+            self.S_wu = decision_params.S_wu
+            self.T_w = decision_params.T_w
+            self.w = 0
+            self.Eps_w = decision_params.Eps_w
+            self.g_w = decision_params.g_w
+            self.B_w = decision_params.B_w
+            self.w_max = decision_params.w_max
+
+            ## u
+            self.I_priv = 0  # saved
+            self.novelty = np.zeros(decision_params.Tau)
+            self.S_uw = decision_params.S_uw
+            self.T_u = decision_params.T_u
+            self.u = 0
+            self.Eps_u = decision_params.Eps_u
+            self.g_u = decision_params.g_u
+            self.B_u = decision_params.B_u
+            self.u_max = decision_params.u_max
+            self.F_N = decision_params.F_N
+            self.F_R = decision_params.F_R
+
+            # movement
+            self.max_exp_vel = movement_params.exp_vel_max
+            self.exp_stop_ratio = movement_params.exp_stop_ratio
 
         # Pooling attributes
         self.time_spent_pooling = 0  # time units currently spent with pooling the status of given position (changes
@@ -205,7 +237,7 @@ class Agent(pygame.sprite.Sprite):
             elif self.tr_w() and self.tr_u():
                 if self.env_status == 1:
                     self.set_mode("exploit")
-                    vel, theta = (-self.velocity * movement_params.exp_stop_ratio, 0)
+                    vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
                 else:
                     vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
                     self.set_mode("relocate")
@@ -221,7 +253,7 @@ class Agent(pygame.sprite.Sprite):
             elif self.tr_u() and not self.tr_w():
                 if self.env_status == 1:
                     self.set_mode("exploit")
-                    vel, theta = (-self.velocity * movement_params.exp_stop_ratio, 0)
+                    vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
                 else:
                     vel, theta = supcalc.random_walk()
                     self.set_mode("explore")

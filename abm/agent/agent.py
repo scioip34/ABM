@@ -232,17 +232,17 @@ class Agent(pygame.sprite.Sprite):
         # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
         if not self.get_mode() == "collide":
             if not self.tr_w() and not self.tr_u():
-                vel, theta = supcalc.random_walk()
+                vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
                 self.set_mode("explore")
             elif self.tr_w() and self.tr_u():
                 if self.env_status == 1:
                     self.set_mode("exploit")
                     vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
                 else:
-                    vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
+                    vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
                     self.set_mode("relocate")
             elif self.tr_w() and not self.tr_u():
-                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
+                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
                 # WHY ON EARTH DO WE NEED THIS NEGATION?
                 # whatever comes out has a sign that tells if the change in direction should be left or right
                 # seemingly what comes out has a different convention than our environment?
@@ -255,7 +255,7 @@ class Agent(pygame.sprite.Sprite):
                     self.set_mode("exploit")
                     vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
                 else:
-                    vel, theta = supcalc.random_walk()
+                    vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
                     self.set_mode("explore")
         else:
             # COLLISION AVOIDANCE IS ACTIVE, let that guide us

@@ -12,6 +12,7 @@ import shutil
 from abm import app
 from time import sleep
 import random
+import matplotlib.pyplot as plt
 
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -219,16 +220,54 @@ class EvoProtocol:
 
         return agent_behave_param_list
 
+    def show_evolution_plot(self):
+        """Showing evolution through a violin plot"""
+        num_genes = len(self.initial_genes)
+        fig, ax = plt.subplots(num_genes, 1)
+
+        # Reloading and reorganizing summary files
+        final_summary = {}
+        for gen_num in range(self.num_generations):
+            save_dir = os.path.join("abm/data/simulation_data", f"EVO{EXP_NAME}", f"generation_{gen_num}")
+            sum_path = os.path.join(save_dir, "evo_agent_summary.json")
+            with open(sum_path, "r") as f:
+                summary = json.load(f)
+            gene_sum = {}
+            for gene, _ in self.initial_genes.items():
+                gene_sum[gene] = [ag[gene] for ag in list(summary.values()) if isinstance(ag, dict)]
+            final_summary[gen_num] = gene_sum
+
+        # Calculating mean values
+        gene_means = {}
+        for gene, _ in self.initial_genes.items():
+            gene_means[gene] = np.zeros(self.num_generations)
+            gene_means[f"STD{gene}"] = np.zeros(self.num_generations)
+            for gen_num in range(self.num_generations):
+                gene_means[gene][gen_num] = np.mean(final_summary[gen_num][gene])
+                gene_means[f"STD{gene}"][gen_num] = np.std(final_summary[gen_num][gene])
+
+        # Shoving violinplots
+        for i, gene in enumerate(self.initial_genes.keys()):
+            if num_genes > 1:
+                plt.axes(ax[i])
+            # plt.errorbar([i for i in range(self.num_generations)], gene_means[gene], gene_means[f"STD{gene}"], marker='s', mfc='red',
+            #          mec='green', ms=2, mew=2)
+            plt.violinplot([final_summary[gen_num][gene] for gen_num in range(self.num_generations)], positions=[i for i in range(self.num_generations)],  widths=1.5, showmeans=False, showmedians=True)
+            plt.plot(gene_means[gene])
+            plt.title(f"Gene {gene}")
+
+        plt.legend()
+        plt.show()
 
 
     def start_evolution(self):
         """Starting evolution for number of generations. In between carrying out evaluation and reproduction
         with mutation"""
-        # # Preparing environment
+        # Preparing environment
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         temp_dir = os.path.join(root_abm_dir, self.temp_dir)
         if os.path.isdir(temp_dir):
-            warnings.warn("Temprary directory for env files is not empty and will be overwritten")
+            warnings.warn("Temporary directory for env files is not empty and will be overwritten")
             shutil.rmtree(temp_dir)
 
         generate_env_file(self.envconf, f"{EXP_NAME}evoexp_environment.env", temp_dir)
@@ -266,45 +305,14 @@ class EvoProtocol:
                 # copying and backing up environment
                 os.remove(default_env_path)
                 shutil.copy(env_path, default_env_path)
-                # os.remove(env_path)
-                # Run the simulation for generation
+
+                # Run the simulation for 1 generation
                 app.start(headless=self.headless, agent_behave_param_list=agent_behave_param_list)
                 os.remove(default_env_path)
                 shutil.copyfile(backup_default_env, default_env_path)
                 sleep(1)
+
+                # Evolving the system further for next generation
                 agent_behave_param_list = self.reproduction_cycle(agent_behave_param_list)
 
-        # showing some summary
-        num_genes = len(self.initial_genes)
-        import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(num_genes, 1)
-        final_summary = {}
-        for gen_num in range(self.num_generations):
-            save_dir = os.path.join("abm/data/simulation_data", f"EVO{EXP_NAME}", f"generation_{gen_num}")
-            sum_path = os.path.join(save_dir, "evo_agent_summary.json")
-            with open(sum_path, "r") as f:
-                summary = json.load(f)
-            gene_sum = {}
-            for gene, _ in self.initial_genes.items():
-                gene_sum[gene] = [ag[gene] for ag in list(summary.values()) if isinstance(ag, dict)]
-            final_summary[gen_num] = gene_sum
-
-        gene_means = {}
-        for gene, _ in self.initial_genes.items():
-            gene_means[gene] = np.zeros(self.num_generations)
-            gene_means[f"STD{gene}"] = np.zeros(self.num_generations)
-            for gen_num in range(self.num_generations):
-                gene_means[gene][gen_num] = np.mean(final_summary[gen_num][gene])
-                gene_means[f"STD{gene}"][gen_num] = np.std(final_summary[gen_num][gene])
-
-        for i, gene in enumerate(self.initial_genes.keys()):
-            if num_genes > 1:
-                plt.axes(ax[i])
-            # plt.errorbar([i for i in range(self.num_generations)], gene_means[gene], gene_means[f"STD{gene}"], marker='s', mfc='red',
-            #          mec='green', ms=2, mew=2)
-            plt.violinplot([final_summary[gen_num][gene] for gen_num in range(self.num_generations)], positions=[i for i in range(self.num_generations)],  widths=1.5, showmeans=False, showmedians=True)
-            plt.plot(gene_means[gene])
-            plt.title(f"Gene {gene}")
-
-        plt.legend()
-        plt.show()
+        self.show_evolution_plot()

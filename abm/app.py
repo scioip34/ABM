@@ -2,7 +2,6 @@ from contextlib import ExitStack
 
 from abm.simulation.sims import Simulation
 from abm.simulation.isims import PlaygroundSimulation
-from abm.metarunner.metarunner import generate_env_file
 import abm.contrib.playgroundtool as pgt
 
 import os
@@ -101,3 +100,11 @@ def save_isims_env():
     if os.path.isfile(os.path.join(root_abm_dir, f"{EXP_NAME}.env")):
         os.remove(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
     generate_env_file(translated_dict, f"{EXP_NAME}.env", root_abm_dir)
+
+def generate_env_file(env_data, file_name, save_folder):
+    """Generating a single env file under save_folder with file_name including env_data as env format"""
+    os.makedirs(save_folder, exist_ok=True)
+    file_path = os.path.join(save_folder, file_name)
+    with open(file_path, "a") as file:
+        for k, v in env_data.items():
+            file.write(f"{k}={v}\n")

@@ -436,7 +436,7 @@ class ExperimentLoader:
             max_r_in_runs = 0
             for i, batch_path in enumerate(self.batch_folders):
                 glob_pattern = os.path.join(batch_path, "*")
-                run_folders = [path for path in glob.iglob(glob_pattern)]
+                run_folders = [path for path in glob.iglob(glob_pattern) if path.find(".json") < 0]
                 if i == 0:
                     self.num_runs = len(run_folders)
 
@@ -621,7 +621,7 @@ class ExperimentLoader:
         for i, batch_path in enumerate(self.batch_folders):
             glob_pattern = os.path.join(batch_path, "*")
 
-            run_folders = [path for path in glob.iglob(glob_pattern)]
+            run_folders = [path for path in glob.iglob(glob_pattern) if path.find(".json") < 0]
             if i == 0:
                 self.num_runs = len(run_folders)
 
@@ -776,7 +776,7 @@ class ExperimentLoader:
         for i, batch_path in enumerate(self.batch_folders):
             all_env[i] = {}
             glob_pattern = os.path.join(batch_path, "*")
-            run_folders = [path for path in glob.iglob(glob_pattern)]
+            run_folders = [path for path in glob.iglob(glob_pattern) if path.find(".json") < 0]
             if i == 0:
                 self.num_runs = len(run_folders)
 

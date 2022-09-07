@@ -25,9 +25,9 @@ initial_genes = {
 
 gene_mutations = {
     "Eps_w": {
-        "prob": 0.8,
+        "prob": 0.2,
         "mean": 0,
-        "std": 0.5,
+        "std": 0.25,
         "min": 0,
         "max": 7
     },
@@ -47,17 +47,19 @@ gene_mutations = {
     # }
 }
 
-evoprot = EvoProtocol(num_generations=30, gen_lifetime=5000, headless=True,
-                      death_rate_limits=(1, 1), initial_genes=initial_genes, mutation_rates=gene_mutations)
+evoprot = EvoProtocol(num_generations=30, gen_lifetime=3000, headless=True,
+                      death_rate_limits=(1, 1), initial_genes=initial_genes, mutation_rates=gene_mutations,
+                      num_populations=10)
+
 evoprot.set_env_var("N", num_agents)
 # evoprot.set_env_var("T", 3000)
-evoprot.set_env_var("N_RESOURCES", 40)
+evoprot.set_env_var("N_RESOURCES", 4)
 evoprot.set_env_var("RADIUS_RESOURCE", 25)
 evoprot.set_env_var("INIT_FRAMERATE", 300)
 evoprot.set_env_var("GHOST_WHILE_EXPLOIT", 1)
 evoprot.set_env_var("MIN_RESOURCE_QUALITY", 0.25)
 evoprot.set_env_var("MAX_RESOURCE_QUALITY", -1)
-evoprot.set_env_var("MIN_RESOURCE_PER_PATCH", 50)
+evoprot.set_env_var("MIN_RESOURCE_PER_PATCH", 500)
 evoprot.set_env_var("MAX_RESOURCE_PER_PATCH", -1)
 evoprot.set_env_var("VISUAL_EXCLUSION", 0)
 evoprot.set_env_var("MOV_REL_TH_MAX", 0.8)

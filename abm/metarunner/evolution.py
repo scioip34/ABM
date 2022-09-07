@@ -310,7 +310,7 @@ class EvoProtocol:
         plt.show()
 
 
-    def start_evolution(self):
+    def start_evolution(self, with_show=False):
         """Starting evolution for number of generations. In between carrying out evaluation and reproduction
         with mutation"""
         # Preparing environment
@@ -365,7 +365,8 @@ class EvoProtocol:
                 # Evolving the system further for next generation
                 agent_behave_param_list = self.reproduction_cycle(agent_behave_param_list)
 
-        self.show_evolution_plot()
+        if with_show:
+            self.show_evolution_plot()
 
 
     def check_if_gen_finished(self, gen_folder):

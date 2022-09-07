@@ -624,10 +624,15 @@ class Simulation:
             evo_sum_dict[ag.id] = ag_sum
             if ag.id == 0:
                 sum_dict = ag.behave_params["evo_summary_path"]
+                pop_num = ag.behave_params.get("population_num")
+                # if pop_num is not None:
+                #     sum_dict = os.path.join(sum_dict, f"population_{pop_num}")
         evo_sum_dict["collected_collective"] = sum_coll_r
         summary_path = os.path.join(sum_dict, "evo_agent_summary.json")
+        os.makedirs(sum_dict, exist_ok=True)
         with open(summary_path, 'w') as f:
             json.dump(evo_sum_dict, f, indent=4)
+        return pop_num
 
     def start(self):
 
@@ -811,11 +816,17 @@ class Simulation:
               (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
+        if self.agent_behave_param_list is not None:
+            if self.agent_behave_param_list[0].get("evo_summary_path") is not None:
+                pop_num = self.generate_evo_summary()
+        else:
+            pop_num = None
+
         if self.save_csv_files:
             if self.save_in_ifd or self.save_in_ram:
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
-                                      save_extracted_vfield=False)
-                env_saver.save_env_vars([self.env_path], "env_params.json")
+                                      save_extracted_vfield=False, pop_num=pop_num)
+                env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=pop_num)
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
@@ -825,7 +836,4 @@ class Simulation:
         print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:",
               (end_save_time - end_time).total_seconds())
 
-        if self.agent_behave_param_list is not None:
-            if self.agent_behave_param_list[0].get("evo_summary_path") is not None:
-                self.generate_evo_summary()
         pygame.quit()

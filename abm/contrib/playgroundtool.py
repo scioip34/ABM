@@ -14,19 +14,19 @@ default_params = {
                 "show_vis_field": False,
                 "show_vis_field_return": True,
                 "pooling_time": 0,
-                "pooling_prob":0,
+                "pooling_prob": 0,
                 "agent_radius": 10,
                 "N_resc": 3,  # interactive
                 "min_resc_perpatch": 200,
                 "max_resc_perpatch": 201,
                 "min_resc_quality": 0.25,
                 "max_resc_quality": 0.25,
-                "patch_radius": 30,  # interactive
+                "patch_radius": 15,  # interactive
                 "regenerate_patches": True,
                 "agent_consumption": 1,
                 "teleport_exploit": False,
-                "vision_range": 5000,
-                "agent_fov": 0.5,  # interactive
+                "vision_range": 2000,
+                "agent_fov": 1,  # interactive
                 "visual_exclusion": True,  # interactive
                 "show_vision_range": True,
                 "use_ifdb_logging": False,  # interactive
@@ -56,13 +56,13 @@ def_env_vars = {
     "DEC_TAU": "10",
     "DEC_FN": "1",
     "DEC_FR": "1",
-    "MOV_EXP_VEL_MIN": "2",
-    "MOV_EXP_VEL_MAX": "2",
+    "MOV_EXP_VEL_MIN": "3",
+    "MOV_EXP_VEL_MAX": "3",
     "MOV_EXP_TH_MIN": "-0.5",
     "MOV_EXP_TH_MAX": "0.5",
-    "MOV_REL_DES_VEL": "2",
-    "MOV_REL_TH_MAX": "0.5",
-    "CONS_STOP_RATIO": "0.125"
+    "MOV_REL_DES_VEL": "3",
+    "MOV_REL_TH_MAX": "1.8",
+    "CONS_STOP_RATIO": "0.175"
     }
 
 def_params_to_env_vars = {

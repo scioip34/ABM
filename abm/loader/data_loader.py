@@ -961,10 +961,10 @@ class ExperimentLoader:
             print("Calculating mean search efficiency...")
             # self.get_travelled_distances()
 
-        batch_dim = 0
-        num_var_params = len(list(self.varying_params.keys()))
-        agent_dim = batch_dim + num_var_params + 1
-        time_dim = agent_dim + 1
+            batch_dim = 0
+            num_var_params = len(list(self.varying_params.keys()))
+            agent_dim = batch_dim + num_var_params + 1
+            time_dim = agent_dim + 1
 
             if used_batches is None:
                 collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][

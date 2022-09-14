@@ -1355,13 +1355,7 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
-        for i in range(self.num_batches):
-            print(f"Calculating relocation time in batch {i}")
-            a = np.mean((self.agent_summary["mode"][i, ..., ::10] == 2).astype(int), axis=time_dim - 1)
-            rel_reloc_matrix[i] = a.copy()
-            del a
-        mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+        rel_reloc_matrix, mean_rel_reloc = self.calculate_relocation_time()
         std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 
         if num_var_params == 1:

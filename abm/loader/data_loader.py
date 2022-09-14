@@ -1224,35 +1224,8 @@ class ExperimentLoader:
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
-                shape_along_fixed_ind = self.mean_iid.shape[self.collapse_fixedvar_ind]
-                labels = []
-                # collapsing data
-                for i in range(shape_along_fixed_ind):
-                    if self.collapse_fixedvar_ind == 0:
-                        collapsed_data_row = self.collapse_method(self.mean_iid[i, :, :], axis=0)
-                        ind = np.argmax(self.mean_iid[i, :, :], axis=0)
-                        max1_ind = 1
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 1:
-                        collapsed_data_row = self.collapse_method(self.mean_iid[:, i, :], axis=0)
-                        ind = np.argmax(self.mean_iid[:, i, :], axis=0)
-                        max1_ind = 0
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 2:
-                        collapsed_data_row = self.collapse_method(self.mean_iid[:, :, i], axis=0)
-                        ind = np.argmax(self.mean_iid[:, :, i], axis=0)
-                        max1_ind = 0
-                        max2_ind = 1
 
-                    if i == 0:
-                        collapsed_data = collapsed_data_row
-                    else:
-                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
-
-                for j in range(len(ind)):
-                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
-                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
-                    labels.append(label)
+                collapsed_data, labels = self.collapse_mean_data(self.mean_iid, save_name="coll_iid.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
@@ -1266,9 +1239,6 @@ class ExperimentLoader:
                 fig.subplots_adjust(right=0.8)
                 cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
                 cbar = fig.colorbar(img, cax=cbar_ax)
-                # ax.set_xlabel(f"Combined Parameters\n"
-                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
-                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
 
                 fig.set_tight_layout(True)
 
@@ -1346,42 +1316,15 @@ class ExperimentLoader:
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
-                shape_along_fixed_ind = self.mean_efficiency.shape[self.collapse_fixedvar_ind]
-                labels = []
-                # collapsing data
-                for i in range(shape_along_fixed_ind):
-                    if self.collapse_fixedvar_ind == 0:
-                        collapsed_data_row = self.collapse_method(self.mean_efficiency[i, :, :], axis=0)
-                        ind = np.argmax(self.mean_efficiency[i, :, :], axis=0)
-                        max1_ind = 1
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 1:
-                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, i, :], axis=0)
-                        ind = np.argmax(self.mean_efficiency[:, i, :], axis=0)
-                        max1_ind = 0
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 2:
-                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, :, i], axis=0)
-                        ind = np.argmax(self.mean_efficiency[:, :, i], axis=0)
-                        max1_ind = 0
-                        max2_ind = 1
 
-                    if i == 0:
-                        collapsed_data = collapsed_data_row
-                    else:
-                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
 
-                for j in range(len(ind)):
-                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
-                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
-                    labels.append(label)
-
-                # column-wise normalization
-                for coli in range(collapsed_data.shape[1]):
-                    print(f"Normalizing column {coli}")
-                    minval = np.min(collapsed_data[:, coli])
-                    maxval = np.max(collapsed_data[:, coli])
-                    collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+                collapsed_data, labels = self.collapse_mean_data(self.mean_efficiency, save_name="coll_eff.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
@@ -1395,9 +1338,6 @@ class ExperimentLoader:
                 fig.subplots_adjust(right=0.8)
                 cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
                 cbar = fig.colorbar(img, cax=cbar_ax)
-                # ax.set_xlabel(f"Combined Parameters\n"
-                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
-                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
                 fig.set_tight_layout(True)
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
@@ -1482,35 +1422,8 @@ class ExperimentLoader:
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
-                shape_along_fixed_ind = mean_rel_reloc.shape[self.collapse_fixedvar_ind]
-                # collapsing data
-                labels = []
-                for i in range(shape_along_fixed_ind):
-                    if self.collapse_fixedvar_ind == 0:
-                        collapsed_data_row = self.collapse_method(mean_rel_reloc[i, :, :], axis=0)
-                        ind = np.argmax(mean_rel_reloc[i, :, :], axis=0)
-                        max1_ind = 1
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 1:
-                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, i, :], axis=0)
-                        ind = np.argmax(mean_rel_reloc[:, i, :], axis=0)
-                        max1_ind = 0
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 2:
-                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, :, i], axis=0)
-                        ind = np.argmax(mean_rel_reloc[:, :, i], axis=0)
-                        max1_ind = 0
-                        max2_ind = 1
 
-                    if i == 0:
-                        collapsed_data = collapsed_data_row
-                    else:
-                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
-
-                for j in range(len(ind)):
-                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
-                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
-                    labels.append(label)
+                collapsed_data, labels = self.collapse_mean_data(mean_rel_reloc, save_name="coll_reloctime.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))

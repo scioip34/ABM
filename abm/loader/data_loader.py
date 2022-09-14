@@ -1079,6 +1079,80 @@ class ExperimentLoader:
         np.save(iidpath, self.iid_matrix)
         np.save(meaniid_path, self.mean_iid)
 
+    def calculate_relocation_time(self, undersample=1):
+        """Calculating relocation time matrix over the given data"""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        rtimepath = os.path.join(summary_path, "reloctime.npy")
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if os.path.isfile(rtimepath):
+            print("Found saved relocation time array in summary, reloading it...")
+            rel_reloc_matrix = np.load(rtimepath)
+            mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+
+        else:
+            rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
+            for i in range(self.num_batches):
+                print(f"Calculating relocation time in batch {i}")
+                a = np.mean((self.agent_summary["mode"][i, ...] == 2).astype(int), axis=time_dim - 1)
+                rel_reloc_matrix[i] = a.copy()
+                del a
+            mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+            print("Saving calculated relocation time matrix!")
+            np.save(rtimepath, rel_reloc_matrix)
+
+        return rel_reloc_matrix, mean_rel_reloc
+
+    def collapse_mean_data(self, mean_data, save_name=None):
+        """Collapsing a high dimensional mean data array according to chosen axis and method via UI.
+        The generated collapsed adataframe can be saved in the summary folder when save_name set to
+        a .npy file"""
+        keys = sorted(list(self.varying_params.keys()))
+        shape_along_fixed_ind = mean_data.shape[self.collapse_fixedvar_ind]
+        labels = []
+        # collapsing data
+        for i in range(shape_along_fixed_ind):
+            if self.collapse_fixedvar_ind == 0:
+                collapsed_data_row = self.collapse_method(mean_data[i, :, :], axis=0)
+                ind = np.argmax(mean_data[i, :, :], axis=0)
+                max1_ind = 1
+                max2_ind = 2
+            elif self.collapse_fixedvar_ind == 1:
+                collapsed_data_row = self.collapse_method(mean_data[:, i, :], axis=0)
+                ind = np.argmax(mean_data[:, i, :], axis=0)
+                max1_ind = 0
+                max2_ind = 2
+            elif self.collapse_fixedvar_ind == 2:
+                collapsed_data_row = self.collapse_method(mean_data[:, :, i], axis=0)
+                ind = np.argmax(mean_data[:, :, i], axis=0)
+                max1_ind = 0
+                max2_ind = 1
+
+            if i == 0:
+                collapsed_data = collapsed_data_row
+            else:
+                collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+        for j in range(len(ind)):
+            label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
+                    f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
+            labels.append(label)
+
+        if save_name is not None:
+            if save_name.endswith(".npy"):
+                save_path_data = os.path.join(self.experiment_path, "summary", save_name)
+                save_path_labels = save_path_data.split(".")[0] + ".txt"
+                np.save(save_path_data, collapsed_data)
+                np.savetxt(save_path_labels, labels, newline=",\n", fmt="%s")
+            else:
+                raise Exception("Given filename is not npy file")
+
+        return collapsed_data, labels
+
+
     def plot_mean_iid(self, from_script=False, undersample=1):
         """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the
         experiments."""

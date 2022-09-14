@@ -933,46 +933,62 @@ class ExperimentLoader:
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
         with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
         the real time according to how much the data was undersampled during sammury"""
-        # Caclulating length of time window for normalizing efficiency
-        if t_end_plot == -1:
-            if self.t_end is None:  # we processed the whole experiment
-                T = int(self.env['T'])
-            else:  # we have cut down some part at the end of the experiment
-                T = self.t_end
-        else:  # We calculate the efficiency until a given point of time
-            T = t_end_plot * self.undersample
+        summary_path = os.path.join(self.experiment_path, "summary")
+        effpath = os.path.join(summary_path, "eff.npy")
+        if os.path.isfile(effpath):
+            print("Found saved efficiency array in summary, reloading it...")
+            self.efficiency = np.load(effpath)
+            batch_dim = 0
+            num_var_params = len(list(self.varying_params.keys()))
+            agent_dim = batch_dim + num_var_params + 1
+            time_dim = agent_dim + 1
+            self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+        else:
+            # Caclulating length of time window for normalizing efficiency
+            if t_end_plot == -1:
+                if self.t_end is None:  # we processed the whole experiment
+                    T = int(self.env['T'])
+                else:  # we have cut down some part at the end of the experiment
+                    T = self.t_end
+            else:  # We calculate the efficiency until a given point of time
+                T = t_end_plot * self.undersample
 
-        T_start = t_start_plot * self.undersample
-        dT = T - T_start
-        print(f"Using T_start={T_start}, T_end={T} delta_T={dT} to normalize efficiency!")
+            T_start = t_start_plot * self.undersample
+            dT = T - T_start
+            print(f"Using T_start={T_start}, T_end={T} delta_T={dT} to normalize efficiency!")
 
-        print("Calculating mean search efficiency...")
-        # self.get_travelled_distances()
+            print("Calculating mean search efficiency...")
+            # self.get_travelled_distances()
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        if used_batches is None:
-            collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][
-                ..., t_start_plot]
-        else:
-            # limiting number of used batches (e.g. for quick prototyping)
-            print(f"Using {used_batches} batches to calculate efficiency!")
-            print(self.agent_summary["collresource"].shape)
-            collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary[
-                                                                                                "collresource"][
-                                                                                            0:used_batches, ...,
-                                                                                            t_start_plot]
-        # normalizing with distances needs good temporal resolution when reading data back
-        # using large downsampling factors will make it impossibly to calculate trajectory lengths
-        # and thus makes distance measures impossible
-        # sum_distances = np.sum(self.distances, axis=time_dim)
-        self.efficiency = collres / dT
+            if used_batches is None:
+                collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][
+                    ..., t_start_plot]
+            else:
+                # limiting number of used batches (e.g. for quick prototyping)
+                print(f"Using {used_batches} batches to calculate efficiency!")
+                print(self.agent_summary["collresource"].shape)
+                collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary[
+                                                                                                    "collresource"][
+                                                                                                0:used_batches, ...,
+                                                                                                t_start_plot]
+            # normalizing with distances needs good temporal resolution when reading data back
+            # using large downsampling factors will make it impossibly to calculate trajectory lengths
+            # and thus makes distance measures impossible
+            # sum_distances = np.sum(self.distances, axis=time_dim)
+            self.efficiency = collres / dT
 
-        self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
-        self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+
+            # Saving calculated efficiency for future use
+            print("Saving efficiency arrays into summary!")
+            np.save(effpath, self.efficiency)
 
     def calculate_interindividual_distance_slice(self, posx, posy):
         """Calculating iid just in a point of time and for just a specific parameter combination.

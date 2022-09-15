@@ -758,7 +758,7 @@ class ExperimentReplay:
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     color = path_cols[int(modes[ai, t])]
                     #pygame.draw.line(self.screen, color, point1, point2, 4)
-                    pygame.draw.circle(self.screen, color, point2, 6)
+                    pygame.draw.circle(self.screen, color, point2, 5)
                 # for t in range(1, path_length):
                 #     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                 #     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)

@@ -58,7 +58,8 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
                          use_zarr=bool(int(float(envconf["USE_ZARR_FORMAT"]))),
                          parallel=parallel,
                          window_pad=window_pad,
-                         agent_behave_param_list=agent_behave_param_list
+                         agent_behave_param_list=agent_behave_param_list,
+                         collide_agents=bool(int(float(envconf["AGENT_AGENT_COLLISION"])))
                          )
         sim.write_batch_size = 100
         sim.start()

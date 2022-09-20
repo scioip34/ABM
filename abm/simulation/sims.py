@@ -65,7 +65,7 @@ class Simulation:
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
                  patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
-                 agent_behave_param_list=None):
+                 agent_behave_param_list=None, collide_agents=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -114,8 +114,10 @@ class Simulation:
         :param allow_border_patch_overlap: boolean switch to allow resource patches to overlap arena border
         :param agent_behave_param_list: list of dictionaries in which each dict is a copy of contrib.evolution.behave_params_template
             including the init parameters of all agents in case of eheterogeneous agents.
+        :param collide_agents: boolean switch agents can overlap if false.
         """
         # Arena parameters
+        self.collide_agents = collide_agents
         self.WIDTH = width
         self.HEIGHT = height
         self.window_pad = window_pad
@@ -667,43 +669,46 @@ class Simulation:
 
             if not self.is_paused:
 
-                # ------ AGENT-AGENT INTERACTION ------
-                # Check if any 2 agents has been collided and reflect them from each other if so
-                collision_group_aa = pygame.sprite.groupcollide(
-                    self.agents,
-                    self.agents,
-                    False,
-                    False,
-                    itra.within_group_collision
-                )
-                collided_agents = []
-                # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
-                # such as ghost mode, or teleportation)
-                for agent1, agent2 in collision_group_aa.items():
-                    self.agent_agent_collision(agent1, agent2)
-                    if not isinstance(agent2, list):
-                        agents2 = [agent2]
-                    else:
-                        agents2 = agent2
-                    for agent2 in agents2:
-                        if self.teleport_exploit:
-                            if agent1.get_mode() != "exploit":
-                                collided_agents.append(agent1)
-                            if agent2.get_mode() != "exploit":
-                                collided_agents.append(agent2)
+                # # ------ AGENT-AGENT INTERACTION ------
+                if self.collide_agents:
+                    # Check if any 2 agents has been collided and reflect them from each other if so
+                    collision_group_aa = pygame.sprite.groupcollide(
+                        self.agents,
+                        self.agents,
+                        False,
+                        False,
+                        itra.within_group_collision
+                    )
+                    collided_agents = []
+                    # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
+                    # such as ghost mode, or teleportation)
+                    for agent1, agent2 in collision_group_aa.items():
+                        self.agent_agent_collision(agent1, agent2)
+                        if not isinstance(agent2, list):
+                            agents2 = [agent2]
                         else:
-                            if not self.ghost_mode:
-                                collided_agents.append(agent1)
-                                collided_agents.append(agent2)
+                            agents2 = agent2
+                        for agent2 in agents2:
+                            if self.teleport_exploit:
+                                if agent1.get_mode() != "exploit":
+                                    collided_agents.append(agent1)
+                                if agent2.get_mode() != "exploit":
+                                    collided_agents.append(agent2)
                             else:
-                                if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                if not self.ghost_mode:
                                     collided_agents.append(agent1)
                                     collided_agents.append(agent2)
+                                else:
+                                    if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                        collided_agents.append(agent1)
+                                        collided_agents.append(agent2)
 
-                # Turn off collision mode when over
-                for agent in self.agents:
-                    if agent not in collided_agents and agent.get_mode() == "collide":
-                        agent.set_mode("explore")
+                    # Turn off collision mode when over
+                    for agent in self.agents:
+                        if agent not in collided_agents and agent.get_mode() == "collide":
+                            agent.set_mode("explore")
+                else:
+                    collided_agents=[]
 
                 # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
                 collision_group_ar = pygame.sprite.groupcollide(

@@ -36,7 +36,8 @@ default_params = {
                 "ghost_mode": True,  # interactive
                 "patchwise_exclusion": True,
                 "parallel": False,
-                "allow_border_patch_overlap": True
+                "allow_border_patch_overlap": True,
+                "collide_agents": False
 }
 
 # default parameters of playground that are not needed for initialization
@@ -97,7 +98,8 @@ def_params_to_env_vars = {
                 "use_zarr": "USE_ZARR_FORMAT",
                 "ghost_mode": "GHOST_WHILE_EXPLOIT",
                 "patchwise_exclusion": "PATCHWISE_SOCIAL_EXCLUSION",
-                "allow_border_patch_overlap": "PATCH_BORDER_OVERLAP"
+                "allow_border_patch_overlap": "PATCH_BORDER_OVERLAP",
+                "collide_agents": "AGENT_AGENT_COLLISION"
 }
 
 help_messages = {

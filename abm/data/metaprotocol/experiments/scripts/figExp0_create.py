@@ -11,10 +11,10 @@ exp_name = "figExp0"
 data_path = f"/home/david/Desktop/database/{exp_name}"
 
 min_data_val = 0
-max_data_val = 1
+max_data_val = 0.2
 
 # set of agent numbers to summarize for
-Ns = [3, 5, 10, 25, 50]
+Ns = [3, 5, 10, 25, 50, 100]
 
 # figure shape
 fig_shape = [3, 2]
@@ -30,11 +30,11 @@ for wi in range(fig_shape[0]):
             plt.axes(ax[wi, hi])
             collapsed_data = np.load(os.path.join(data_path, f"coll_eff_N{Ns[ni]}.npy"))
             # # column-wise normalization
-            for coli in range(collapsed_data.shape[1]):
-                print(f"Normalizing column {coli}")
-                minval = np.min(collapsed_data[:, coli])
-                maxval = np.max(collapsed_data[:, coli])
-                collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+            # for coli in range(collapsed_data.shape[1]):
+            #     print(f"Normalizing column {coli}")
+            #     minval = np.min(collapsed_data[:, coli])
+            #     maxval = np.max(collapsed_data[:, coli])
+            #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
             agent_dim = 4
             im = plt.imshow(collapsed_data, vmin=min_data_val, vmax=max_data_val)
 

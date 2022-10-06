@@ -728,7 +728,7 @@ class Simulation:
                     # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
                     # such as ghost mode, or teleportation)
                     for agent1, agent2 in collision_group_aa.items():
-                        self.agent_agent_collision(agent1, agent2)
+                        self.agent_agent_collision_proximity(agent1, agent2)
                         if not isinstance(agent2, list):
                             agents2 = [agent2]
                         else:
@@ -753,7 +753,7 @@ class Simulation:
                         if agent not in collided_agents and agent.get_mode() == "collide":
                             agent.set_mode("explore")
                 else:
-                    collided_agents=[]
+                    collided_agents = []
 
                 # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
                 collision_group_ar = pygame.sprite.groupcollide(

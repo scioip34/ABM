@@ -418,6 +418,51 @@ class Simulation:
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
+    def agent_agent_collision_proximity(self, agent1, agent2):
+        """Using proximity information as in real life to calculate collision avoidance turning behavior"""
+        # Updating all agents accordingly
+        if not isinstance(agent2, list):
+            agents2 = [agent2]
+        else:
+            agents2 = agent2
+
+        for i, agent2 in enumerate(agents2):
+            do_collision = True
+            # if the ghost mode is turned on and any of the 2 colliding agents is exploiting, the
+            # collision protocol will not be carried out so that agents can overlap with each other in this case
+            if self.ghost_mode:
+                if agent2.get_mode() != "exploit" and agent1.get_mode() != "exploit":
+                    do_collision = True
+                else:
+                    do_collision = False
+
+            if do_collision:
+                # overriding any mode with collision
+                if agent2.get_mode() != "exploit":
+                    agent2.set_mode("collide")
+
+                # calculating proximity events
+                # collecting agents closer than proximity sensor sensitivity
+                agents_in_vicinity = [agent for agent in self.agents if
+                                      supcalc.distance(agent, agent2) < 2 * agent2.radius + 20 and agent != agent2]
+                # calculating proximity field similarly as LIDAR
+                proximity_field = agent2.projection_field(agents_in_vicinity, keep_distance_info=True)
+
+                # calculating turning angel
+                V_field_len = len(proximity_field)
+                left_excitation = np.mean(proximity_field[0:int(V_field_len / 2)])
+                right_excitation = np.mean(proximity_field[int(V_field_len / 2)::])
+                D_leftright = np.sign(left_excitation - right_excitation)
+                if D_leftright == 0: D_leftright = -1
+                agent2.orientation -= D_leftright * 0.2
+
+                # making agents stop if the front of the agent is occupied
+                if np.mean(proximity_field[int(V_field_len / 2) - 100:int(V_field_len / 2) + 100]) > 0:
+                    agent2.velocity = 0
+                else:
+                    if agent2.get_mode() != "exploit":
+                        agent2.velocity = agent2.max_exp_vel
+
     def add_new_agent(self, id, x, y, orient, with_proove=False, behave_params=None):
         """Adding a single new agent into agent sprites"""
         agent_proven = False

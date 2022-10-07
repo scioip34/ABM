@@ -771,8 +771,12 @@ class Simulation:
                     for agent in self.agents:
                         if agent not in collided_agents and agent.get_mode() == "collide":
                             agent.set_mode("explore")
+                        if agent in collided_agents and agent.get_mode() == "collide":
+                            notify_agent(agent, -1)
+
                 else:
                     collided_agents = []
+
 
                 # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
                 collision_group_ar = pygame.sprite.groupcollide(

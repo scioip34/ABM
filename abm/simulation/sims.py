@@ -373,7 +373,7 @@ class Simulation:
         self.rescources.add(resource)
         return resource.id
 
-    def agent_agent_collision(self, agent1, agent2):
+    def agent_agent_collision_particle(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
         :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly

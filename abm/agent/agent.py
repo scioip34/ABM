@@ -51,7 +51,7 @@ class Agent(pygame.sprite.Sprite):
         self.exclude_agents_same_patch = patchwise_exclusion
         self.id = id  # saved
         self.radius = radius
-        self.position = np.array(position, dtype=np.float64) # saved
+        self.position = np.array(position, dtype=np.float64)  # saved
         self.orientation = orientation # saved
         self.color = color
         self.selected_color = colors.LIGHT_BLUE
@@ -436,14 +436,19 @@ class Agent(pygame.sprite.Sprite):
                 clean_sdata[kf] = vf
         self.vis_field_source_data = clean_sdata
 
-    def projection_field(self, obstacles, keep_distance_info=False, non_expl_agents=None):
+    def projection_field(self, obstacles, keep_distance_info=False, non_expl_agents=None, fov=None):
         """Calculating visual projection field for the agent given the visible obstacles in the environment
         :param obstacles: list of agents (with same radius) or some other obstacle sprites to generate projection field
         :param keep_distance_info: if True, the amplitude of the vpf will reflect the distance of the object from the
             agent so that exclusion can be easily generated with a single computational step.
         :param non_expl_agents: a list of non-scoial visual cues (non-exploiting agents) that on the other hand can still
             produce visual exlusion on the projection of social cues. If None only social cues can produce visual
-            exclusion on each other."""
+            exclusion on each other.
+        :param fov: touple of number with borders of fov such as (-np.pi, np.pi), if None, self.FOV will be used"""
+
+        # deciding fov
+        if fov is None:
+            fov = self.FOV
 
         # extracting obstacle coordinates
         obstacle_coords = [ob.position for ob in obstacles]
@@ -509,7 +514,7 @@ class Agent(pygame.sprite.Sprite):
                 phi_target = supcalc.find_nearest(phis, closed_angle)
 
                 # if target is visible we save its projection into the VPF source data
-                if self.FOV[0] < closed_angle < self.FOV[1]:
+                if fov[0] < closed_angle < fov[1]:
                     self.vis_field_source_data[i] = {}
                     self.vis_field_source_data[i]["vis_angle"] = vis_angle
                     self.vis_field_source_data[i]["phi_target"] = phi_target
@@ -568,8 +573,8 @@ class Agent(pygame.sprite.Sprite):
 
         # post_processing and limiting FOV
         v_field_post = np.flip(v_field)
-        v_field_post[phis < self.FOV[0]] = 0
-        v_field_post[phis > self.FOV[1]] = 0
+        v_field_post[phis < fov[0]] = 0
+        v_field_post[phis > fov[1]] = 0
 
         return v_field_post
 

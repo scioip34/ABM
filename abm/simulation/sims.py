@@ -446,7 +446,7 @@ class Simulation:
                 agents_in_vicinity = [agent for agent in self.agents if
                                       supcalc.distance(agent, agent2) < 2 * agent2.radius + 20 and agent != agent2]
                 # calculating proximity field similarly as LIDAR
-                proximity_field = agent2.projection_field(agents_in_vicinity, keep_distance_info=True)
+                proximity_field = agent2.projection_field(agents_in_vicinity, keep_distance_info=True, fov=(-np.pi, np.pi))
 
                 # calculating turning angel
                 V_field_len = len(proximity_field)

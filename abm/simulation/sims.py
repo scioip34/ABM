@@ -454,14 +454,24 @@ class Simulation:
                 right_excitation = np.mean(proximity_field[int(V_field_len / 2)::])
                 D_leftright = np.sign(left_excitation - right_excitation)
                 if D_leftright == 0: D_leftright = -1
-                agent2.orientation -= D_leftright * 0.2
+                if agent2.get_mode() != "exploit":
+                    # exploiting agent won't care about others w.r.t orientation
+                    agent2.orientation -= D_leftright * 0.2
 
                 # making agents stop if the front of the agent is occupied
                 if np.mean(proximity_field[int(V_field_len / 2) - 100:int(V_field_len / 2) + 100]) > 0:
                     agent2.velocity = 0
+                # front is clear
                 else:
+                    # making the agent move straight now if the front is clear
                     if agent2.get_mode() != "exploit":
                         agent2.velocity = agent2.max_exp_vel
+
+                    # if (np.mean(proximity_field[0:100]) > 0 or np.mean(proximity_field[-101:-1]) > 0) and \
+                    #         agent2.get_mode() == "exploit":
+                    #     # in case the agent is exploiting and something bumps into it from behind it will move forward
+                    #     if agent2.velocity < agent2.max_exp_vel - 0.5:
+                    #         agent2.velocity += 0.5
 
     def add_new_agent(self, id, x, y, orient, with_proove=False, behave_params=None):
         """Adding a single new agent into agent sprites"""

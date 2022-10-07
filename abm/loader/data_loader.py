@@ -441,7 +441,7 @@ class ExperimentLoader:
                     self.num_runs = len(run_folders)
 
                 for j, run in enumerate(run_folders):
-                    print(f"Reading agent data batch {i}, run {j}")
+                    print(f"Reading agent data batch {i}, run {j}, {run}")
                     agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True,
                                                          t_start=self.t_start, t_end=self.t_end).get_loaded_data()
                     del _

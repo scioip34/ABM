@@ -726,6 +726,11 @@ class Simulation:
 
                 # # ------ AGENT-AGENT INTERACTION ------
                 if self.collide_agents:
+                    # distance from which proximity event is triggered
+                    proximity_distance = 2
+                    for agent in self.agents:
+                        agent.radius += proximity_distance
+
                     # Check if any 2 agents has been collided and reflect them from each other if so
                     collision_group_aa = pygame.sprite.groupcollide(
                         self.agents,
@@ -734,6 +739,10 @@ class Simulation:
                         False,
                         itra.within_group_collision
                     )
+
+                    for agent in self.agents:
+                        agent.radius -= proximity_distance
+
                     collided_agents = []
                     # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
                     # such as ghost mode, or teleportation)

@@ -1325,6 +1325,7 @@ class ExperimentLoader:
                 #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
 
                 collapsed_data, labels = self.collapse_mean_data(self.mean_efficiency, save_name="coll_eff.npy")
+                coll_std, _ = self.collapse_mean_data(self.eff_std, save_name="coll_effstd.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))

@@ -9,11 +9,11 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       04.10.2022
-Parameters: figExp2ApatchyN5NoColl:
-                No occlusions first - No Collisions
+Date:       11.10.2022
+Parameters: figExp2AintermedN25NoColl:
+                No occlusions first - No collisions
                 Observing effect of FOV restriction on different agent sizes with only 2 types of
-                environments (patchy/distributed). N=5 agents case.
+                environments (patchy/intermediate/distributed). N=25 agents case.
 
                 All other parameters as in base experiments!      
                 
@@ -70,10 +70,10 @@ arena_size = arena_w * arena_h
 # keeping the covered area on 20% on overall area
 keep_covered_ratio = 0.2
 overall_res_area = int(arena_size * keep_covered_ratio)
-num_patches = [3]
+num_patches = [8]
 criteria_exp = [
     Constant("AGENT_AGENT_COLLISION", 0),
-    Constant("N", 5),
+    Constant("N", 25),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
     Constant("VISION_RANGE", 2000),  # unlimited visual range
     Tunable("AGENT_FOV", values_override=[i*0.05 for i in range(21)]),  # unlimited FOV

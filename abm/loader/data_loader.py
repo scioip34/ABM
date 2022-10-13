@@ -1317,15 +1317,15 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
 
+                collapsed_data, labels = self.collapse_mean_data(self.mean_efficiency, save_name="coll_eff.npy")
+                coll_std, _ = self.collapse_mean_data(self.eff_std, save_name="coll_effstd.npy")
+
                 # # column-wise normalization
                 # for coli in range(collapsed_data.shape[1]):
                 #     print(f"Normalizing column {coli}")
                 #     minval = np.min(collapsed_data[:, coli])
                 #     maxval = np.max(collapsed_data[:, coli])
                 #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
-
-                collapsed_data, labels = self.collapse_mean_data(self.mean_efficiency, save_name="coll_eff.npy")
-                coll_std, _ = self.collapse_mean_data(self.eff_std, save_name="coll_effstd.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))

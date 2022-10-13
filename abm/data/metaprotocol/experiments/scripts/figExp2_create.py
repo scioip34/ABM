@@ -13,7 +13,7 @@ data_path = f"/home/david/Desktop/database/{exp_name}"
 
 # set of agent numbers to summarize for
 Ns = [25]
-num_patches = [3, 50]
+num_patches = [3, 8, 50]
 batch_dim = 0
 agent_dim = 3
 
@@ -21,7 +21,7 @@ agent_dim = 3
 fig_shape = [len(Ns), len(num_patches)]
 fig, ax = plt.subplots(fig_shape[0], fig_shape[1],
                        constrained_layout=True, figsize=(fig_shape[1] * 3, fig_shape[0] * 3),
-                       sharex=False)
+                       sharex=False, sharey=True)
 gs1 = gridspec.GridSpec(fig_shape[0], fig_shape[1])
 gs1.update(wspace=0, hspace=0)
 
@@ -37,11 +37,20 @@ for ni in range(fig_shape[0]):
         mean_eff_patchy = np.mean(np.mean(eff_data_patchy, axis=agent_dim), axis=batch_dim)
         std_eff_patchy = np.std(np.mean(eff_data_patchy, axis=agent_dim), axis=batch_dim)
 
+        eff_data_intermed = np.load(os.path.join(data_path, f"eff_N{N}_intermed.npy"))
+        print(eff_data_intermed.shape)
+        with open(os.path.join(data_path, f"tuned_env_N{N}_intermed.json"), "r") as te:
+            epsilons_intermed = [float(eps) for eps in json.loads(te.read())['DEC_EPSW']]
+        with open(os.path.join(data_path, f"tuned_env_N{N}_intermed.json"), "r") as te:
+            fovs_intermed = [float(fov) for fov in json.loads(te.read())['AGENT_FOV']]
+        mean_eff_intermed = np.mean(np.mean(eff_data_intermed, axis=agent_dim), axis=batch_dim)
+        std_eff_intermed = np.std(np.mean(eff_data_intermed, axis=agent_dim), axis=batch_dim)
+
         eff_data_dist = np.load(os.path.join(data_path, f"eff_N{N}_dist.npy"))
         print(eff_data_dist.shape)
         with open(os.path.join(data_path, f"tuned_env_N{N}_dist.json"), "r") as te:
             epsilons_dist = [float(eps) for eps in json.loads(te.read())['DEC_EPSW']]
-        with open(os.path.join(data_path, f"tuned_env_N{N}_patchy.json"), "r") as te:
+        with open(os.path.join(data_path, f"tuned_env_N{N}_dist.json"), "r") as te:
             fovs_dist = [float(fov) for fov in json.loads(te.read())['AGENT_FOV']]
         mean_eff_dist = np.mean(np.mean(eff_data_dist, axis=agent_dim), axis=batch_dim)
         std_eff_dist = np.std(np.mean(eff_data_dist, axis=agent_dim), axis=batch_dim)
@@ -67,6 +76,7 @@ for ni in range(fig_shape[0]):
             plt.ylabel(f"$N_A$={Ns[ni]}\nAbsolute Efficiency")
             plt.title("Patchy Environment")
         if ni == len(Ns) - 1:
+            plt.ylabel(f"$N_A$={Ns[ni]}")
             sparsing_factor = 4
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{2*round(fovs[i], 1)}$\pi$" for i in range(0, len(fovs), sparsing_factor)], ha='right', rotation_mode='anchor')
             plt.xlabel("Field of View [rad.]")
@@ -75,11 +85,32 @@ for ni in range(fig_shape[0]):
         plt.fill_between([i for i in range(len(fovs))], mean_eff_patchy[:, eps_i]-std_eff_patchy[:, eps_i],
                          mean_eff_patchy[:, eps_i]+std_eff_patchy[:, eps_i], alpha=0.3)
 
-        # distributed
+        # intermediate
         if fig_shape[0] > 1:
             curax = ax[ni, 1]
         else:
             curax = ax[1]
+
+        plt.axes(curax)
+        plt.yticks([])
+        plt.plot(mean_eff_intermed[:, eps_i], label=f"$\epsilon$={eps}")
+        if ni == 0:
+            plt.title("Intermediate Environment")
+        if ni == len(Ns) - 1:
+            sparsing_factor = 10
+            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)],
+                       [f"{2 * round(fovs[i], 1)}$\pi$" for i in range(0, len(fovs), sparsing_factor)], ha='left',
+                       rotation_mode='anchor')
+            for ticki, tick in enumerate(curax.get_xticklabels()):
+                tick.set_rotation(-45)
+        plt.fill_between([i for i in range(len(fovs))], mean_eff_intermed[:, eps_i] - std_eff_intermed[:, eps_i],
+                         mean_eff_intermed[:, eps_i] + std_eff_intermed[:, eps_i], alpha=0.3)
+
+        # distributed
+        if fig_shape[0] > 1:
+            curax = ax[ni, 2]
+        else:
+            curax = ax[2]
 
         plt.axes(curax)
         curax.yaxis.tick_right()

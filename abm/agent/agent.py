@@ -50,6 +50,14 @@ class Agent(pygame.sprite.Sprite):
         # Initializing agents with init parameters
         self.exclude_agents_same_patch = patchwise_exclusion
         self.id = id  # saved
+        # creating agent status
+        if self.id == 0:
+            self.agent_type = "shepherd"
+        elif self.id == 1:
+            self.agent_type = "target"
+        else:
+            self.agent_type = "sheep"
+
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)  # saved
         self.orientation = orientation # saved
@@ -220,56 +228,66 @@ class Agent(pygame.sprite.Sprite):
         self.calc_social_V_proj(agents)
 
         # calculate private information
-        self.calc_I_priv()
+        # self.calc_I_priv()
 
         # update inner decision process according to visual field and private info
-        self.update_decision_processes()
+        # self.update_decision_processes()
 
         # CALCULATING velocity and orientation change according to inner decision process (dv)
         # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
         # vel, theta = int(self.tr_w()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr_w())) * random_walk(...)
         # or later when we define the individual and social forces
         # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
-        if not self.get_mode() == "collide":
-            if not self.tr_w() and not self.tr_u():
-                vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
-                self.set_mode("explore")
-            elif self.tr_w() and self.tr_u():
-                if self.env_status == 1:
-                    self.set_mode("exploit")
-                    vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
-                else:
-                    vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
-                    self.set_mode("relocate")
-            elif self.tr_w() and not self.tr_u():
-                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
-                # WHY ON EARTH DO WE NEED THIS NEGATION?
-                # whatever comes out has a sign that tells if the change in direction should be left or right
-                # seemingly what comes out has a different convention than our environment?
-                # VSWRM: comes out + turn left? comes our - turn right?
-                # environment: the opposite way around
-                # theta = -theta
-                self.set_mode("relocate")
-            elif self.tr_u() and not self.tr_w():
-                if self.env_status == 1:
-                    self.set_mode("exploit")
-                    vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
-                else:
-                    vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
-                    self.set_mode("explore")
-        else:
-            # COLLISION AVOIDANCE IS ACTIVE, let that guide us
-            # As we don't have proximity sensor interface as with e.g. real robots we will let
-            # the environment to enforce us into a collision maneuver from the simulation environment
-            # so we don't change the current velocity from here.
+        if self.agent_type == "target":
             vel, theta = (0, 0)
+        elif self.agent_type == "sheep":
+            vel, theta = self.get_repelled(agents)  # supcalc.random_walk(desired_vel=self.max_exp_vel)
+            vel = 1-self.velocity
+            if abs(theta) > 0.2:
+                theta = np.sign(theta) * 0.2
+        elif self.agent_type == "shepherd":
+            vel, theta = (3-self.velocity, 0)
+
+        # if not self.get_mode() == "collide":
+        #     if not self.tr_w() and not self.tr_u():
+        #         vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
+        #         self.set_mode("explore")
+        #     elif self.tr_w() and self.tr_u():
+        #         if self.env_status == 1:
+        #             self.set_mode("exploit")
+        #             vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
+        #         else:
+        #             vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
+        #             self.set_mode("relocate")
+        #     elif self.tr_w() and not self.tr_u():
+        #         vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
+        #         # WHY ON EARTH DO WE NEED THIS NEGATION?
+        #         # whatever comes out has a sign that tells if the change in direction should be left or right
+        #         # seemingly what comes out has a different convention than our environment?
+        #         # VSWRM: comes out + turn left? comes our - turn right?
+        #         # environment: the opposite way around
+        #         # theta = -theta
+        #         self.set_mode("relocate")
+        #     elif self.tr_u() and not self.tr_w():
+        #         if self.env_status == 1:
+        #             self.set_mode("exploit")
+        #             vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
+        #         else:
+        #             vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
+        #             self.set_mode("explore")
+        # else:
+        #     # COLLISION AVOIDANCE IS ACTIVE, let that guide us
+        #     # As we don't have proximity sensor interface as with e.g. real robots we will let
+        #     # the environment to enforce us into a collision maneuver from the simulation environment
+        #     # so we don't change the current velocity from here.
+        #     vel, theta = (0, 0)
 
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
             self.orientation += theta
             self.prove_orientation()  # bounding orientation into 0 and 2pi
             self.velocity += vel
-            self.prove_velocity()  # possibly bounding velocity of agent
+            # self.prove_velocity()  # possibly bounding velocity of agent
 
             # updating agent's position
             self.position[0] += self.velocity * np.cos(self.orientation)
@@ -282,18 +300,93 @@ class Agent(pygame.sprite.Sprite):
         self.draw_update()
         self.collected_r_before = self.collected_r
 
+    def SigThresh(self, x, x0=0.5, steepness=10):
+        """
+        Sigmoid function f(x)=1/2*(tanh(a*(x-x0)+1)
+
+            Input parameters:
+            -----------------
+            x:  function argument
+            x0: position of the transition point (f(x0)=1/2)
+            steepness:  parameter setting the steepness of the transition.
+                        (positive values: transition from 0 to 1, negative values:
+                        transition from 1 to 0)
+        """
+        return 0.5 * (np.tanh(steepness * (x - x0)) + 1)
+
+    def CalcSingleAttForce(self, r_att, steepness_att, distvec):
+        """Calculating the attraction force between a single pair of agents with given distance
+        from each other.
+
+        :param r_att: attraction range
+        :param steepness_att: attraction steepness when calculating force with sigmoid
+        :param distvec: distance vector between the paiir of agents
+        :return vec_attr: directional attraction force vector
+        """
+        dist = np.linalg.norm(distvec)
+        F_att = self.SigThresh(dist, r_att, steepness_att)
+        vec_attr = F_att * distvec
+        return vec_attr
+
+    def get_repelled(self, agents):
+        """Getting repelled from sheperd proportionally to distance"""
+        # center point
+        v1_s_x = self.position[0] + self.radius
+        v1_s_y = self.position[1] + self.radius
+
+        # point on agent's edge circle according to it's orientation
+        v1_e_x = self.position[0] + (1 + np.cos(self.orientation)) * self.radius
+        v1_e_y = self.position[1] + (1 - np.sin(self.orientation)) * self.radius
+        # vector between center and edge according to orientation
+        v1_x = v1_e_x - v1_s_x
+        v1_y = v1_e_y - v1_s_y
+
+        heading_vec = np.array([v1_x, v1_y])
+
+        shep = [ag for ag in agents if ag.agent_type == "shepherd"][0]
+        ag_pos_x = shep.position[0] + shep.radius
+        ag_pos_y = shep.position[1] + shep.radius
+        s_pos_x = self.position[0] + self.radius
+        s_pos_y = self.position[1] + self.radius
+        distvec = np.array([ag_pos_x - s_pos_x, ag_pos_y - s_pos_y])
+        force_total = -self.CalcSingleAttForce(100, -0.5, distvec)
+
+        vel = 0.1 * np.linalg.norm(force_total)
+        closed_angle = supcalc.angle_between(heading_vec, force_total)
+        closed_angle = (closed_angle % (2 * np.pi))
+        # at this point closed angle between 0 and 2pi, but we need it between -pi and pi
+        # we also need to take our orientation convention into consideration to recalculate
+        # theta=0 is pointing to the right
+        if not np.isnan(closed_angle):
+            if 0 < closed_angle < np.pi:
+                theta = -closed_angle
+            else:
+                theta = 2 * np.pi - closed_angle
+        else:
+            theta = 0
+        return vel, theta
+
+
+
+
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
-        if self.get_mode() == "explore":
+        # if self.get_mode() == "explore":
+        #     self.color = colors.BLUE
+        # elif self.get_mode() == "flock" or self.get_mode() == "relocate":
+        #     self.color = colors.PURPLE
+        # elif self.get_mode() == "collide":
+        #     self.color = colors.RED
+        # elif self.get_mode() == "exploit":
+        #     self.color = colors.GREEN
+        # elif self.get_mode() == "pool":
+        #     self.color = colors.YELLOW
+        if self.agent_type == "sheep":
             self.color = colors.BLUE
-        elif self.get_mode() == "flock" or self.get_mode() == "relocate":
-            self.color = colors.PURPLE
-        elif self.get_mode() == "collide":
+        elif self.agent_type == "shepherd":
             self.color = colors.RED
-        elif self.get_mode() == "exploit":
+        elif self.agent_type == "target":
             self.color = colors.GREEN
-        elif self.get_mode() == "pool":
-            self.color = colors.YELLOW
 
     def draw_update(self):
         """
@@ -378,27 +471,28 @@ class Agent(pygame.sprite.Sprite):
     def calc_social_V_proj(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
+        target = [ag for ag in agents if ag.agent_type=="target"]
         # visible agents (exluding self)
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
         # those of them that are exploiting
-        expl_agents = [ag for ag in agents if ag.id != self.id
-                       and ag.get_mode() == "exploit"]
+        sheep = [ag for ag in agents if ag.agent_type=="sheep"]
         # all other agents to calculate visual exclusions
-        non_expl_agents = [ag for ag in agents if ag not in expl_agents]
-        if self.exclude_agents_same_patch:
-            # in case agents on same patch are excluded they can still cause visual exclusion for exploiting agents
-            # on the same patch (i.e. they can cover agents on other patches)
-            non_expl_agents.extend([ag for ag in expl_agents if ag.exploited_patch_id == self.exploited_patch_id])
-            expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != self.exploited_patch_id]
-
-        # Excluding agents that still try to exploit but can not as the patch has been emptied
-        expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != -1]
-
-        if self.visual_exclusion:
-            self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
-                                                     non_expl_agents=non_expl_agents)
-        else:
-            self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False)
+        # non_expl_agents = [ag for ag in agents if ag not in expl_agents]
+        # if self.exclude_agents_same_patch:
+        #     # in case agents on same patch are excluded they can still cause visual exclusion for exploiting agents
+        #     # on the same patch (i.e. they can cover agents on other patches)
+        #     non_expl_agents.extend([ag for ag in expl_agents if ag.exploited_patch_id == self.exploited_patch_id])
+        #     expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != self.exploited_patch_id]
+        #
+        # # Excluding agents that still try to exploit but can not as the patch has been emptied
+        # expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != -1]
+        #
+        # if self.visual_exclusion:
+        #     self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
+        #                                              non_expl_agents=non_expl_agents)
+        # else:
+        self.soc_v_field = self.projection_field(sheep, keep_distance_info=False)
+        self.target_field = self.projection_field(target, keep_distance_info=False)
 
     def exlude_V_source_data(self):
         """Calculating parts of the VPF source data that depends on visual exclusion, i.e. how agents are excluding
@@ -599,7 +693,7 @@ class Agent(pygame.sprite.Sprite):
         if self.get_mode() == 'explore':
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
-                self.velocity = self.max_exp_vel # 1
+                self.velocity = 1
 
     def pool_curr_pos(self):
         """Pooling process of the current position. During pooling the agent does not move and spends a given time in

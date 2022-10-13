@@ -16,12 +16,12 @@ default_params = {
                 "pooling_time": 0,
                 "pooling_prob": 0,
                 "agent_radius": 10,
-                "N_resc": 3,  # interactive
+                "N_resc": 1,  # interactive
                 "min_resc_perpatch": 200,
                 "max_resc_perpatch": 201,
                 "min_resc_quality": 0.25,
                 "max_resc_quality": 0.25,
-                "patch_radius": 15,  # interactive
+                "patch_radius": 1,  # interactive
                 "regenerate_patches": True,
                 "agent_consumption": 1,
                 "teleport_exploit": False,

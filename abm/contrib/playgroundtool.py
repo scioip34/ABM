@@ -3,12 +3,12 @@
 VIDEO_SAVE_DIR = "abm/data/videos"
 
 default_params = {
-                "N": 5,  # interactive
+                "N": 3,  # interactive
                 "T": 100000,  # interactive
                 "v_field_res": 1200,
                 "width": 500,
                 "height": 500,
-                "framerate": 30,  # interactive
+                "framerate": 60,  # interactive
                 "window_pad": 30,
                 "with_visualization": True,
                 "show_vis_field": False,

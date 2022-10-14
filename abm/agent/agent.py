@@ -9,6 +9,7 @@ from abm.contrib import colors, decision_params, movement_params
 from abm.agent import supcalc
 from collections import OrderedDict
 import importlib
+from abm.loader.helper import reconstruct_VPF
 
 
 class Agent(pygame.sprite.Sprite):
@@ -18,7 +19,8 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, FOV, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True, behave_params=None):
+                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True,
+                 behave_params=None):
         """
         Initalization method of main agent class of the simulations
 
@@ -60,7 +62,7 @@ class Agent(pygame.sprite.Sprite):
 
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)  # saved
-        self.orientation = orientation # saved
+        self.orientation = orientation  # saved
         self.color = color
         self.selected_color = colors.LIGHT_BLUE
         self.v_field_res = v_field_res
@@ -79,6 +81,7 @@ class Agent(pygame.sprite.Sprite):
         self.exploited_patch_id = -1  # saved
         self.mode = "explore"  # explore, flock, collide, exploit, pool  # saved
         self.soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
+        self.target_field = np.zeros(self.v_field_res)  # social visual projection field
         # source data to calculate relevant visual field according to the used relocation force algorithm
         self.vis_field_source_data = {}
 
@@ -217,6 +220,134 @@ class Agent(pygame.sprite.Sprite):
         if self.u < -self.u_max:
             self.u = -self.u_max
 
+    def shepherd_algo(self):
+        """Describing shepherd movement"""
+        # extracting target blob
+        target_starts = np.where(np.roll(self.target_field, 1) < self.target_field)[0]
+        target_ends = np.where(np.roll(self.target_field, 1) > self.target_field)[0]
+        if target_starts[0] == 1 and target_ends[0] == 0:
+            target_starts = np.delete(target_starts, 0)
+            target_ends = np.delete(target_ends, 0)
+        target_centers = np.array([int((target_starts[i] + target_ends[i]) / 2) if target_ends[i] > target_starts[i]
+                                 else int((target_starts[i] + target_ends[i] + self.v_field_res) / 2) for i in
+                                 range(len(target_starts))])
+        for i in range(len(target_centers)):
+            if target_centers[i] > self.v_field_res:
+                print("larger ", target_centers[i])
+                target_centers[i] -= self.v_field_res
+        # print("tste", target_starts, target_ends)
+        # print("tc", target_centers)
+
+        blob_starts = np.where(np.roll(self.soc_v_field, 1) < self.soc_v_field)[0]
+        blob_ends = np.where(np.roll(self.soc_v_field, 1) > self.soc_v_field)[0]
+        if blob_starts[0] == 1 and blob_ends[0] == 0:
+            blob_starts = np.delete(blob_starts, 0)
+            blob_ends = np.delete(blob_ends, 0)
+        if blob_starts[0] > blob_ends[0]:
+            blob_ends = np.roll(blob_ends, -1)
+        blob_centers = np.array([int((blob_starts[i] + blob_ends[i]) / 2) if blob_ends[i] > blob_starts[i]
+                                 else int((blob_starts[i] + blob_ends[i] + self.v_field_res) / 2) for i in
+                                 range(len(blob_starts))])
+        for i in range(len(blob_centers)):
+            if blob_centers[i] > self.v_field_res:
+                print("larger ", blob_centers[i])
+                blob_centers[i] -= self.v_field_res
+        # print(self.v_field_res)
+        # print("bsbe", blob_starts, blob_ends)
+        # print("bc", blob_centers)
+
+        thetas = []
+        v = 0
+        ret_distances = []
+        for i in range(len(blob_centers)):
+            blob_center = blob_centers[i]
+            target_center = target_centers[0]
+            guide_angle = 0.33
+            des_blob_size = 40
+            ret_dist = blob_center - target_center
+            ret_distances.append(ret_dist)
+            is_front = int(guide_angle*self.v_field_res) <= blob_center <= int((1-guide_angle) * self.v_field_res)
+            norm_rate = 0.03
+            fast_rate = 0.04
+            # blob is in front
+            if is_front:
+                is_overlapped = (target_starts[0] < blob_starts[i] < target_ends[0]) or \
+                                (target_starts[0] < blob_ends[i] < target_ends[0]) or \
+                                ((blob_starts[i] < target_starts[0] < blob_ends[i]) and (blob_starts[i] < target_ends[0] < blob_ends[i]))
+
+                blob_size = blob_ends[i] - blob_starts[i]
+                print("b size: ", blob_size)
+                print("ret dist: ", ret_dist)
+                target_size = target_ends[0] - target_starts[0]
+                size_diff = target_size - blob_size
+                print("size_diff: ", size_diff)
+                # no overalp between target and blob
+                if not is_overlapped:
+                    # decide on direction
+                    if ret_dist >= 0:
+                        thetas.append(-norm_rate)
+                    else:
+                        thetas.append(+norm_rate)
+
+                else:
+                    print("OVERLAP")
+                    if ret_dist >= 0:
+                        thetas.append(+fast_rate)
+                    else:
+                        thetas.append(-fast_rate)
+
+                # if blob_size < 20:
+                #     v += 0.01
+                # if blob_size > 50:
+                #     v -= 0.01
+            else:
+                blob_proj = self.soc_v_field.copy()
+                if blob_ends[i] < blob_starts[i]:
+                    blob_proj[blob_ends[i]:blob_starts[i]] = 0
+                else:
+                    blob_proj[0:blob_starts[i]] = 0
+                    blob_proj[blob_ends[i]::] = 0
+
+                is_overlapped = np.mean(self.target_field * blob_proj) > 0
+                ret_dist = blob_center - target_center
+                if ret_dist > self.v_field_res/2:
+                    ret_dist = -(self.v_field_res - blob_center + target_center)
+                elif ret_dist < -self.v_field_res/2:
+                    ret_dist = self.v_field_res - blob_center + target_center
+
+                blob_size = np.sum(blob_proj)
+                if not is_overlapped:
+                    # decide on direction
+                    if ret_dist >= 0:
+                        thetas.append(+norm_rate)
+                    else:
+                        thetas.append(-norm_rate)
+                else:
+                    # decide on direction
+                    if ret_dist >= 0:
+                        thetas.append(+fast_rate)
+                    else:
+                        thetas.append(-fast_rate)
+
+        if self.velocity > 2:
+            v = 2 - self.velocity
+        if self.velocity < 2:
+            v = 2 - self.velocity
+        ret_distances = np.abs(ret_distances)
+        mxrd = max(ret_distances)
+        mnrd = min(ret_distances)
+        denom = (mxrd - mnrd)
+        if denom == 0:
+            denom = 1
+        ret_distances_norm = [((rd - mnrd)/denom) for rd in ret_distances]
+        maxi = np.argmax(ret_distances_norm)
+        if len(thetas)>1:
+            theta = np.sum([ret_distances_norm[i] * thetas[i] for i in range(len(ret_distances_norm))])
+        else:
+            theta = thetas[0]
+        print(ret_distances, ret_distances_norm, thetas, theta)
+        return v, theta
+
     def update(self, agents):
         """
         main update method of the agent. This method is called in every timestep to calculate the new state/position
@@ -242,11 +373,12 @@ class Agent(pygame.sprite.Sprite):
             vel, theta = (0, 0)
         elif self.agent_type == "sheep":
             vel, theta = self.get_repelled(agents)  # supcalc.random_walk(desired_vel=self.max_exp_vel)
-            vel = 1-self.velocity
+            vel = (vel - self.velocity)
             if abs(theta) > 0.2:
                 theta = np.sign(theta) * 0.2
+            # vel, theta = (0, 0)
         elif self.agent_type == "shepherd":
-            vel, theta = (3-self.velocity, 0)
+            vel, theta = self.shepherd_algo()
 
         # if not self.get_mode() == "collide":
         #     if not self.tr_w() and not self.tr_u():
@@ -287,6 +419,11 @@ class Agent(pygame.sprite.Sprite):
             self.orientation += theta
             self.prove_orientation()  # bounding orientation into 0 and 2pi
             self.velocity += vel
+            if self.agent_type == "sheep":
+                if self.velocity > 1:
+                    self.velocity = 1
+                if self.velocity < 0.25:
+                    self.velocity = 0.25
             # self.prove_velocity()  # possibly bounding velocity of agent
 
             # updating agent's position
@@ -365,9 +502,6 @@ class Agent(pygame.sprite.Sprite):
         else:
             theta = 0
         return vel, theta
-
-
-
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
@@ -471,11 +605,11 @@ class Agent(pygame.sprite.Sprite):
     def calc_social_V_proj(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
-        target = [ag for ag in agents if ag.agent_type=="target"]
+        target = [ag for ag in agents if ag.agent_type == "target"]
         # visible agents (exluding self)
         agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
         # those of them that are exploiting
-        sheep = [ag for ag in agents if ag.agent_type=="sheep"]
+        sheep = [ag for ag in agents if ag.agent_type == "sheep"]
         # all other agents to calculate visual exclusions
         # non_expl_agents = [ag for ag in agents if ag not in expl_agents]
         # if self.exclude_agents_same_patch:

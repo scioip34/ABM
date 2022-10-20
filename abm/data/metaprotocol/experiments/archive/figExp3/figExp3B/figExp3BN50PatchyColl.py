@@ -9,11 +9,13 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       17.10.2022
-Parameters: figExp3N25Coll:
-                Studying the effect of collisions with different patch sizes
-                N = 25 agents case.
-                R_P = 3.5 * R_A case
+Date:       20.10.2022
+Parameters: figExp3BN50PatchyColl:
+                Studying the effect of collisions with different patch sizes on different search difficulties
+                N = 50 agents case.
+                R_P = varied
+                EPS_W = varied
+                Patchy environment (3patches)
                 
 Defined by: David Mezey
 """
@@ -69,19 +71,19 @@ arena_size = arena_w * arena_h
 keep_covered_ratio = 0.2
 overall_res_area = int(arena_size * keep_covered_ratio)
 # max num of resources with the given radius is 50
-num_patches = [1, 3, 5, 8, 10]
+num_patches = [3]
 criteria_exp = [
     Constant("AGENT_AGENT_COLLISION", 1),
     Constant("GHOST_WHILE_EXPLOIT", 0),
-    Constant("N", 25),
+    Constant("N", 50),
     Constant("VISUAL_EXCLUSION", 0),  # no visual occlusion
     Constant("VISION_RANGE", 2000),  # unlimited visual range
     Constant("AGENT_FOV", 1),  # unlimited FOV
-    Tunable("DEC_EPSW", values_override=[0, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5]),
+    Tunable("DEC_EPSW", values_override=[0.5, 1, 2, 5]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fixed the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  # same here
-    Constant("RADIUS_RESOURCE", 35),
+    Tunable("RADIUS_RESOURCE", values_override=[15 + (i*2.5) for i in range(10)]),
     Constant("DEC_SWU", 0),  # no cross-inhibition
     Constant("DEC_SUW", 0),  # no cross-inhibition
     Tunable("N_RESOURCES", values_override=num_patches),
@@ -90,7 +92,7 @@ criteria_exp = [
 
 # Creating metaprotocol and add defined criteria
 mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1, parallel=True,
-                  description=description_text, headless=True)
+                  description=description_text, headless=False)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp:

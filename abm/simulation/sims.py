@@ -332,7 +332,7 @@ class Simulation:
     def add_new_resource_patch(self, force_id=None):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
         prove_resource method so that the distribution and overlap is following some predefined rules"""
-        max_retries = 7000
+        max_retries = 10000
         resource_proven = 0
         if force_id is None:
             # Id is not specified so we find a new one

@@ -46,6 +46,8 @@ class Rescource(pygame.sprite.Sprite):
         self.unit_per_timestep = quality  # saved
         self.is_clicked = False
         self.show_stats = False
+        self.velocity = 0
+        self.orientation = 0
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -86,6 +88,62 @@ class Rescource(pygame.sprite.Sprite):
         else:
             self.is_clicked = False
             self.update()
+
+    def prove_orientation(self):
+        """Restricting orientation angle between 0 and 2 pi"""
+        if self.orientation < 0:
+            self.orientation = 2 * np.pi + self.orientation
+        if self.orientation > np.pi * 2:
+            self.orientation = self.orientation - 2 * np.pi
+
+    def reflect_from_walls(self):
+        """reflecting agent from environment boundaries according to a desired x, y coordinate. If this is over any
+        boundaries of the environment, the agents position and orientation will be changed such that the agent is
+         reflected from these boundaries."""
+
+        # Boundary conditions according to center of agent (simple)
+        x = self.position[0] + self.radius
+        y = self.position[1] + self.radius
+
+        # Reflection from left wall
+        if x < self.boundaries_x[0]:
+            self.position[0] = self.boundaries_x[0] - self.radius
+
+            if np.pi / 2 <= self.orientation < np.pi:
+                self.orientation -= np.pi / 2
+            elif np.pi <= self.orientation <= 3 * np.pi / 2:
+                self.orientation += np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+        # Reflection from right wall
+        if x > self.boundaries_x[1]:
+
+            self.position[0] = self.boundaries_x[1] - self.radius - 1
+
+            if 3 * np.pi / 2 <= self.orientation < 2 * np.pi:
+                self.orientation -= np.pi / 2
+            elif 0 <= self.orientation <= np.pi / 2:
+                self.orientation += np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+        # Reflection from upper wall
+        if y < self.boundaries_y[0]:
+            self.position[1] = self.boundaries_y[0] - self.radius
+
+            if np.pi / 2 <= self.orientation <= np.pi:
+                self.orientation += np.pi / 2
+            elif 0 <= self.orientation < np.pi / 2:
+                self.orientation -= np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+        # Reflection from lower wall
+        if y > self.boundaries_y[1]:
+            self.position[1] = self.boundaries_y[1] - self.radius - 1
+            if 3 * np.pi / 2 <= self.orientation <= 2 * np.pi:
+                self.orientation += np.pi / 2
+            elif np.pi <= self.orientation < 3 * np.pi / 2:
+                self.orientation -= np.pi / 2
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
 
     def update(self):
         # Initial Visualization of rescource

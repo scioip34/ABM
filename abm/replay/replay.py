@@ -931,6 +931,7 @@ class ExperimentReplay:
         # Exit if requested
         if event.type == pygame.QUIT:
             sys.exit()
+            pygame.quit()
 
         if event.type == pygame.VIDEORESIZE:
             # There's some code to add back window content here.
@@ -948,3 +949,4 @@ class ExperimentReplay:
             self.clock.tick(self.framerate)
 
         pygame.quit()
+        sys.exit()

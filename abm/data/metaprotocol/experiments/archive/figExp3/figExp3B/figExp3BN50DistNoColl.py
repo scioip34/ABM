@@ -92,7 +92,7 @@ criteria_exp = [
 
 # Creating metaprotocol and add defined criteria
 mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1, parallel=True,
-                  description=description_text, headless=False)
+                  description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp:

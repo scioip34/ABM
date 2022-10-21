@@ -3,6 +3,8 @@ rescource.py : including the main classes to create a rescource entity that can 
 """
 import pygame
 import numpy as np
+
+from abm.agent import supcalc
 from abm.contrib import colors
 
 
@@ -46,6 +48,7 @@ class Rescource(pygame.sprite.Sprite):
         self.unit_per_timestep = quality  # saved
         self.is_clicked = False
         self.show_stats = False
+        self.des_velocity = 1.5
         self.velocity = 0
         self.orientation = 0
 
@@ -84,10 +87,9 @@ class Rescource(pygame.sprite.Sprite):
             self.position[0] = mouse[0] - self.radius
             self.position[1] = mouse[1] - self.radius
             self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
-            self.update()
         else:
             self.is_clicked = False
-            self.update()
+        self.draw_update()
 
     def prove_orientation(self):
         """Restricting orientation angle between 0 and 2 pi"""
@@ -145,7 +147,25 @@ class Rescource(pygame.sprite.Sprite):
                 self.orientation -= np.pi / 2
             self.prove_orientation()  # bounding orientation into 0 and 2pi
 
+        self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
+
     def update(self):
+
+        # applying random movement on resource patch
+        _, theta = supcalc.random_walk(exp_theta_min=-0.2, exp_theta_max=0.2)
+        self.orientation += theta
+        self.prove_orientation()  # bounding orientation into 0 and 2pi
+        self.velocity += (self.des_velocity - self.velocity)
+
+        # updating agent's position
+        self.position[0] += self.velocity * np.cos(self.orientation)
+        self.position[1] -= self.velocity * np.sin(self.orientation)
+        self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
+
+        self.reflect_from_walls()
+        self.draw_update()
+
+    def draw_update(self):
         # Initial Visualization of rescource
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)

@@ -603,7 +603,7 @@ class Simulation:
                     ag.draw_update()
                 for res in self.rescources:
                     res.is_clicked = False
-                    res.update()
+                    res.draw_update()
 
     def decide_on_vis_field_visibility(self, turned_on_vfield):
         """Deciding f the visual field needs to be shown or not"""

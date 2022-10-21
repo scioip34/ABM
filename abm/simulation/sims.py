@@ -633,11 +633,11 @@ class Simulation:
             for j in range(self.agents.sprites()[k].v_field_res):
                 curr_idx = int(j * (stats_width / self.v_field_res))
                 if self.agents.sprites()[k].soc_v_field[j] != 0:
-                    stats_graph[curr_idx, show_min:show_max] = pygame.Color(*colors.GREEN)
-                if self.agents.sprites()[k].target_field[j] != 0:
-                    stats_graph[curr_idx, show_min+10:show_max+10] = pygame.Color(*colors.RED)
-                # elif self.agents.sprites()[k].soc_v_field[j] == -1:
-                #     stats_graph[j, show_min:show_max] = pygame.Color(*colors.RED)
+                    val = self.agents.sprites()[k].soc_v_field[j]
+                    print(f"{int(val*show_min)}:{int(val*show_min)+2}")
+                    min_val = int(show_base + (1-val) * 23)
+                    max_val = show_min + 2
+                    stats_graph[curr_idx, min_val:max_val] = pygame.Color(*colors.GREEN)
                 else:
                     stats_graph[curr_idx, show_base] = pygame.Color(*colors.GREEN)
 

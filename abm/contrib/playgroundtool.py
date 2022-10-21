@@ -41,7 +41,9 @@ default_params = {
                 "phototaxis_theta_step": 0.2,
                 "detection_range": 120,
                 "resource_meter_multiplier": 1,
-                "signalling_cost": 0.5
+                "signalling_cost": 0.5,
+                "des_velocity_res": 1.5,
+                "res_theta_abs": 0.2
 }
 
 # default parameters of playground that are not needed for initialization
@@ -107,7 +109,9 @@ def_params_to_env_vars = {
                 "phototaxis_theta_step": "PHOTOTAX_THETA_FAC",
                 "detection_range": "DETECTION_RANGE",
                 "resource_meter_multiplier": "METER_TO_RES_MULTI",
-                "signalling_cost": "SIGNALLING_COST"
+                "signalling_cost": "SIGNALLING_COST",
+                "des_velocity_res": "RES_VEL",
+                "res_theta_abs": "RES_THETA"
 }
 
 help_messages = {

@@ -64,6 +64,8 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
                          detection_range=float(envconf["DETECTION_RANGE"]),
                          resource_meter_multiplier=float(envconf["METER_TO_RES_MULTI"]),
                          signalling_cost=float(envconf["SIGNALLING_COST"]),
+                         des_velocity_res=float(envconf["RES_VEL"]),
+                         res_theta_abs=float(envconf["RES_THETA"])
                          )
         sim.write_batch_size = 100
         sim.start()

@@ -14,7 +14,8 @@ class Rescource(pygame.sprite.Sprite):
         the rescource and change the patch size/appearance accordingly
         """
 
-    def __init__(self, id, radius, position, env_size, color, window_pad, resc_units=None, quality=1):
+    def __init__(self, id, radius, position, env_size, color, window_pad, resc_units=None, quality=1, des_velocity=1.5,
+        res_theta_abs=0.2):
         """
         Initalization method of main agent class of the simulations
 
@@ -27,6 +28,8 @@ class Rescource(pygame.sprite.Sprite):
         :param resc_units: rescource units hidden in the given patch. If not initialized the number of units is equal to
                             the radius of the patch
         :param quality: quality of the patch in possibly exploitable units per timestep (per agent)
+        :param des_velocity: desired velocity of resource patch in pixel per timestep
+        :param res_theta_abs: change in orientation will be pulled from uniform -res_theta_abs to res_theta_abs
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -48,9 +51,8 @@ class Rescource(pygame.sprite.Sprite):
         self.unit_per_timestep = quality  # saved
         self.is_clicked = False
         self.show_stats = False
-        self.des_velocity = 1.5
-        self.velocity = 0
-        self.orientation = 0
+        self.des_velocity = des_velocity  # 1.5
+        self.res_theta_abs = res_theta_abs  # 0.2
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width
@@ -58,6 +60,10 @@ class Rescource(pygame.sprite.Sprite):
         self.window_pad = window_pad
         self.boundaries_x = [self.window_pad, self.window_pad + self.WIDTH]
         self.boundaries_y = [self.window_pad, self.window_pad + self.HEIGHT]
+
+        # State variables
+        self.velocity = 0
+        self.orientation = 0
 
         # Initial Visualization of rescource
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
@@ -152,7 +158,7 @@ class Rescource(pygame.sprite.Sprite):
     def update(self):
 
         # applying random movement on resource patch
-        _, theta = supcalc.random_walk(exp_theta_min=-0.2, exp_theta_max=0.2)
+        _, theta = supcalc.random_walk(exp_theta_min=-self.res_theta_abs, exp_theta_max=self.res_theta_abs)
         self.orientation += theta
         self.prove_orientation()  # bounding orientation into 0 and 2pi
         self.velocity += (self.des_velocity - self.velocity)

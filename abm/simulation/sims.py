@@ -66,7 +66,7 @@ class Simulation:
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
                  patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
                  agent_behave_param_list=None, collide_agents=True, phototaxis_theta_step=0.2, detection_range=120,
-                 resource_meter_multiplier=1, signalling_cost=0.5):
+                 resource_meter_multiplier=1, signalling_cost=0.5, des_velocity_res=1.5, res_theta_abs=0.2):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -120,6 +120,8 @@ class Simulation:
         :param detection_range: detection range of resource patches (in pixels)
         :param resource_meter_multiplier: scaling factor of how much resource is extraxted for a detected resource unit
         :param signalling_cost: cost of signalling in resource units
+        :param des_velocity_res: desired velocity of resource patch in pixel per timestep
+        :param res_theta_abs: change in orientation will be pulled from uniform -res_theta_abs to res_theta_abs
         """
         # Arena parameters
         self.collide_agents = collide_agents
@@ -173,6 +175,8 @@ class Simulation:
         self.patchwise_exclusion = patchwise_exclusion
 
         # Rescource parameters
+        self.des_velocity_res = des_velocity_res  # 1.5
+        self.res_theta_abs = res_theta_abs  # 0.2
         self.N_resc = N_resc
         self.resc_radius = patch_radius
         self.min_resc_units = min_resc_perpatch
@@ -368,11 +372,12 @@ class Simulation:
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             if force_id is None:
                 resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
-                                     units,
-                                     quality)
+                                     units, quality, des_velocity=self.des_velocity_res,
+                                     res_theta_abs=self.res_theta_abs)
             else:
                 resource = Rescource(id, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
-                                     units, quality)
+                                     units, quality, des_velocity=self.des_velocity_res,
+                                     res_theta_abs=self.res_theta_abs)
             # we initialize the resources so that there is no resource-resource overlap, but there can be
             # a resource-agent overlap
             resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)

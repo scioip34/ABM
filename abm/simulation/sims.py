@@ -872,4 +872,4 @@ class Simulation:
               (end_save_time - end_time).total_seconds())
 
         pygame.quit()
-        sys.exit()
+        #sys.exit()

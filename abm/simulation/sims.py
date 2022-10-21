@@ -722,6 +722,19 @@ class Simulation:
             # deciding if vis field needs to be shown in this timestep
             turned_on_vfield = self.decide_on_vis_field_visibility(turned_on_vfield)
 
+            # Updating agent meters
+            target_resource = self.rescources.sprites()[0]
+            for agent in self.agents.sprites():
+                # Currently only implemented with single resource patch
+                target_resource = self.rescources.sprites()[0]
+                # Saving previous values for phototaxis algorithm
+                agent.prev_meter = agent.meter
+                distance = supcalc.distance(agent, target_resource)
+                if distance < agent.detection_range:
+                    agent.meter = 1 - (distance / agent.detection_range)
+                else:
+                    agent.meter = 0
+
             if not self.is_paused:
 
                 # # ------ AGENT-AGENT INTERACTION ------

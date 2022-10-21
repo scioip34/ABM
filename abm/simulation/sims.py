@@ -737,127 +737,58 @@ class Simulation:
 
             if not self.is_paused:
 
-                # # ------ AGENT-AGENT INTERACTION ------
-                if self.collide_agents:
-                    # distance from which proximity event is triggered
-                    proximity_distance = 2
-                    for agent in self.agents:
-                        agent.radius += proximity_distance
-
-                    # Check if any 2 agents has been collided and reflect them from each other if so
-                    collision_group_aa = pygame.sprite.groupcollide(
-                        self.agents,
-                        self.agents,
-                        False,
-                        False,
-                        itra.within_group_collision
-                    )
-
-                    for agent in self.agents:
-                        agent.radius -= proximity_distance
-
-                    collided_agents = []
-                    # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
-                    # such as ghost mode, or teleportation)
-                    for agent1, agent2 in collision_group_aa.items():
-                        self.agent_agent_collision_proximity(agent1, agent2)
-                        if not isinstance(agent2, list):
-                            agents2 = [agent2]
-                        else:
-                            agents2 = agent2
-                        for agent2 in agents2:
-                            if self.teleport_exploit:
-                                if agent1.get_mode() != "exploit":
-                                    collided_agents.append(agent1)
-                                if agent2.get_mode() != "exploit":
-                                    collided_agents.append(agent2)
-                            else:
-                                if not self.ghost_mode:
-                                    collided_agents.append(agent1)
-                                    collided_agents.append(agent2)
-                                else:
-                                    if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
-                                        collided_agents.append(agent1)
-                                        collided_agents.append(agent2)
-
-                    # Turn off collision mode when over
-                    for agent in self.agents:
-                        if agent not in collided_agents and agent.get_mode() == "collide":
-                            agent.set_mode("explore")
-                        if agent in collided_agents and agent.get_mode() == "collide":
-                            notify_agent(agent, -1)
-
-                else:
-                    collided_agents = []
-
-
-                # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
-                collision_group_ar = pygame.sprite.groupcollide(
-                    self.rescources,
-                    self.agents,
-                    False,
-                    False,
-                    pygame.sprite.collide_circle
-                )
-
-                # refine collision group according to point-like pooling in center of agents
-                collision_group_ar = refine_ar_overlap_group(collision_group_ar)
-
-                # collecting agents that are on resource patch
-                agents_on_rescs = []
-
-                # Notifying agents about resource if pooling is successful + exploitation dynamics
-                for resc, agents in collision_group_ar.items():  # looping through patches
-                    destroy_resc = 0  # if we destroy a patch it is 1
-                    for agent in agents:  # looping through all agents on patches
-                        # Turn agent towards patch center
-                        self.bias_agent_towards_res_center(agent, resc)
-
-                        # One of previous agents on patch consumed the last unit
-                        if destroy_resc:
-                            notify_agent(agent, -1)
-                        else:
-                            # Agent finished pooling on a resource patch
-                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
-                                    or agent.pooling_time == 0:
-                                # Notify about the patch
-                                notify_agent(agent, 1, resc.id)
-                                # Teleport agent to the middle of the patch if needed
-                                if self.teleport_exploit:
-                                    agent.position = resc.position + resc.radius - agent.radius
-
-                            # Agent was already exploiting this patch
-                            if agent.get_mode() == "exploit":
-                                # continue depleting the patch
-                                depl_units, destroy_resc = resc.deplete(agent.consumption)
-                                agent.collected_r_before = agent.collected_r  # rolling resource memory
-                                agent.collected_r += depl_units  # and increasing it's collected rescources
-                                if destroy_resc:  # consumed unit was the last in the patch
-                                    # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
-                                    #       f"there are no more units before the next timestep, otherwise they stop"
-                                    #       f"exploiting with delays")
-                                    for agent_tob_notified in agents:
-                                        # print("C notify agent NO res ", agent_tob_notified.id)
-                                        notify_agent(agent_tob_notified, -1)
-
-                        # Collect all agents on resource patches
-                        agents_on_rescs.append(agent)
-
-                    # Patch is fully depleted
-                    if destroy_resc:
-                        # we clear it from the memory and regenerate it somewhere else if needed
-                        self.kill_resource(resc)
-
-                # Notifying other agents that there is no resource patch in current position (they are not on patch)
-                for agent in self.agents.sprites():
-                    if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                        if agent not in collided_agents:  # and are not colliding with each other currently
-                            # if they finished pooling
-                            if (agent.get_mode() in ["pool",
-                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                                notify_agent(agent, -1)
-                            elif agent.get_mode() == "exploit":
-                                notify_agent(agent, -1)
+                # # # ------ AGENT-AGENT INTERACTION ------
+                # if self.collide_agents:
+                #     # distance from which proximity event is triggered
+                #     proximity_distance = 2
+                #     for agent in self.agents:
+                #         agent.radius += proximity_distance
+                #
+                #     # Check if any 2 agents has been collided and reflect them from each other if so
+                #     collision_group_aa = pygame.sprite.groupcollide(
+                #         self.agents,
+                #         self.agents,
+                #         False,
+                #         False,
+                #         itra.within_group_collision
+                #     )
+                #
+                #     for agent in self.agents:
+                #         agent.radius -= proximity_distance
+                #
+                #     collided_agents = []
+                #     # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
+                #     # such as ghost mode, or teleportation)
+                #     for agent1, agent2 in collision_group_aa.items():
+                #         self.agent_agent_collision_proximity(agent1, agent2)
+                #         if not isinstance(agent2, list):
+                #             agents2 = [agent2]
+                #         else:
+                #             agents2 = agent2
+                #         for agent2 in agents2:
+                #             if self.teleport_exploit:
+                #                 if agent1.get_mode() != "exploit":
+                #                     collided_agents.append(agent1)
+                #                 if agent2.get_mode() != "exploit":
+                #                     collided_agents.append(agent2)
+                #             else:
+                #                 if not self.ghost_mode:
+                #                     collided_agents.append(agent1)
+                #                     collided_agents.append(agent2)
+                #                 else:
+                #                     if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                #                         collided_agents.append(agent1)
+                #                         collided_agents.append(agent2)
+                #
+                #     # Turn off collision mode when over
+                #     for agent in self.agents:
+                #         if agent not in collided_agents and agent.get_mode() == "collide":
+                #             agent.set_mode("explore")
+                #         if agent in collided_agents and agent.get_mode() == "collide":
+                #             notify_agent(agent, -1)
+                #
+                # else:
+                #     collided_agents = []
 
                 # Update resource patches
                 self.rescources.update()

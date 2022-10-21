@@ -65,7 +65,8 @@ class Simulation:
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
                  patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
-                 agent_behave_param_list=None, collide_agents=True):
+                 agent_behave_param_list=None, collide_agents=True, phototaxis_theta_step=0.2, detection_range=120,
+                 resource_meter_multiplier=1, signalling_cost=0.5):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -115,6 +116,10 @@ class Simulation:
         :param agent_behave_param_list: list of dictionaries in which each dict is a copy of contrib.evolution.behave_params_template
             including the init parameters of all agents in case of eheterogeneous agents.
         :param collide_agents: boolean switch agents can overlap if false.
+        :param phototaxis_theta_step: rotational speed scaling factor during phototaxis
+        :param detection_range: detection range of resource patches (in pixels)
+        :param resource_meter_multiplier: scaling factor of how much resource is extraxted for a detected resource unit
+        :param signalling_cost: cost of signalling in resource units
         """
         # Arena parameters
         self.collide_agents = collide_agents
@@ -150,6 +155,10 @@ class Simulation:
         self.show_vision_range = show_vision_range
 
         # Agent parameters
+        self.phototaxis_theta_step = phototaxis_theta_step
+        self.detection_range = detection_range
+        self.resource_meter_multiplier = resource_meter_multiplier
+        self.signalling_cost = signalling_cost
         self.agent_radii = agent_radius
         self.v_field_res = v_field_res
         self.pooling_time = pooling_time
@@ -491,6 +500,10 @@ class Simulation:
                     consumption=self.agent_consumption,
                     vision_range=self.vision_range,
                     visual_exclusion=self.visual_exclusion,
+                    phototaxis_theta_step=self.phototaxis_theta_step,
+                    detection_range=self.detection_range,
+                    resource_meter_multiplier = self.resource_meter_multiplier,
+                    signalling_cost=self.signalling_cost,
                     patchwise_exclusion=self.patchwise_exclusion,
                     behave_params=None
                 )

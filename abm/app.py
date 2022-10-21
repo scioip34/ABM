@@ -59,7 +59,11 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
                          parallel=parallel,
                          window_pad=window_pad,
                          agent_behave_param_list=agent_behave_param_list,
-                         collide_agents=bool(int(float(envconf["AGENT_AGENT_COLLISION"])))
+                         collide_agents=bool(int(float(envconf["AGENT_AGENT_COLLISION"]))),
+                         phototaxis_theta_step=float(envconf["PHOTOTAX_THETA_FAC"]),
+                         detection_range=float(envconf["DETECTION_RANGE"]),
+                         resource_meter_multiplier=float(envconf["METER_TO_RES_MULTI"]),
+                         signalling_cost=float(envconf["SIGNALLING_COST"]),
                          )
         sim.write_batch_size = 100
         sim.start()

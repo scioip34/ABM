@@ -19,8 +19,8 @@ class Agent(pygame.sprite.Sprite):
     """
 
     def __init__(self, id, radius, position, orientation, env_size, color, v_field_res, FOV, window_pad, pooling_time,
-                 pooling_prob, consumption, vision_range, visual_exclusion, patchwise_exclusion=True,
-                 behave_params=None):
+                 pooling_prob, consumption, vision_range, visual_exclusion,  phototaxis_theta_step, detection_range,
+                 resource_meter_multiplier, signalling_cost, patchwise_exclusion=True, behave_params=None):
         """
         Initalization method of main agent class of the simulations
 
@@ -41,6 +41,10 @@ class Agent(pygame.sprite.Sprite):
         :param patchwise_exclusion: exclude agents from visual field if exploiting the same patch
         :param behave_params: dictionary of behavioral parameters can be passed to a given agent which will
             overwrite the parameters defined in the env files. (e.g. when agents are heterogeneous)
+        :param phototaxis_theta_step: rotational speed scaling factor during phototaxis
+        :param detection_range: detection range of resource patches (in pixels)
+        :param resource_meter_multiplier: scaling factor of how much resource is extraxted for a detected resource unit
+        :param signalling_cost: cost of signalling in resource units
         """
         # Initializing supercalss (Pygame Sprite)
         super().__init__()
@@ -57,12 +61,12 @@ class Agent(pygame.sprite.Sprite):
         self.meter = 0  # between 0 and 1
         self.prev_meter = 0
         self.theta_prev = 0
-        self.phototaxis_theta_step = 0.2
         self.taxis_dir = None
-        self.detection_range = 120
-        self.resource_meter_multiplier = 1
-        self.signalling_cost = 0.5
 
+        self.phototaxis_theta_step = phototaxis_theta_step  # 0.2
+        self.detection_range = detection_range  # 120
+        self.resource_meter_multiplier = resource_meter_multiplier  # 1
+        self.signalling_cost = signalling_cost  # 0.5
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)  # saved
         self.orientation = orientation  # saved

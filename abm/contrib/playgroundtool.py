@@ -3,7 +3,7 @@
 VIDEO_SAVE_DIR = "abm/data/videos"
 
 default_params = {
-                "N": 3,  # interactive
+                "N": 5,  # interactive
                 "T": 100000,  # interactive
                 "v_field_res": 1200,
                 "width": 500,
@@ -37,7 +37,11 @@ default_params = {
                 "patchwise_exclusion": True,
                 "parallel": False,
                 "allow_border_patch_overlap": True,
-                "collide_agents": False
+                "collide_agents": False,
+                "phototaxis_theta_step": 0.2,
+                "detection_range": 120,
+                "resource_meter_multiplier": 1,
+                "signalling_cost": 0.5
 }
 
 # default parameters of playground that are not needed for initialization
@@ -99,7 +103,11 @@ def_params_to_env_vars = {
                 "ghost_mode": "GHOST_WHILE_EXPLOIT",
                 "patchwise_exclusion": "PATCHWISE_SOCIAL_EXCLUSION",
                 "allow_border_patch_overlap": "PATCH_BORDER_OVERLAP",
-                "collide_agents": "AGENT_AGENT_COLLISION"
+                "collide_agents": "AGENT_AGENT_COLLISION",
+                "phototaxis_theta_step": "PHOTOTAX_THETA_FAC",
+                "detection_range": "DETECTION_RANGE",
+                "resource_meter_multiplier": "METER_TO_RES_MULTI",
+                "signalling_cost": "SIGNALLING_COST"
 }
 
 help_messages = {

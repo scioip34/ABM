@@ -53,12 +53,15 @@ class Agent(pygame.sprite.Sprite):
         self.exclude_agents_same_patch = patchwise_exclusion
         self.id = id  # saved
         # creating agent status
-        if self.id == 0:
-            self.agent_type = "shepherd"
-        elif self.id == 1:
-            self.agent_type = "target"
-        else:
-            self.agent_type = "sheep"
+        self.agent_type = "mars_miner"
+        self.meter = 0  # between 0 and 1
+        self.prev_meter = 0
+        self.theta_prev = 0
+        self.phototaxis_theta_step = 0.2
+        self.taxis_dir = None
+        self.detection_range = 120
+        self.resource_meter_multiplier = 1
+        self.signalling_cost = 0.5
 
         self.radius = radius
         self.position = np.array(position, dtype=np.float64)  # saved
@@ -202,151 +205,28 @@ class Agent(pygame.sprite.Sprite):
         else:
             self.is_moved_with_cursor = 0
 
-    def update_decision_processes(self):
-        """updating inner decision processes according to the current state and the visual projection field"""
-        w_p = self.w if self.w > self.T_w else 0
-        u_p = self.u if self.u > self.T_u else 0
-        dw = self.Eps_w * (np.mean(self.soc_v_field)) - self.g_w * (
-                self.w - self.B_w) - u_p * self.S_uw  # self.tr_u() * self.S_uw
-        du = self.Eps_u * self.I_priv - self.g_u * (self.u - self.B_u) - w_p * self.S_wu  # self.tr_w() * self.S_wu
-        self.w += dw
-        self.u += du
-        if self.w > self.w_max:
-            self.w = self.w_max
-        if self.w < -self.w_max:
-            self.w = -self.w_max
-        if self.u > self.u_max:
-            self.u = self.u_max
-        if self.u < -self.u_max:
-            self.u = -self.u_max
-
-    def shepherd_algo(self):
-        """Describing shepherd movement"""
-        # extracting target blob
-        target_starts = np.where(np.roll(self.target_field, 1) < self.target_field)[0]
-        target_ends = np.where(np.roll(self.target_field, 1) > self.target_field)[0]
-        if target_starts[0] == 1 and target_ends[0] == 0:
-            target_starts = np.delete(target_starts, 0)
-            target_ends = np.delete(target_ends, 0)
-        target_centers = np.array([int((target_starts[i] + target_ends[i]) / 2) if target_ends[i] > target_starts[i]
-                                 else int((target_starts[i] + target_ends[i] + self.v_field_res) / 2) for i in
-                                 range(len(target_starts))])
-        for i in range(len(target_centers)):
-            if target_centers[i] > self.v_field_res:
-                print("larger ", target_centers[i])
-                target_centers[i] -= self.v_field_res
-        # print("tste", target_starts, target_ends)
-        # print("tc", target_centers)
-
-        blob_starts = np.where(np.roll(self.soc_v_field, 1) < self.soc_v_field)[0]
-        blob_ends = np.where(np.roll(self.soc_v_field, 1) > self.soc_v_field)[0]
-        if blob_starts[0] == 1 and blob_ends[0] == 0:
-            blob_starts = np.delete(blob_starts, 0)
-            blob_ends = np.delete(blob_ends, 0)
-        if blob_starts[0] > blob_ends[0]:
-            blob_ends = np.roll(blob_ends, -1)
-        blob_centers = np.array([int((blob_starts[i] + blob_ends[i]) / 2) if blob_ends[i] > blob_starts[i]
-                                 else int((blob_starts[i] + blob_ends[i] + self.v_field_res) / 2) for i in
-                                 range(len(blob_starts))])
-        for i in range(len(blob_centers)):
-            if blob_centers[i] > self.v_field_res:
-                print("larger ", blob_centers[i])
-                blob_centers[i] -= self.v_field_res
-        # print(self.v_field_res)
-        # print("bsbe", blob_starts, blob_ends)
-        # print("bc", blob_centers)
-
-        thetas = []
-        v = 0
-        ret_distances = []
-        for i in range(len(blob_centers)):
-            blob_center = blob_centers[i]
-            target_center = target_centers[0]
-            guide_angle = 0.33
-            des_blob_size = 40
-            ret_dist = blob_center - target_center
-            ret_distances.append(ret_dist)
-            is_front = int(guide_angle*self.v_field_res) <= blob_center <= int((1-guide_angle) * self.v_field_res)
-            norm_rate = 0.03
-            fast_rate = 0.04
-            # blob is in front
-            if is_front:
-                is_overlapped = (target_starts[0] < blob_starts[i] < target_ends[0]) or \
-                                (target_starts[0] < blob_ends[i] < target_ends[0]) or \
-                                ((blob_starts[i] < target_starts[0] < blob_ends[i]) and (blob_starts[i] < target_ends[0] < blob_ends[i]))
-
-                blob_size = blob_ends[i] - blob_starts[i]
-                print("b size: ", blob_size)
-                print("ret dist: ", ret_dist)
-                target_size = target_ends[0] - target_starts[0]
-                size_diff = target_size - blob_size
-                print("size_diff: ", size_diff)
-                # no overalp between target and blob
-                if not is_overlapped:
-                    # decide on direction
-                    if ret_dist >= 0:
-                        thetas.append(-norm_rate)
-                    else:
-                        thetas.append(+norm_rate)
-
-                else:
-                    print("OVERLAP")
-                    if ret_dist >= 0:
-                        thetas.append(+fast_rate)
-                    else:
-                        thetas.append(-fast_rate)
-
-                # if blob_size < 20:
-                #     v += 0.01
-                # if blob_size > 50:
-                #     v -= 0.01
-            else:
-                blob_proj = self.soc_v_field.copy()
-                if blob_ends[i] < blob_starts[i]:
-                    blob_proj[blob_ends[i]:blob_starts[i]] = 0
-                else:
-                    blob_proj[0:blob_starts[i]] = 0
-                    blob_proj[blob_ends[i]::] = 0
-
-                is_overlapped = np.mean(self.target_field * blob_proj) > 0
-                ret_dist = blob_center - target_center
-                if ret_dist > self.v_field_res/2:
-                    ret_dist = -(self.v_field_res - blob_center + target_center)
-                elif ret_dist < -self.v_field_res/2:
-                    ret_dist = self.v_field_res - blob_center + target_center
-
-                blob_size = np.sum(blob_proj)
-                if not is_overlapped:
-                    # decide on direction
-                    if ret_dist >= 0:
-                        thetas.append(+norm_rate)
-                    else:
-                        thetas.append(-norm_rate)
-                else:
-                    # decide on direction
-                    if ret_dist >= 0:
-                        thetas.append(+fast_rate)
-                    else:
-                        thetas.append(-fast_rate)
-
-        if self.velocity > 2:
-            v = 2 - self.velocity
-        if self.velocity < 2:
-            v = 2 - self.velocity
-        ret_distances = np.abs(ret_distances)
-        mxrd = max(ret_distances)
-        mnrd = min(ret_distances)
-        denom = (mxrd - mnrd)
-        if denom == 0:
-            denom = 1
-        ret_distances_norm = [((rd - mnrd)/denom) for rd in ret_distances]
-        maxi = np.argmax(ret_distances_norm)
-        if len(thetas)>1:
-            theta = np.sum([ret_distances_norm[i] * thetas[i] for i in range(len(ret_distances_norm))])
+    def phototaxis(self, desired_velocity):
+        """Local phototaxis search according to differential meter values"""
+        diff = self.meter - self.prev_meter
+        print(diff)
+        sign_diff = np.sign(diff)
+        # positive means the given change in orientation was correct
+        # negative means we need to turn the other direction
+        # zero means we are moving in the right direction
+        if sign_diff >= 0:
+            new_sign = sign_diff * np.sign(self.theta_prev)
+            if new_sign == 0:
+                new_sign = 1
+            new_theta = self.phototaxis_theta_step * new_sign * self.meter
+            self.taxis_dir = None
         else:
-            theta = thetas[0]
-        print(ret_distances, ret_distances_norm, thetas, theta)
-        return v, theta
+            if self.taxis_dir is None:
+                self.taxis_dir = sign_diff * np.sign(self.theta_prev)
+            new_sign = self.taxis_dir
+            new_theta = self.phototaxis_theta_step * new_sign * self.meter
+
+        new_vel = (desired_velocity - self.velocity)
+        return new_vel, new_theta
 
     def update(self, agents):
         """
@@ -355,75 +235,35 @@ class Agent(pygame.sprite.Sprite):
         :param agents: a list of all obstacle/agents coordinates as (X, Y) in the environment. These are not necessarily
                 socially relevant, i.e. all agents.
         """
-        # calculate socially relevant projection field (Vsoc and Vsoc+)
+        # calculate socially relevant projection field (e.g. according to signalling agents)
         self.calc_social_V_proj(agents)
 
-        # calculate private information
-        # self.calc_I_priv()
+        # some basic decision process of when to signal and when to explore, etc.
+        if np.max(self.soc_v_field) > self.meter:
+            # joining behavior
+            vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, 2, theta_max=2.5)
+            self.agent_type = "relocation"
+        else:
+            if self.meter > 0:
+                vel, theta = self.phototaxis(desired_velocity=2)#supcalc.random_walk(desired_vel=self.max_exp_vel)
+                self.agent_type = "mars_miner"
+                #vel = (2 - self.velocity)
+                if self.meter > 0.6:
+                    self.agent_type = "signalling"
+            else:
+                # carry out movemnt accordingly
+                vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
+                vel = (2 - self.velocity)
+                self.agent_type = "mars_miner"
 
-        # update inner decision process according to visual field and private info
-        # self.update_decision_processes()
-
-        # CALCULATING velocity and orientation change according to inner decision process (dv)
-        # we use if and not a + operator as this is less computationally heavy but the 2 is equivalent
-        # vel, theta = int(self.tr_w()) * VSWRM_flocking_state_variables(...) + (1 - int(self.tr_w())) * random_walk(...)
-        # or later when we define the individual and social forces
-        # vel, theta = int(self.tr_w()) * self.F_soc(...) + (1 - int(self.tr_w())) * self.F_exp(...)
-        if self.agent_type == "target":
-            vel, theta = (0, 0)
-        elif self.agent_type == "sheep":
-            vel, theta = self.get_repelled(agents)  # supcalc.random_walk(desired_vel=self.max_exp_vel)
-            vel = (vel - self.velocity)
-            if abs(theta) > 0.2:
-                theta = np.sign(theta) * 0.2
-            # vel, theta = (0, 0)
-        elif self.agent_type == "shepherd":
-            vel, theta = self.shepherd_algo()
-
-        # if not self.get_mode() == "collide":
-        #     if not self.tr_w() and not self.tr_u():
-        #         vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
-        #         self.set_mode("explore")
-        #     elif self.tr_w() and self.tr_u():
-        #         if self.env_status == 1:
-        #             self.set_mode("exploit")
-        #             vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
-        #         else:
-        #             vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
-        #             self.set_mode("relocate")
-        #     elif self.tr_w() and not self.tr_u():
-        #         vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
-        #         # WHY ON EARTH DO WE NEED THIS NEGATION?
-        #         # whatever comes out has a sign that tells if the change in direction should be left or right
-        #         # seemingly what comes out has a different convention than our environment?
-        #         # VSWRM: comes out + turn left? comes our - turn right?
-        #         # environment: the opposite way around
-        #         # theta = -theta
-        #         self.set_mode("relocate")
-        #     elif self.tr_u() and not self.tr_w():
-        #         if self.env_status == 1:
-        #             self.set_mode("exploit")
-        #             vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
-        #         else:
-        #             vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
-        #             self.set_mode("explore")
-        # else:
-        #     # COLLISION AVOIDANCE IS ACTIVE, let that guide us
-        #     # As we don't have proximity sensor interface as with e.g. real robots we will let
-        #     # the environment to enforce us into a collision maneuver from the simulation environment
-        #     # so we don't change the current velocity from here.
-        #     vel, theta = (0, 0)
-
+        # updating position accordingly
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
             self.orientation += theta
+            # storing theta in short term memory for phototaxis
+            self.theta_prev = theta
             self.prove_orientation()  # bounding orientation into 0 and 2pi
             self.velocity += vel
-            if self.agent_type == "sheep":
-                if self.velocity > 1:
-                    self.velocity = 1
-                if self.velocity < 0.25:
-                    self.velocity = 0.25
             # self.prove_velocity()  # possibly bounding velocity of agent
 
             # updating agent's position
@@ -432,95 +272,32 @@ class Agent(pygame.sprite.Sprite):
 
             # boundary conditions if applicable
             self.reflect_from_walls()
+        else:
+            self.agent_type = "signalling"
+            print(self.meter)
 
         # updating agent visualization
         self.draw_update()
         self.collected_r_before = self.collected_r
 
-    def SigThresh(self, x, x0=0.5, steepness=10):
-        """
-        Sigmoid function f(x)=1/2*(tanh(a*(x-x0)+1)
+        # collecting rewards according to meter value and signalling status
+        self.update_rewards()
 
-            Input parameters:
-            -----------------
-            x:  function argument
-            x0: position of the transition point (f(x0)=1/2)
-            steepness:  parameter setting the steepness of the transition.
-                        (positive values: transition from 0 to 1, negative values:
-                        transition from 1 to 0)
-        """
-        return 0.5 * (np.tanh(steepness * (x - x0)) + 1)
-
-    def CalcSingleAttForce(self, r_att, steepness_att, distvec):
-        """Calculating the attraction force between a single pair of agents with given distance
-        from each other.
-
-        :param r_att: attraction range
-        :param steepness_att: attraction steepness when calculating force with sigmoid
-        :param distvec: distance vector between the paiir of agents
-        :return vec_attr: directional attraction force vector
-        """
-        dist = np.linalg.norm(distvec)
-        F_att = self.SigThresh(dist, r_att, steepness_att)
-        vec_attr = F_att * distvec
-        return vec_attr
-
-    def get_repelled(self, agents):
-        """Getting repelled from sheperd proportionally to distance"""
-        # center point
-        v1_s_x = self.position[0] + self.radius
-        v1_s_y = self.position[1] + self.radius
-
-        # point on agent's edge circle according to it's orientation
-        v1_e_x = self.position[0] + (1 + np.cos(self.orientation)) * self.radius
-        v1_e_y = self.position[1] + (1 - np.sin(self.orientation)) * self.radius
-        # vector between center and edge according to orientation
-        v1_x = v1_e_x - v1_s_x
-        v1_y = v1_e_y - v1_s_y
-
-        heading_vec = np.array([v1_x, v1_y])
-
-        shep = [ag for ag in agents if ag.agent_type == "shepherd"][0]
-        ag_pos_x = shep.position[0] + shep.radius
-        ag_pos_y = shep.position[1] + shep.radius
-        s_pos_x = self.position[0] + self.radius
-        s_pos_y = self.position[1] + self.radius
-        distvec = np.array([ag_pos_x - s_pos_x, ag_pos_y - s_pos_y])
-        force_total = -self.CalcSingleAttForce(100, -0.5, distvec)
-
-        vel = 0.1 * np.linalg.norm(force_total)
-        closed_angle = supcalc.angle_between(heading_vec, force_total)
-        closed_angle = (closed_angle % (2 * np.pi))
-        # at this point closed angle between 0 and 2pi, but we need it between -pi and pi
-        # we also need to take our orientation convention into consideration to recalculate
-        # theta=0 is pointing to the right
-        if not np.isnan(closed_angle):
-            if 0 < closed_angle < np.pi:
-                theta = -closed_angle
-            else:
-                theta = 2 * np.pi - closed_angle
-        else:
-            theta = 0
-        return vel, theta
+    def update_rewards(self):
+        """Updating agent collected resource values according to distance from resource (as in meter value)
+        and current signalling status"""
+        self.collected_r += self.meter * self.resource_meter_multiplier
+        if self.agent_type == "signalling":
+            self.collected_r -= self.signalling_cost
 
     def change_color(self):
         """Changing color of agent according to the behavioral mode the agent is currently in."""
-        # if self.get_mode() == "explore":
-        #     self.color = colors.BLUE
-        # elif self.get_mode() == "flock" or self.get_mode() == "relocate":
-        #     self.color = colors.PURPLE
-        # elif self.get_mode() == "collide":
-        #     self.color = colors.RED
-        # elif self.get_mode() == "exploit":
-        #     self.color = colors.GREEN
-        # elif self.get_mode() == "pool":
-        #     self.color = colors.YELLOW
-        if self.agent_type == "sheep":
+        if self.agent_type == "mars_miner":
             self.color = colors.BLUE
-        elif self.agent_type == "shepherd":
+        elif self.agent_type == "signalling":
             self.color = colors.RED
-        elif self.agent_type == "target":
-            self.color = colors.GREEN
+        elif self.agent_type == "relocation":
+            self.color = colors.PURPLE
 
     def draw_update(self):
         """
@@ -538,14 +315,10 @@ class Agent(pygame.sprite.Sprite):
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)
         self.image.set_colorkey(colors.BACKGROUND)
-        if self.is_moved_with_cursor:
-            pygame.draw.circle(
-                self.image, self.selected_color, (self.radius, self.radius), self.radius
-            )
-        else:
-            pygame.draw.circle(
-                self.image, self.color, (self.radius, self.radius), self.radius
-            )
+
+        pygame.draw.circle(
+            self.image, self.color, (self.radius, self.radius), self.radius
+        )
 
         # showing agent orientation with a line towards agent orientation
         pygame.draw.line(self.image, colors.BACKGROUND, (self.radius, self.radius),
@@ -605,28 +378,8 @@ class Agent(pygame.sprite.Sprite):
     def calc_social_V_proj(self, agents):
         """Calculating the socially relevant visual projection field of the agent. This is calculated as the
         projection of nearby exploiting agents that are not visually excluded by other agents"""
-        target = [ag for ag in agents if ag.agent_type == "target"]
-        # visible agents (exluding self)
-        agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
-        # those of them that are exploiting
-        sheep = [ag for ag in agents if ag.agent_type == "sheep"]
-        # all other agents to calculate visual exclusions
-        # non_expl_agents = [ag for ag in agents if ag not in expl_agents]
-        # if self.exclude_agents_same_patch:
-        #     # in case agents on same patch are excluded they can still cause visual exclusion for exploiting agents
-        #     # on the same patch (i.e. they can cover agents on other patches)
-        #     non_expl_agents.extend([ag for ag in expl_agents if ag.exploited_patch_id == self.exploited_patch_id])
-        #     expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != self.exploited_patch_id]
-        #
-        # # Excluding agents that still try to exploit but can not as the patch has been emptied
-        # expl_agents = [ag for ag in expl_agents if ag.exploited_patch_id != -1]
-        #
-        # if self.visual_exclusion:
-        #     self.soc_v_field = self.projection_field(expl_agents, keep_distance_info=False,
-        #                                              non_expl_agents=non_expl_agents)
-        # else:
-        self.soc_v_field = self.projection_field(sheep, keep_distance_info=False)
-        self.target_field = self.projection_field(target, keep_distance_info=False)
+        signalling = [ag for ag in agents if ag.agent_type == "signalling"]
+        self.soc_v_field = self.projection_field(signalling, keep_distance_info=True)
 
     def exlude_V_source_data(self):
         """Calculating parts of the VPF source data that depends on visual exclusion, i.e. how agents are excluding
@@ -680,6 +433,7 @@ class Agent(pygame.sprite.Sprite):
 
         # extracting obstacle coordinates
         obstacle_coords = [ob.position for ob in obstacles]
+        meters = [ob.meter for ob in obstacles]
 
         # if non-social cues can visually exclude social ones we also concatenate these to the obstacle coords
         if non_expl_agents is not None:
@@ -747,6 +501,7 @@ class Agent(pygame.sprite.Sprite):
                     self.vis_field_source_data[i]["vis_angle"] = vis_angle
                     self.vis_field_source_data[i]["phi_target"] = phi_target
                     self.vis_field_source_data[i]["distance"] = distance
+                    self.vis_field_source_data[i]["meter"] = meters[i]
                     # the projection size is proportional to the visual angle. If the projection is maximal (i.e.
                     # taking each pixel of the retina) the angle is 2pi from this we just calculate the proj. size
                     # using a single proportion
@@ -797,7 +552,7 @@ class Agent(pygame.sprite.Sprite):
             if not keep_distance_info:
                 v_field[proj_start:proj_end] = 1
             else:
-                v_field[proj_start:proj_end] = (1 - distance / self.vision_range)
+                v_field[proj_start:proj_end] = v["meter"]
 
         # post_processing and limiting FOV
         v_field_post = np.flip(v_field)

@@ -430,7 +430,7 @@ class PlaygroundSimulation(Simulation):
         self.Epsw_textbox.setText(f"E_w: {self.Eps_w:.2f}")
         self.Epsu_textbox.setText(f"E_u: {self.Eps_u:.2f}")
         self.SUW_textbox.setText(f"S_uw: {self.S_uw:.2f}")
-        self.SWU_textbox.setText(f"S_wu: {self.S_wu:.2f}")
+        self.VRES_textbox.setText(f"V_res: {self.V_res:.2f}")
         if self.SUM_res == 0:
             self.update_SUMR()
         self.SUMR_textbox.setText(f"SUM R: {self.SUM_res:.2f}")

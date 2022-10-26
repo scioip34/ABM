@@ -243,16 +243,19 @@ class Agent(pygame.sprite.Sprite):
         self.calc_social_V_proj(agents)
 
         # some basic decision process of when to signal and when to explore, etc.
+        signalling_threshold = 0.1
         if np.max(self.soc_v_field) > self.meter:
             # joining behavior
             vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, 2, theta_max=2.5)
             self.agent_type = "relocation"
+            if self.meter > signalling_threshold:
+                self.agent_type = "signalling"
         else:
             if self.meter > 0:
                 vel, theta = self.phototaxis(desired_velocity=2)#supcalc.random_walk(desired_vel=self.max_exp_vel)
                 self.agent_type = "mars_miner"
                 #vel = (2 - self.velocity)
-                if self.meter > 0.6:
+                if self.meter > signalling_threshold:
                     self.agent_type = "signalling"
             else:
                 # carry out movemnt accordingly

@@ -224,5 +224,17 @@ help_messages = {
             that although the ratio between patches stays the same, the
             number of units per patch will change.
 
+    ''',
+    'V_RES':'''
+            Desired Patch Velocity [px/ts]:
+            
+            The desired absolute velocity of the resource patch in pixel per 
+            timestep. 
+    ''',
+    'DET_R':'''
+            Detection Range [px]:
+            
+            detection range of agents in pixels. Resource patch is visualized 
+            accordingly with the same radius.
     '''
 }

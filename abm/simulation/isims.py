@@ -213,18 +213,18 @@ class PlaygroundSimulation(Simulation):
 
         slider_i = 5
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
-        self.RESradius_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                       self.slider_height, min=10, max=100, step=5, initial=self.resc_radius)
-        self.RESradius_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+        self.DET_R_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                       self.slider_height, min=10, max=200, step=5, initial=self.resc_radius)
+        self.DET_R_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                          self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
-        self.RES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+        self.DET_R_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
                                borderThickness=1, )
-        self.RES_help.onClick = lambda: self.show_help('RES', self.RES_help)
-        self.RES_help.onRelease = lambda: self.unshow_help(self.RES_help)
-        self.help_buttons.append(self.RES_help)
-        self.sliders.append(self.RESradius_slider)
-        self.slider_texts.append(self.RESradius_textbox)
+        self.DET_R_help.onClick = lambda: self.show_help('DET_R', self.DET_R_help)
+        self.DET_R_help.onRelease = lambda: self.unshow_help(self.DET_R_help)
+        self.help_buttons.append(self.DET_R_help)
+        self.sliders.append(self.DET_R_slider)
+        self.slider_texts.append(self.DET_R_textbox)
 
         slider_i = 6
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -260,19 +260,19 @@ class PlaygroundSimulation(Simulation):
 
         slider_i = 8
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
-        self.S_wu = 0
-        self.SWU_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                 self.slider_height, min=0, max=2, step=0.1, initial=self.S_wu)
-        self.SWU_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+        self.V_res = 1.5
+        self.VRES_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                 self.slider_height, min=0, max=4, step=0.1, initial=self.V_res)
+        self.VRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
-        self.SWU_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+        self.VRES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
                                borderThickness=1, )
-        self.SWU_help.onClick = lambda: self.show_help('SWU', self.SWU_help)
-        self.SWU_help.onRelease = lambda: self.unshow_help(self.SWU_help)
-        self.help_buttons.append(self.SWU_help)
-        self.sliders.append(self.SWU_slider)
-        self.slider_texts.append(self.SWU_textbox)
+        self.VRES_help.onClick = lambda: self.show_help('V_RES', self.VRES_help)
+        self.VRES_help.onRelease = lambda: self.unshow_help(self.VRES_help)
+        self.help_buttons.append(self.VRES_help)
+        self.sliders.append(self.VRES_slider)
+        self.slider_texts.append(self.VRES_textbox)
 
         slider_i = 9
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -426,7 +426,7 @@ class PlaygroundSimulation(Simulation):
         self.N_textbox.setText(f"N: {self.N}")
         self.NRES_textbox.setText(f"N_R: {self.N_resc}")
         self.FOV_textbox.setText(f"FOV: {int(self.fov_ratio * 100)}%")
-        self.RESradius_textbox.setText(f"R_R: {int(self.resc_radius)}")
+        self.DET_R_textbox.setText(f"DET_R: {int(self.resc_radius)}")
         self.Epsw_textbox.setText(f"E_w: {self.Eps_w:.2f}")
         self.Epsu_textbox.setText(f"E_u: {self.Eps_u:.2f}")
         self.SUW_textbox.setText(f"S_uw: {self.S_uw:.2f}")
@@ -516,8 +516,8 @@ class PlaygroundSimulation(Simulation):
             self.act_on_NRES_mismatch()
         if self.fov_ratio != self.agent_fov[1] / np.pi:
             self.update_agent_fovs()
-        if self.resc_radius != self.RESradius_slider.getValue():
-            self.resc_radius = self.RESradius_slider.getValue()
+        if self.resc_radius != self.DET_R_slider.getValue():
+            self.resc_radius = self.DET_R_slider.getValue()
             self.update_res_radius()
         if self.Eps_w != self.Epsw_slider.getValue():
             self.Eps_w = self.Epsw_slider.getValue()
@@ -531,9 +531,9 @@ class PlaygroundSimulation(Simulation):
         if self.S_uw != self.SUW_slider.getValue():
             self.S_uw = self.SUW_slider.getValue()
             self.update_agent_decision_params()
-        if self.S_wu != self.SWU_slider.getValue():
-            self.S_wu = self.SWU_slider.getValue()
-            self.update_agent_decision_params()
+        if self.V_res != self.VRES_slider.getValue():
+            self.V_res = self.VRES_slider.getValue()
+            self.update_res_radius()
         if self.is_recording:
             filename = f"{pad_to_n_digits(self.t, n=6)}.jpeg"
             path = os.path.join(self.image_save_path, filename)
@@ -564,7 +564,7 @@ class PlaygroundSimulation(Simulation):
             ag.Eps_w = self.Eps_w
             ag.Eps_u = self.Eps_u
             ag.S_uw = self.S_uw
-            ag.S_wu = self.S_wu
+            #ag.S_wu = self.S_wu
 
     def pop_resource(self):
         for res in self.rescources:
@@ -576,11 +576,11 @@ class PlaygroundSimulation(Simulation):
     def update_res_radius(self):
         """Changing the resource patch radius according to slider value"""
         # adjusting number of patches
-        sum_area = len(self.rescources) * self.resc_radius * self.resc_radius * np.pi
-        if sum_area > 0.3 * self.WIDTH * self.HEIGHT:
-            while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
-                self.pop_resource()
-                sum_area = len(self.rescources) * self.resc_radius * self.resc_radius * np.pi
+        # sum_area = len(self.rescources) * self.resc_radius * self.resc_radius * np.pi
+        # if sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+        #     while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+        #         self.pop_resource()
+        #         sum_area = len(self.rescources) * self.resc_radius * self.resc_radius * np.pi
 
         for res in self.rescources:
             # # update position
@@ -588,9 +588,13 @@ class PlaygroundSimulation(Simulation):
             res.position[1] = res.center[1] - self.resc_radius
             # self.center = (self.position[0] + self.radius, self.position[1] + self.radius)
             res.radius = self.resc_radius
+            res.des_velocity = self.V_res
             res.rect.x = res.position[0]
             res.rect.y = res.position[1]
-            res.update()
+            res.draw_update()
+
+        for agent in self.agents:
+            agent.detection_range = self.resc_radius
 
     def update_agent_fovs(self):
         """Updateing the FOV of agents according to acquired value from slider"""
@@ -622,30 +626,31 @@ class PlaygroundSimulation(Simulation):
 
     def act_on_NRES_mismatch(self):
         """method is called if the requested amount of patches is not the same as what the playground already has"""
-        if self.N_resc > len(self.rescources):
-            diff = self.N_resc - len(self.rescources)
-            for i in range(diff):
-                sum_area = (len(self.rescources) + 1) * self.resc_radius * self.resc_radius * np.pi
-                if sum_area > 0.3 * self.WIDTH * self.HEIGHT:
-                    while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
-                        self.resc_radius -= 5
-                        self.RESradius_slider.setValue(self.resc_radius)
-                        sum_area = (len(self.rescources) + 1) * self.resc_radius * self.resc_radius * np.pi
-                    self.update_res_radius()
-                else:
-                    self.add_new_resource_patch()
-        else:
-            while self.N_resc < len(self.rescources):
-                for i, res in enumerate(self.rescources):
-                    if i == len(self.rescources) - 1:
-                        res.kill()
-        if not self.SUM_res_fixed:
-            self.update_SUMR()
-        else:
-            self.distribute_sumR()
-        if self.show_all_stats:
-            for res in self.rescources:
-                res.show_stats = True
+        pass
+        # if self.N_resc > len(self.rescources):
+        #     diff = self.N_resc - len(self.rescources)
+        #     for i in range(diff):
+        #         sum_area = (len(self.rescources) + 1) * self.resc_radius * self.resc_radius * np.pi
+        #         if sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+        #             while sum_area > 0.3 * self.WIDTH * self.HEIGHT:
+        #                 self.resc_radius -= 5
+        #                 self.RESradius_slider.setValue(self.resc_radius)
+        #                 sum_area = (len(self.rescources) + 1) * self.resc_radius * self.resc_radius * np.pi
+        #             self.update_res_radius()
+        #         else:
+        #             self.add_new_resource_patch()
+        # else:
+        #     while self.N_resc < len(self.rescources):
+        #         for i, res in enumerate(self.rescources):
+        #             if i == len(self.rescources) - 1:
+        #                 res.kill()
+        # if not self.SUM_res_fixed:
+        #     self.update_SUMR()
+        # else:
+        #     self.distribute_sumR()
+        # if self.show_all_stats:
+        #     for res in self.rescources:
+        #         res.show_stats = True
 
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""

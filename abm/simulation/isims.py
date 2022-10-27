@@ -184,7 +184,7 @@ class PlaygroundSimulation(Simulation):
         slider_i = 3
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.NRES_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                  self.slider_height, min=1, max=100, step=1, initial=self.N_resc)
+                                  self.slider_height, min=0, max=1, step=1, initial=self.N_resc)
         self.NRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
         self.NRES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
@@ -228,19 +228,19 @@ class PlaygroundSimulation(Simulation):
 
         slider_i = 6
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
-        self.Eps_w = 2
-        self.Epsw_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                  self.slider_height, min=0, max=5, step=0.1, initial=self.Eps_w)
-        self.Epsw_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+        self.V_res = 1.5
+        self.VRES_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                  self.slider_height, min=0, max=4, step=0.1, initial=self.V_res)
+        self.VRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                     self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
-        self.Epsw_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+        self.VRES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
                                 text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
                                 borderThickness=1, )
-        self.Epsw_help.onClick = lambda: self.show_help('Epsw', self.Epsw_help)
-        self.Epsw_help.onRelease = lambda: self.unshow_help(self.Epsw_help)
-        self.help_buttons.append(self.Epsw_help)
-        self.sliders.append(self.Epsw_slider)
-        self.slider_texts.append(self.Epsw_textbox)
+        self.VRES_help.onClick = lambda: self.show_help('V_RES', self.VRES_help)
+        self.VRES_help.onRelease = lambda: self.unshow_help(self.VRES_help)
+        self.help_buttons.append(self.VRES_help)
+        self.sliders.append(self.VRES_slider)
+        self.slider_texts.append(self.VRES_textbox)
 
         slider_i = 7
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
@@ -260,19 +260,20 @@ class PlaygroundSimulation(Simulation):
 
         slider_i = 8
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
-        self.V_res = 1.5
-        self.VRES_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
-                                 self.slider_height, min=0, max=4, step=0.1, initial=self.V_res)
-        self.VRES_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
-                                   self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
-        self.VRES_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
-                               text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
-                               borderThickness=1, )
-        self.VRES_help.onClick = lambda: self.show_help('V_RES', self.VRES_help)
-        self.VRES_help.onRelease = lambda: self.unshow_help(self.VRES_help)
-        self.help_buttons.append(self.VRES_help)
-        self.sliders.append(self.VRES_slider)
-        self.slider_texts.append(self.VRES_textbox)
+        self.Eps_w = 2
+        self.Epsw_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
+                                  self.slider_height, min=0, max=5, step=0.1, initial=self.Eps_w)
+        self.Epsw_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
+                                    self.textbox_height, fontSize=self.textbox_height - 2, borderThickness=1)
+        self.Epsw_help = Button(self.screen, self.help_start_x, slider_start_y, self.help_width, self.help_height,
+                                text='?', fontSize=self.help_height - 2, inactiveColour=colors.GREY,
+                                borderThickness=1, )
+        self.Epsw_help.onClick = lambda: self.show_help('Epsw', self.Epsw_help)
+        self.Epsw_help.onRelease = lambda: self.unshow_help(self.Epsw_help)
+        self.help_buttons.append(self.Epsw_help)
+        self.sliders.append(self.Epsw_slider)
+        self.slider_texts.append(self.Epsw_textbox)
+
 
         slider_i = 9
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)

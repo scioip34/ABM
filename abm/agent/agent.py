@@ -212,7 +212,6 @@ class Agent(pygame.sprite.Sprite):
     def phototaxis(self, desired_velocity):
         """Local phototaxis search according to differential meter values"""
         diff = self.meter - self.prev_meter
-        print(diff)
         sign_diff = np.sign(diff)
         # positive means the given change in orientation was correct
         # negative means we need to turn the other direction

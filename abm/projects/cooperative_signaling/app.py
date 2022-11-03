@@ -4,9 +4,9 @@ from pathlib import Path
 
 from dotenv import dotenv_values
 
-import abm.contrib.playgroundtool as pgt
 from abm.app import save_isims_env
-from abm.simulation.isims import PlaygroundSimulation
+from simulation import CooperativeSignalingPlaygroundSimulation, \
+    setup_coop_sign_playground
 
 
 def setup_environment():
@@ -27,9 +27,10 @@ def start_playground():
     env_file_dir, EXP_NAME_COPY, envconf = setup_environment()
     # changing env file according to playground default parameters before
     # running any component of the SW
+    pgt = setup_coop_sign_playground()
     save_isims_env(env_file_dir, EXP_NAME_COPY, pgt, envconf)
     # Start interactive simulation
-    sim = PlaygroundSimulation()
+    sim = CooperativeSignalingPlaygroundSimulation()
     sim.start()
 
 

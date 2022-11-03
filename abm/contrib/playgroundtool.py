@@ -14,28 +14,92 @@ default_params = {
                 "show_vis_field": False,
                 "show_vis_field_return": True,
                 "pooling_time": 0,
-                "pooling_prob":0,
+                "pooling_prob": 0,
                 "agent_radius": 10,
                 "N_resc": 3,  # interactive
                 "min_resc_perpatch": 200,
                 "max_resc_perpatch": 201,
                 "min_resc_quality": 0.25,
                 "max_resc_quality": 0.25,
-                "patch_radius": 30,  # interactive
+                "patch_radius": 15,  # interactive
                 "regenerate_patches": True,
                 "agent_consumption": 1,
                 "teleport_exploit": False,
-                "vision_range": 5000,
-                "agent_fov": 0.5,  # interactive
+                "vision_range": 2000,
+                "agent_fov": 1,  # interactive
                 "visual_exclusion": True,  # interactive
                 "show_vision_range": True,
                 "use_ifdb_logging": False,  # interactive
                 "use_ram_logging": False,
+                "use_zarr": True,
                 "save_csv_files": False,
                 "ghost_mode": True,  # interactive
                 "patchwise_exclusion": True,
                 "parallel": False,
-                "allow_border_patch_overlap": True
+                "allow_border_patch_overlap": True,
+                "collide_agents": False
+}
+
+# default parameters of playground that are not needed for initialization
+def_env_vars = {
+    "DEC_TW": "0.5",
+    "DEC_EPSW": "2",
+    "DEC_GW":"0.085",
+    "DEC_BW": "0",
+    "DEC_WMAX": "1",
+    "DEC_TU": "0.5",
+    "DEC_EPSU": "1",
+    "DEC_GU": "0.085",
+    "DEC_BU": "0",
+    "DEC_UMAX": "1",
+    "DEC_SWU": "0",
+    "DEC_SUW": "0",
+    "DEC_TAU": "10",
+    "DEC_FN": "1",
+    "DEC_FR": "1",
+    "MOV_EXP_VEL_MIN": "3",
+    "MOV_EXP_VEL_MAX": "3",
+    "MOV_EXP_TH_MIN": "-0.5",
+    "MOV_EXP_TH_MAX": "0.5",
+    "MOV_REL_DES_VEL": "3",
+    "MOV_REL_TH_MAX": "1.8",
+    "CONS_STOP_RATIO": "0.175"
+    }
+
+def_params_to_env_vars = {
+                "N": "N",
+                "T": "T",
+                "v_field_res": "VISUAL_FIELD_RESOLUTION",
+                "width": "ENV_WIDTH",
+                "height": "ENV_HEIGHT",
+                "framerate": "INIT_FRAMERATE",
+                "with_visualization": "WITH_VISUALIZATION",
+                "show_vis_field": "SHOW_VISUAL_FIELDS",
+                "show_vis_field_return": "SHOW_VISUAL_FIELDS_RETURN",
+                "pooling_time": "POOLING_TIME",
+                "pooling_prob": "POOLING_PROBABILITY",
+                "agent_radius": "RADIUS_AGENT",
+                "N_resc": "N_RESOURCES",
+                "min_resc_perpatch": "MIN_RESOURCE_PER_PATCH",
+                "max_resc_perpatch": "MAX_RESOURCE_PER_PATCH",
+                "min_resc_quality": "MIN_RESOURCE_QUALITY",
+                "max_resc_quality": "MAX_RESOURCE_QUALITY",
+                "patch_radius": "RADIUS_RESOURCE",
+                "regenerate_patches": "REGENERATE_PATCHES",
+                "agent_consumption": "AGENT_CONSUMPTION",
+                "teleport_exploit": "TELEPORT_TO_MIDDLE",
+                "vision_range": "VISION_RANGE",
+                "agent_fov": "AGENT_FOV",
+                "visual_exclusion": "VISUAL_EXCLUSION",
+                "show_vision_range": "SHOW_VISION_RANGE",
+                "use_ifdb_logging": "USE_IFDB_LOGGING",
+                "use_ram_logging": "USE_RAM_LOGGING",
+                "save_csv_files": "SAVE_CSV_FILES",
+                "use_zarr": "USE_ZARR_FORMAT",
+                "ghost_mode": "GHOST_WHILE_EXPLOIT",
+                "patchwise_exclusion": "PATCHWISE_SOCIAL_EXCLUSION",
+                "allow_border_patch_overlap": "PATCH_BORDER_OVERLAP",
+                "collide_agents": "AGENT_AGENT_COLLISION"
 }
 
 help_messages = {

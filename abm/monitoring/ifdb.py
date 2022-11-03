@@ -294,7 +294,7 @@ def save_simulation_params(ifclient, sim, exp_hash=""):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfield=False):
+def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfield=False, pop_num=None):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -334,6 +334,8 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
 
     else:
         save_dir = ifdbp.TIMESTAMP_SAVE_DIR
+        if pop_num is not None:
+            save_dir += f"_pop{pop_num}"
         os.makedirs(save_dir, exist_ok=True)
         if not as_zar:
             import json
@@ -378,7 +380,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                 qualzarr[res_id-1, :] = resources_dict[res_id]['quality']
                 resrad[res_id-1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
 
-            print("Saving agent data as compressed zarr arrays...")
+            print(f"Saving agent data as compressed zarr arrays in {save_dir}...")
             num_ag = len(agents_dict)
             v_field_len = int(float(ifdbp.envconf.get("VISUAL_FIELD_RESOLUTION")))
             aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zarr"), mode='w', shape=(num_ag, t_len),

@@ -117,10 +117,13 @@ def angle_between(v1, v2):
 
 
 # Random Walk functions
-def random_walk():
+def random_walk(desired_vel=None):
     """Pooling a small orientation and absolute velocity increment from some distribution"""
-    dvel = np.random.uniform(movement_params.exp_vel_min,
-                             movement_params.exp_vel_max)
+    if desired_vel is None:
+        desired_vel = movement_params.exp_vel_max
+    # dvel = np.random.uniform(movement_params.exp_vel_min,
+    #                          movement_params.exp_vel_max)
+    dvel = desired_vel
     dtheta = np.random.uniform(movement_params.exp_theta_min,
                                movement_params.exp_theta_max)
     return dvel, dtheta
@@ -148,10 +151,11 @@ def distance(agent1, agent2):
     return distance
 
 
-def F_reloc_LR(vel_now, V_now):
+def F_reloc_LR(vel_now, V_now, v_desired=None):
     """Calculating relocation force according to the visual field/source data of the agent according to left-right
     algorithm"""
-    v_desired = movement_params.reloc_des_vel
+    if v_desired is None:
+        v_desired = movement_params.reloc_des_vel
     V_field_len = len(V_now)
     left_excitation = np.mean(V_now[0:int(V_field_len / 2)])
     right_excitation = np.mean(V_now[int(V_field_len / 2)::])

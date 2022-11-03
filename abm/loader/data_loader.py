@@ -436,12 +436,12 @@ class ExperimentLoader:
             max_r_in_runs = 0
             for i, batch_path in enumerate(self.batch_folders):
                 glob_pattern = os.path.join(batch_path, "*")
-                run_folders = [path for path in glob.iglob(glob_pattern)]
+                run_folders = [path for path in glob.iglob(glob_pattern) if path.find(".json") < 0]
                 if i == 0:
                     self.num_runs = len(run_folders)
 
                 for j, run in enumerate(run_folders):
-                    print(f"Reading agent data batch {i}, run {j}")
+                    print(f"Reading agent data batch {i}, run {j}, {run}")
                     agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True,
                                                          t_start=self.t_start, t_end=self.t_end).get_loaded_data()
                     del _
@@ -621,7 +621,7 @@ class ExperimentLoader:
         for i, batch_path in enumerate(self.batch_folders):
             glob_pattern = os.path.join(batch_path, "*")
 
-            run_folders = [path for path in glob.iglob(glob_pattern)]
+            run_folders = [path for path in glob.iglob(glob_pattern) if path.find(".json") < 0]
             if i == 0:
                 self.num_runs = len(run_folders)
 
@@ -776,7 +776,7 @@ class ExperimentLoader:
         for i, batch_path in enumerate(self.batch_folders):
             all_env[i] = {}
             glob_pattern = os.path.join(batch_path, "*")
-            run_folders = [path for path in glob.iglob(glob_pattern)]
+            run_folders = [path for path in glob.iglob(glob_pattern) if path.find(".json") < 0]
             if i == 0:
                 self.num_runs = len(run_folders)
 
@@ -823,9 +823,15 @@ class ExperimentLoader:
                 self.agent_summary = {}
                 self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"),
                                                        mode='r')
+                self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_u.zarr"),
+                                                       mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zarr"),
                                                        mode='r')
+                self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_w.zarr"),
+                                                    mode='r')
+                self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_explpatch.zarr"),
+                                                    mode='r')
                 self.agent_summary['orientation'] = zarr.open(
                     os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),
                     mode='r')  # self.experiment.agent_summary['orientation']
@@ -840,9 +846,15 @@ class ExperimentLoader:
                 self.agent_summary = {}
                 self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zip"),
                                                        mode='r')
+                self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_u.zip"),
+                                                       mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zip"),
                                                        mode='r')
+                self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_w.zip"),
+                                                       mode='r')
+                self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_explpatch.zip"),
+                                                    mode='r')
                 self.agent_summary['orientation'] = zarr.open(
                     os.path.join(self.experiment_path, "summary", "agent_ori.zip"),
                     mode='r')  # self.experiment.agent_summary['orientation']
@@ -921,46 +933,62 @@ class ExperimentLoader:
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
         with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
         the real time according to how much the data was undersampled during sammury"""
-        # Caclulating length of time window for normalizing efficiency
-        if t_end_plot == -1:
-            if self.t_end is None:  # we processed the whole experiment
-                T = int(self.env['T'])
-            else:  # we have cut down some part at the end of the experiment
-                T = self.t_end
-        else:  # We calculate the efficiency until a given point of time
-            T = t_end_plot * self.undersample
-
-        T_start = t_start_plot * self.undersample
-        dT = T - T_start
-        print(f"Using T_start={T_start}, T_end={T} delta_T={dT} to normalize efficiency!")
-
-        print("Calculating mean search efficiency...")
-        # self.get_travelled_distances()
-
-        batch_dim = 0
-        num_var_params = len(list(self.varying_params.keys()))
-        agent_dim = batch_dim + num_var_params + 1
-        time_dim = agent_dim + 1
-
-        if used_batches is None:
-            collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][
-                ..., t_start_plot]
+        summary_path = os.path.join(self.experiment_path, "summary")
+        effpath = os.path.join(summary_path, "eff.npy")
+        if os.path.isfile(effpath):
+            print("Found saved efficiency array in summary, reloading it...")
+            self.efficiency = np.load(effpath)
+            batch_dim = 0
+            num_var_params = len(list(self.varying_params.keys()))
+            agent_dim = batch_dim + num_var_params + 1
+            time_dim = agent_dim + 1
+            self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
         else:
-            # limiting number of used batches (e.g. for quick prototyping)
-            print(f"Using {used_batches} batches to calculate efficiency!")
-            print(self.agent_summary["collresource"].shape)
-            collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary[
-                                                                                                "collresource"][
-                                                                                            0:used_batches, ...,
-                                                                                            t_start_plot]
-        # normalizing with distances needs good temporal resolution when reading data back
-        # using large downsampling factors will make it impossibly to calculate trajectory lengths
-        # and thus makes distance measures impossible
-        # sum_distances = np.sum(self.distances, axis=time_dim)
-        self.efficiency = collres / dT
+            # Caclulating length of time window for normalizing efficiency
+            if t_end_plot == -1:
+                if self.t_end is None:  # we processed the whole experiment
+                    T = int(self.env['T'])
+                else:  # we have cut down some part at the end of the experiment
+                    T = self.t_end
+            else:  # We calculate the efficiency until a given point of time
+                T = t_end_plot * self.undersample
 
-        self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
-        self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            T_start = t_start_plot * self.undersample
+            dT = T - T_start
+            print(f"Using T_start={T_start}, T_end={T} delta_T={dT} to normalize efficiency!")
+
+            print("Calculating mean search efficiency...")
+            # self.get_travelled_distances()
+
+            batch_dim = 0
+            num_var_params = len(list(self.varying_params.keys()))
+            agent_dim = batch_dim + num_var_params + 1
+            time_dim = agent_dim + 1
+
+            if used_batches is None:
+                collres = self.agent_summary["collresource"][..., t_end_plot] - self.agent_summary["collresource"][
+                    ..., t_start_plot]
+            else:
+                # limiting number of used batches (e.g. for quick prototyping)
+                print(f"Using {used_batches} batches to calculate efficiency!")
+                print(self.agent_summary["collresource"].shape)
+                collres = self.agent_summary["collresource"][0:used_batches, ..., t_end_plot] - self.agent_summary[
+                                                                                                    "collresource"][
+                                                                                                0:used_batches, ...,
+                                                                                                t_start_plot]
+            # normalizing with distances needs good temporal resolution when reading data back
+            # using large downsampling factors will make it impossibly to calculate trajectory lengths
+            # and thus makes distance measures impossible
+            # sum_distances = np.sum(self.distances, axis=time_dim)
+            self.efficiency = collres / dT
+
+            self.mean_efficiency = np.mean(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+            self.eff_std = np.std(np.mean(self.efficiency, axis=agent_dim), axis=batch_dim)
+
+            # Saving calculated efficiency for future use
+            print("Saving efficiency arrays into summary!")
+            np.save(effpath, self.efficiency)
 
     def calculate_interindividual_distance_slice(self, posx, posy):
         """Calculating iid just in a point of time and for just a specific parameter combination.
@@ -1051,6 +1079,80 @@ class ExperimentLoader:
         np.save(iidpath, self.iid_matrix)
         np.save(meaniid_path, self.mean_iid)
 
+    def calculate_relocation_time(self, undersample=1):
+        """Calculating relocation time matrix over the given data"""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        rtimepath = os.path.join(summary_path, "reloctime.npy")
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if os.path.isfile(rtimepath):
+            print("Found saved relocation time array in summary, reloading it...")
+            rel_reloc_matrix = np.load(rtimepath)
+            mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+
+        else:
+            rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
+            for i in range(self.num_batches):
+                print(f"Calculating relocation time in batch {i}")
+                a = np.mean((self.agent_summary["mode"][i, ...] == 2).astype(int), axis=time_dim - 1)
+                rel_reloc_matrix[i] = a.copy()
+                del a
+            mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+            print("Saving calculated relocation time matrix!")
+            np.save(rtimepath, rel_reloc_matrix)
+
+        return rel_reloc_matrix, mean_rel_reloc
+
+    def collapse_mean_data(self, mean_data, save_name=None):
+        """Collapsing a high dimensional mean data array according to chosen axis and method via UI.
+        The generated collapsed adataframe can be saved in the summary folder when save_name set to
+        a .npy file"""
+        keys = sorted(list(self.varying_params.keys()))
+        shape_along_fixed_ind = mean_data.shape[self.collapse_fixedvar_ind]
+        labels = []
+        # collapsing data
+        for i in range(shape_along_fixed_ind):
+            if self.collapse_fixedvar_ind == 0:
+                collapsed_data_row = self.collapse_method(mean_data[i, :, :], axis=0)
+                ind = np.argmax(mean_data[i, :, :], axis=0)
+                max1_ind = 1
+                max2_ind = 2
+            elif self.collapse_fixedvar_ind == 1:
+                collapsed_data_row = self.collapse_method(mean_data[:, i, :], axis=0)
+                ind = np.argmax(mean_data[:, i, :], axis=0)
+                max1_ind = 0
+                max2_ind = 2
+            elif self.collapse_fixedvar_ind == 2:
+                collapsed_data_row = self.collapse_method(mean_data[:, :, i], axis=0)
+                ind = np.argmax(mean_data[:, :, i], axis=0)
+                max1_ind = 0
+                max2_ind = 1
+
+            if i == 0:
+                collapsed_data = collapsed_data_row
+            else:
+                collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+
+        for j in range(len(ind)):
+            label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
+                    f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
+            labels.append(label)
+
+        if save_name is not None:
+            if save_name.endswith(".npy"):
+                save_path_data = os.path.join(self.experiment_path, "summary", save_name)
+                save_path_labels = save_path_data.split(".")[0] + ".txt"
+                np.save(save_path_data, collapsed_data)
+                np.savetxt(save_path_labels, labels, newline=",\n", fmt="%s")
+            else:
+                raise Exception("Given filename is not npy file")
+
+        return collapsed_data, labels
+
+
     def plot_mean_iid(self, from_script=False, undersample=1):
         """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the
         experiments."""
@@ -1122,35 +1224,8 @@ class ExperimentLoader:
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
-                shape_along_fixed_ind = self.mean_iid.shape[self.collapse_fixedvar_ind]
-                labels = []
-                # collapsing data
-                for i in range(shape_along_fixed_ind):
-                    if self.collapse_fixedvar_ind == 0:
-                        collapsed_data_row = self.collapse_method(self.mean_iid[i, :, :], axis=0)
-                        ind = np.argmax(self.mean_iid[i, :, :], axis=0)
-                        max1_ind = 1
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 1:
-                        collapsed_data_row = self.collapse_method(self.mean_iid[:, i, :], axis=0)
-                        ind = np.argmax(self.mean_iid[:, i, :], axis=0)
-                        max1_ind = 0
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 2:
-                        collapsed_data_row = self.collapse_method(self.mean_iid[:, :, i], axis=0)
-                        ind = np.argmax(self.mean_iid[:, :, i], axis=0)
-                        max1_ind = 0
-                        max2_ind = 1
 
-                    if i == 0:
-                        collapsed_data = collapsed_data_row
-                    else:
-                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
-
-                for j in range(len(ind)):
-                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
-                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
-                    labels.append(label)
+                collapsed_data, labels = self.collapse_mean_data(self.mean_iid, save_name="coll_iid.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
@@ -1164,9 +1239,6 @@ class ExperimentLoader:
                 fig.subplots_adjust(right=0.8)
                 cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
                 cbar = fig.colorbar(img, cax=cbar_ax)
-                # ax.set_xlabel(f"Combined Parameters\n"
-                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
-                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
 
                 fig.set_tight_layout(True)
 
@@ -1244,42 +1316,16 @@ class ExperimentLoader:
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
-                shape_along_fixed_ind = self.mean_efficiency.shape[self.collapse_fixedvar_ind]
-                labels = []
-                # collapsing data
-                for i in range(shape_along_fixed_ind):
-                    if self.collapse_fixedvar_ind == 0:
-                        collapsed_data_row = self.collapse_method(self.mean_efficiency[i, :, :], axis=0)
-                        ind = np.argmax(self.mean_efficiency[i, :, :], axis=0)
-                        max1_ind = 1
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 1:
-                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, i, :], axis=0)
-                        ind = np.argmax(self.mean_efficiency[:, i, :], axis=0)
-                        max1_ind = 0
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 2:
-                        collapsed_data_row = self.collapse_method(self.mean_efficiency[:, :, i], axis=0)
-                        ind = np.argmax(self.mean_efficiency[:, :, i], axis=0)
-                        max1_ind = 0
-                        max2_ind = 1
 
-                    if i == 0:
-                        collapsed_data = collapsed_data_row
-                    else:
-                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
+                collapsed_data, labels = self.collapse_mean_data(self.mean_efficiency, save_name="coll_eff.npy")
+                coll_std, _ = self.collapse_mean_data(self.eff_std, save_name="coll_effstd.npy")
 
-                for j in range(len(ind)):
-                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
-                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
-                    labels.append(label)
-
-                # column-wise normalization
-                for coli in range(collapsed_data.shape[1]):
-                    print(f"Normalizing column {coli}")
-                    minval = np.min(collapsed_data[:, coli])
-                    maxval = np.max(collapsed_data[:, coli])
-                    collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
@@ -1293,9 +1339,6 @@ class ExperimentLoader:
                 fig.subplots_adjust(right=0.8)
                 cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
                 cbar = fig.colorbar(img, cax=cbar_ax)
-                # ax.set_xlabel(f"Combined Parameters\n"
-                #               f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]]}\n"
-                #               f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]]}")
                 fig.set_tight_layout(True)
 
         num_agents = self.agent_summary["collresource"].shape[agent_dim]
@@ -1313,13 +1356,7 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
-        rel_reloc_matrix = np.zeros(self.agent_summary["mode"].shape[0:-1])
-        for i in range(self.num_batches):
-            print(f"Calculating relocation time in batch {i}")
-            a = np.mean((self.agent_summary["mode"][i, ..., ::10] == 2).astype(int), axis=time_dim - 1)
-            rel_reloc_matrix[i] = a.copy()
-            del a
-        mean_rel_reloc = np.mean(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
+        rel_reloc_matrix, mean_rel_reloc = self.calculate_relocation_time()
         std_rel_reloc = np.std(np.mean(rel_reloc_matrix, axis=agent_dim), axis=batch_dim)
 
         if num_var_params == 1:
@@ -1380,35 +1417,8 @@ class ExperimentLoader:
             else:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
-                shape_along_fixed_ind = mean_rel_reloc.shape[self.collapse_fixedvar_ind]
-                # collapsing data
-                labels = []
-                for i in range(shape_along_fixed_ind):
-                    if self.collapse_fixedvar_ind == 0:
-                        collapsed_data_row = self.collapse_method(mean_rel_reloc[i, :, :], axis=0)
-                        ind = np.argmax(mean_rel_reloc[i, :, :], axis=0)
-                        max1_ind = 1
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 1:
-                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, i, :], axis=0)
-                        ind = np.argmax(mean_rel_reloc[:, i, :], axis=0)
-                        max1_ind = 0
-                        max2_ind = 2
-                    elif self.collapse_fixedvar_ind == 2:
-                        collapsed_data_row = self.collapse_method(mean_rel_reloc[:, :, i], axis=0)
-                        ind = np.argmax(mean_rel_reloc[:, :, i], axis=0)
-                        max1_ind = 0
-                        max2_ind = 1
 
-                    if i == 0:
-                        collapsed_data = collapsed_data_row
-                    else:
-                        collapsed_data = np.vstack((collapsed_data, collapsed_data_row))
-
-                for j in range(len(ind)):
-                    label = f"{keys[max1_ind]}={self.varying_params[keys[max1_ind]][ind[j]]}\n" \
-                            f"{keys[max2_ind]}={self.varying_params[keys[max2_ind]][j]}"
-                    labels.append(label)
+                collapsed_data, labels = self.collapse_mean_data(mean_rel_reloc, save_name="coll_reloctime.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))

@@ -2,15 +2,18 @@ from contextlib import ExitStack
 
 from abm.simulation.sims import Simulation
 from abm.simulation.isims import PlaygroundSimulation
+import abm.contrib.playgroundtool as pgt
 
 import os
 # loading env variables from dotenv file
 from dotenv import dotenv_values
 
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
+root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+envconf = dotenv_values(env_path)
 
-
-def start(parallel=False, headless=False):
+def start(parallel=False, headless=False, agent_behave_param_list=None):
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
     window_pad = 30
@@ -54,7 +57,9 @@ def start(parallel=False, headless=False):
                          save_csv_files=bool(int(float(envconf["SAVE_CSV_FILES"]))),
                          use_zarr=bool(int(float(envconf["USE_ZARR_FORMAT"]))),
                          parallel=parallel,
-                         window_pad=window_pad
+                         window_pad=window_pad,
+                         agent_behave_param_list=agent_behave_param_list,
+                         collide_agents=bool(int(float(envconf["AGENT_AGENT_COLLISION"])))
                          )
         sim.write_batch_size = 100
         sim.start()
@@ -66,5 +71,42 @@ def start_headless():
 
 
 def start_playground():
+    # changing env file according to playground default parameters before
+    # running any component of the SW
+    save_isims_env()
+    # Start interactive simulation
     sim = PlaygroundSimulation()
     sim.start()
+
+
+def save_isims_env():
+    """translating a default parameters dictionary to an environment
+    file and using env variable keys instead of class attribute names"""
+    def_params = pgt.default_params
+    def_env_vars = pgt.def_env_vars
+    translator_dict = pgt.def_params_to_env_vars
+    translated_dict = envconf
+
+    for k in def_params.keys():
+        if k in list(translator_dict.keys()):
+            v = def_params[k]
+            if v == "True" or v is True:
+                v = "1"
+            elif v == "False" or v is False:
+                v = "0"
+            translated_dict[translator_dict[k]] = v
+    for def_env_name, def_env_val in def_env_vars.items():
+        translated_dict[def_env_name] = def_env_val
+
+    print("Saving playground default params in env file under path ", root_abm_dir)
+    if os.path.isfile(os.path.join(root_abm_dir, f"{EXP_NAME}.env")):
+        os.remove(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
+    generate_env_file(translated_dict, f"{EXP_NAME}.env", root_abm_dir)
+
+def generate_env_file(env_data, file_name, save_folder):
+    """Generating a single env file under save_folder with file_name including env_data as env format"""
+    os.makedirs(save_folder, exist_ok=True)
+    file_path = os.path.join(save_folder, file_name)
+    with open(file_path, "a") as file:
+        for k, v in env_data.items():
+            file.write(f"{k}={v}\n")

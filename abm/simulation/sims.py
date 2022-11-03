@@ -5,13 +5,14 @@ import sys
 from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
-from abm.contrib import colors, ifdb_params
+from abm.contrib import colors, ifdb_params, evolution
 from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
 from abm.monitoring import env_saver
 from math import atan2
 import os
 import uuid
+import json
 
 from datetime import datetime
 
@@ -63,7 +64,8 @@ class Simulation:
                  patch_radius=30, regenerate_patches=True, agent_consumption=1, teleport_exploit=True,
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
-                 patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False):
+                 patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
+                 agent_behave_param_list=None, collide_agents=True):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -110,13 +112,24 @@ class Simulation:
             the influxDB saving will be handled accordingly.
         :param use_zarr: using zarr compressed data format to save single run data
         :param allow_border_patch_overlap: boolean switch to allow resource patches to overlap arena border
+        :param agent_behave_param_list: list of dictionaries in which each dict is a copy of contrib.evolution.behave_params_template
+            including the init parameters of all agents in case of eheterogeneous agents.
+        :param collide_agents: boolean switch agents can overlap if false.
         """
         # Arena parameters
+        self.collide_agents = collide_agents
         self.WIDTH = width
         self.HEIGHT = height
         self.window_pad = window_pad
 
         self.allow_border_patch_overlap = allow_border_patch_overlap
+
+        # Heterogeneity
+        if agent_behave_param_list is not None:
+            self.heterogen_agents = True
+        else:
+            self.heterogen_agents = False
+        self.agent_behave_param_list = agent_behave_param_list
 
         # Simulation parameters
         self.N = N
@@ -316,10 +329,10 @@ class Simulation:
                     if res.id == rid:
                         res.show_stats = True
 
-    def add_new_resource_patch(self, force_id = None):
+    def add_new_resource_patch(self, force_id=None):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
         prove_resource method so that the distribution and overlap is following some predefined rules"""
-        max_retries = 7000
+        max_retries = 10000
         resource_proven = 0
         if force_id is None:
             # Id is not specified so we find a new one
@@ -347,7 +360,8 @@ class Simulation:
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality, self.max_resc_quality)
             if force_id is None:
-                resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad, units,
+                resource = Rescource(id + 1, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
+                                     units,
                                      quality)
             else:
                 resource = Rescource(id, radius, (x, y), (self.WIDTH, self.HEIGHT), colors.GREY, self.window_pad,
@@ -355,11 +369,11 @@ class Simulation:
             # we initialize the resources so that there is no resource-resource overlap, but there can be
             # a resource-agent overlap
             resource_proven = self.proove_sprite(resource, prove_with_agents=False, prove_with_res=True)
-            retries+=1
+            retries += 1
         self.rescources.add(resource)
         return resource.id
 
-    def agent_agent_collision(self, agent1, agent2):
+    def agent_agent_collision_particle(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
         :param agent1, agent2: agents that collided"""
         # Updating all agents accordingly
@@ -396,35 +410,111 @@ class Simulation:
                 elif np.pi < theta < 2 * np.pi:
                     agent2.orientation += np.pi / 8
 
-                if agent2.velocity == 1:
+                if agent2.velocity == agent2.max_exp_vel:
                     agent2.velocity += 0.5
                 else:
-                    agent2.velocity = 1
+                    agent2.velocity = agent2.max_exp_vel
 
             else:  # ghost mode is on, we do nothing on collision
                 pass
 
-    def add_new_agent(self, id, x, y, orient, with_proove=False):
+    def agent_agent_collision_proximity(self, agent1, agent2):
+        """Using proximity information as in real life to calculate collision avoidance turning behavior"""
+        # Updating all agents accordingly
+        if not isinstance(agent2, list):
+            agents2 = [agent2]
+        else:
+            agents2 = agent2
+
+        for i, agent2 in enumerate(agents2):
+            do_collision = True
+            # if the ghost mode is turned on and any of the 2 colliding agents is exploiting, the
+            # collision protocol will not be carried out so that agents can overlap with each other in this case
+            if self.ghost_mode:
+                if agent2.get_mode() != "exploit" and agent1.get_mode() != "exploit":
+                    do_collision = True
+                else:
+                    do_collision = False
+
+            if do_collision:
+                # overriding any mode with collision
+                if agent2.get_mode() != "exploit":
+                    agent2.set_mode("collide")
+
+                # calculating proximity events
+                # collecting agents closer than proximity sensor sensitivity
+                agents_in_vicinity = [agent for agent in self.agents if
+                                      supcalc.distance(agent, agent2) < 2 * agent2.radius + 20 and agent != agent2]
+                # calculating proximity field similarly as LIDAR
+                proximity_field = agent2.projection_field(agents_in_vicinity, keep_distance_info=True, fov=(-np.pi, np.pi))
+
+                # calculating turning angel
+                V_field_len = len(proximity_field)
+                left_excitation = np.mean(proximity_field[0:int(V_field_len / 2)])
+                right_excitation = np.mean(proximity_field[int(V_field_len / 2)::])
+                D_leftright = np.sign(left_excitation - right_excitation)
+                if D_leftright == 0: D_leftright = -1
+                if agent2.get_mode() != "exploit":
+                    # exploiting agent won't care about others w.r.t orientation
+                    agent2.orientation -= D_leftright * 0.2
+
+                # making agents stop if the front of the agent is occupied
+                if np.mean(proximity_field[int(V_field_len / 2) - 100:int(V_field_len / 2) + 100]) > 0:
+                    agent2.velocity = 0
+                # front is clear
+                else:
+                    # making the agent move straight now if the front is clear
+                    if agent2.get_mode() != "exploit":
+                        agent2.velocity = agent2.max_exp_vel
+
+                    # if (np.mean(proximity_field[0:100]) > 0 or np.mean(proximity_field[-101:-1]) > 0) and \
+                    #         agent2.get_mode() == "exploit":
+                    #     # in case the agent is exploiting and something bumps into it from behind it will move forward
+                    #     if agent2.velocity < agent2.max_exp_vel - 0.5:
+                    #         agent2.velocity += 0.5
+
+    def add_new_agent(self, id, x, y, orient, with_proove=False, behave_params=None):
         """Adding a single new agent into agent sprites"""
         agent_proven = False
         while not agent_proven:
-            agent = Agent(
-                id=id,
-                radius=self.agent_radii,
-                position=(x, y),
-                orientation=orient,
-                env_size=(self.WIDTH, self.HEIGHT),
-                color=colors.BLUE,
-                v_field_res=self.v_field_res,
-                FOV=self.agent_fov,
-                window_pad=self.window_pad,
-                pooling_time=self.pooling_time,
-                pooling_prob=self.pooling_prob,
-                consumption=self.agent_consumption,
-                vision_range=self.vision_range,
-                visual_exclusion=self.visual_exclusion,
-                patchwise_exclusion=self.patchwise_exclusion
-            )
+            if behave_params is None:
+                agent = Agent(
+                    id=id,
+                    radius=self.agent_radii,
+                    position=(x, y),
+                    orientation=orient,
+                    env_size=(self.WIDTH, self.HEIGHT),
+                    color=colors.BLUE,
+                    v_field_res=self.v_field_res,
+                    FOV=self.agent_fov,
+                    window_pad=self.window_pad,
+                    pooling_time=self.pooling_time,
+                    pooling_prob=self.pooling_prob,
+                    consumption=self.agent_consumption,
+                    vision_range=self.vision_range,
+                    visual_exclusion=self.visual_exclusion,
+                    patchwise_exclusion=self.patchwise_exclusion,
+                    behave_params=None
+                )
+            else:
+                agent = Agent(
+                    id=id,
+                    radius=behave_params["agent_radius"],
+                    position=(x, y),
+                    orientation=orient,
+                    env_size=(self.WIDTH, self.HEIGHT),
+                    color=colors.BLUE,
+                    v_field_res=behave_params["v_field_res"],
+                    FOV=(-float(behave_params["agent_fov"]) * np.pi, float(behave_params["agent_fov"]) * np.pi),
+                    window_pad=self.window_pad,
+                    pooling_time=behave_params["pooling_time"],
+                    pooling_prob=behave_params["pooling_prob"],
+                    consumption=behave_params["agent_consumption"],
+                    vision_range=behave_params["vision_range"],
+                    visual_exclusion=self.visual_exclusion,
+                    patchwise_exclusion=self.patchwise_exclusion,
+                    behave_params=behave_params
+                )
             if with_proove:
                 if self.proove_sprite(agent):
                     self.agents.add(agent)
@@ -436,12 +526,15 @@ class Simulation:
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
-
             # allowing agents to overlap arena borders (maximum overlap is radius of patch)
             x = np.random.randint(self.window_pad - self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
             y = np.random.randint(self.window_pad - self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
-            orient = np.random.uniform(0, 2*np.pi)
-            self.add_new_agent(i, x, y, orient)
+            orient = np.random.uniform(0, 2 * np.pi)
+            if not self.heterogen_agents:
+                # create agents according to environment variables homogeneously
+                self.add_new_agent(i, x, y, orient)
+            else:
+                self.add_new_agent(i, x, y, orient, behave_params=self.agent_behave_param_list[i])
 
     def create_resources(self):
         """Creating resource patches according to how the simulation class was initialized"""
@@ -575,6 +668,29 @@ class Simulation:
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
 
+    def generate_evo_summary(self):
+        """Generating a simple summary with indidviual and collective return and genotypes of agents for evolutionary
+        optimization. The method will generate a single json file with N dictionaries with the behave_param_list passed
+        to each agent interpreted as their genotypes as well as their collected units."""
+        evo_sum_dict = {}
+        sum_coll_r = 0
+        for ag in self.agents:
+            ag_sum = ag.behave_params.copy()
+            ag_sum["collected_individ"] = ag.collected_r
+            sum_coll_r += ag.collected_r
+            evo_sum_dict[ag.id] = ag_sum
+            if ag.id == 0:
+                sum_dict = ag.behave_params["evo_summary_path"]
+                pop_num = ag.behave_params.get("population_num")
+                # if pop_num is not None:
+                #     sum_dict = os.path.join(sum_dict, f"population_{pop_num}")
+        evo_sum_dict["collected_collective"] = sum_coll_r
+        summary_path = os.path.join(sum_dict, "evo_agent_summary.json")
+        os.makedirs(sum_dict, exist_ok=True)
+        with open(summary_path, 'w') as f:
+            json.dump(evo_sum_dict, f, indent=4)
+        return pop_num
+
     def start(self):
 
         start_time = datetime.now()
@@ -608,46 +724,61 @@ class Simulation:
 
             if not self.is_paused:
 
-                # ------ AGENT-AGENT INTERACTION ------
-                # Check if any 2 agents has been collided and reflect them from each other if so
-                collision_group_aa = pygame.sprite.groupcollide(
-                    self.agents,
-                    self.agents,
-                    False,
-                    False,
-                    itra.within_group_collision
-                )
-                collided_agents = []
-                # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
-                # such as ghost mode, or teleportation)
-                for agent1, agent2 in collision_group_aa.items():
-                    self.agent_agent_collision(agent1, agent2)
-                    if not isinstance(agent2, list):
-                        agents2 = [agent2]
-                    else:
-                        agents2 = agent2
-                    for agent2 in agents2:
-                        if self.teleport_exploit:
-                            if agent1.get_mode() != "exploit":
-                                collided_agents.append(agent1)
-                            if agent2.get_mode() != "exploit":
-                                collided_agents.append(agent2)
+                # # ------ AGENT-AGENT INTERACTION ------
+                if self.collide_agents:
+                    # distance from which proximity event is triggered
+                    proximity_distance = 2
+                    for agent in self.agents:
+                        agent.radius += proximity_distance
+
+                    # Check if any 2 agents has been collided and reflect them from each other if so
+                    collision_group_aa = pygame.sprite.groupcollide(
+                        self.agents,
+                        self.agents,
+                        False,
+                        False,
+                        itra.within_group_collision
+                    )
+
+                    for agent in self.agents:
+                        agent.radius -= proximity_distance
+
+                    collided_agents = []
+                    # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
+                    # such as ghost mode, or teleportation)
+                    for agent1, agent2 in collision_group_aa.items():
+                        self.agent_agent_collision_proximity(agent1, agent2)
+                        if not isinstance(agent2, list):
+                            agents2 = [agent2]
                         else:
-                            if not self.ghost_mode:
-                                collided_agents.append(agent1)
-                                collided_agents.append(agent2)
+                            agents2 = agent2
+                        for agent2 in agents2:
+                            if self.teleport_exploit:
+                                if agent1.get_mode() != "exploit":
+                                    collided_agents.append(agent1)
+                                if agent2.get_mode() != "exploit":
+                                    collided_agents.append(agent2)
                             else:
-                                if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                if not self.ghost_mode:
                                     collided_agents.append(agent1)
                                     collided_agents.append(agent2)
+                                else:
+                                    if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                        collided_agents.append(agent1)
+                                        collided_agents.append(agent2)
 
-                # Turn off collision mode when over
-                for agent in self.agents:
-                    if agent not in collided_agents and agent.get_mode() == "collide":
-                        agent.set_mode("explore")
+                    # Turn off collision mode when over
+                    for agent in self.agents:
+                        if agent not in collided_agents and agent.get_mode() == "collide":
+                            agent.set_mode("explore")
+                        if agent in collided_agents and agent.get_mode() == "collide":
+                            notify_agent(agent, -1)
+
+                else:
+                    collided_agents = []
+
 
                 # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
-                # Check if any 2 agents has been collided and reflect them from each other if so
                 collision_group_ar = pygame.sprite.groupcollide(
                     self.rescources,
                     self.agents,
@@ -672,24 +803,29 @@ class Simulation:
                         # One of previous agents on patch consumed the last unit
                         if destroy_resc:
                             notify_agent(agent, -1)
+                        else:
+                            # Agent finished pooling on a resource patch
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
+                                    or agent.pooling_time == 0:
+                                # Notify about the patch
+                                notify_agent(agent, 1, resc.id)
+                                # Teleport agent to the middle of the patch if needed
+                                if self.teleport_exploit:
+                                    agent.position = resc.position + resc.radius - agent.radius
 
-                        # Agent finished pooling on a resource patch
-                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
-                                or agent.pooling_time == 0:
-                            # Notify about the patch
-                            notify_agent(agent, 1, resc.id)
-                            # Teleport agent to the middle of the patch if needed
-                            if self.teleport_exploit:
-                                agent.position = resc.position + resc.radius - agent.radius
-
-                        # Agent was already exploiting this patch
-                        if agent.get_mode() == "exploit":
-                            # continue depleting the patch
-                            depl_units, destroy_resc = resc.deplete(agent.consumption)
-                            agent.collected_r_before = agent.collected_r  # rolling resource memory
-                            agent.collected_r += depl_units  # and increasing it's collected rescources
-                            if destroy_resc:  # consumed unit was the last in the patch
-                                notify_agent(agent, -1)
+                            # Agent was already exploiting this patch
+                            if agent.get_mode() == "exploit":
+                                # continue depleting the patch
+                                depl_units, destroy_resc = resc.deplete(agent.consumption)
+                                agent.collected_r_before = agent.collected_r  # rolling resource memory
+                                agent.collected_r += depl_units  # and increasing it's collected rescources
+                                if destroy_resc:  # consumed unit was the last in the patch
+                                    # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
+                                    #       f"there are no more units before the next timestep, otherwise they stop"
+                                    #       f"exploiting with delays")
+                                    for agent_tob_notified in agents:
+                                        # print("C notify agent NO res ", agent_tob_notified.id)
+                                        notify_agent(agent_tob_notified, -1)
 
                         # Collect all agents on resource patches
                         agents_on_rescs.append(agent)
@@ -699,7 +835,7 @@ class Simulation:
                         # we clear it from the memory and regenerate it somewhere else if needed
                         self.kill_resource(resc)
 
-                # Notifying agents that there is no resource patch in current position (they are not on patch)
+                # Notifying other agents that there is no resource patch in current position (they are not on patch)
                 for agent in self.agents.sprites():
                     if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
                         if agent not in collided_agents:  # and are not colliding with each other currently
@@ -716,7 +852,7 @@ class Simulation:
                 # Update agents according to current visible obstacles
                 self.agents.update(self.agents)
 
-                # move to next simulation timestep
+                # move to next simulation timestep (only when not paused)
                 self.t += 1
 
             # Simulation is paused
@@ -730,15 +866,17 @@ class Simulation:
                 self.draw_frame(self.stats, self.stats_pos)
                 pygame.display.flip()
 
-            # Monitoring with IFDB
+            # Monitoring with IFDB (also when paused)
             if self.save_in_ifd:
                 ifdb.save_agent_data(self.ifdb_client, self.agents, self.t, exp_hash=self.ifdb_hash,
                                      batch_size=self.write_batch_size)
                 ifdb.save_resource_data(self.ifdb_client, self.rescources, self.t, exp_hash=self.ifdb_hash,
                                         batch_size=self.write_batch_size)
             elif self.save_in_ram:
-                ifdb.save_agent_data_RAM(self.agents, self.t)
-                ifdb.save_resource_data_RAM(self.rescources, self.t)
+                # saving data in ram for data processing, only when not paused
+                if not self.is_paused:
+                    ifdb.save_agent_data_RAM(self.agents, self.t)
+                    ifdb.save_resource_data_RAM(self.rescources, self.t)
 
             # Moving time forward
             if self.t % 500 == 0 or self.t == 1:
@@ -747,20 +885,28 @@ class Simulation:
             self.clock.tick(self.framerate)
 
         end_time = datetime.now()
-        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ", (end_time - start_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ",
+              (end_time - start_time).total_seconds())
 
         # Saving data from IFDB when simulation time is over
+        if self.agent_behave_param_list is not None:
+            if self.agent_behave_param_list[0].get("evo_summary_path") is not None:
+                pop_num = self.generate_evo_summary()
+        else:
+            pop_num = None
+
         if self.save_csv_files:
             if self.save_in_ifd or self.save_in_ram:
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
-                                      save_extracted_vfield=False)
-                env_saver.save_env_vars([self.env_path], "env_params.json")
+                                      save_extracted_vfield=False, pop_num=pop_num)
+                env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=pop_num)
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
                                 " or turn off CSV saving feature.")
 
         end_save_time = datetime.now()
-        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:", (end_save_time - end_time).total_seconds())
+        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:",
+              (end_save_time - end_time).total_seconds())
 
         pygame.quit()

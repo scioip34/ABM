@@ -243,3 +243,6 @@ cython_debug/
 *.json
 
 .idea
+
+# ignore all copied env files
+*_copy.env

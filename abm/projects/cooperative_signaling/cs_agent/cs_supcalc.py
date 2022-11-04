@@ -15,8 +15,6 @@ def random_walk(desired_vel=None, exp_theta_min=None, exp_theta_max=None):
         exp_theta_min = movement_params.exp_theta_min
     if exp_theta_max is None:
         exp_theta_max = movement_params.exp_theta_max
-    # dvel = np.random.uniform(movement_params.exp_vel_min,
-    #                          movement_params.exp_vel_max)
     dvel = desired_vel
     dtheta = np.random.uniform(exp_theta_min, exp_theta_max)
     return dvel, dtheta

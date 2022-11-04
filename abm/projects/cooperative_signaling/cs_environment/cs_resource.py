@@ -107,10 +107,11 @@ class CSResource(Rescource):
         self.velocity += (self.des_velocity - self.velocity)
 
         # updating agent's position
-        self.position[0] += self.velocity * np.cos(self.orientation)
-        self.position[1] -= self.velocity * np.sin(self.orientation)
-        self.center = (
-            self.position[0] + self.radius, self.position[1] + self.radius)
+        if not self.is_clicked:
+            self.position[0] += self.velocity * np.cos(self.orientation)
+            self.position[1] -= self.velocity * np.sin(self.orientation)
+            self.center = (
+                self.position[0] + self.radius, self.position[1] + self.radius)
 
         self.reflect_from_walls()
         self.draw_update()

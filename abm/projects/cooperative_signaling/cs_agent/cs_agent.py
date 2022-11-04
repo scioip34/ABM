@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 
 from abm.agent import supcalc
-from supcalc import random_walk, F_reloc_LR
+from cs_supcalc import random_walk, F_reloc_LR
 from abm.agent.agent import Agent
 from abm.contrib import colors
 

@@ -88,6 +88,12 @@ class Rescource(pygame.sprite.Sprite):
             self.update()
 
     def update(self):
+        """Updating the state variables of the resource patch and
+        redrawing it accordingly"""
+        self.draw_update()
+
+    def draw_update(self):
+        """Drawing resource patch according to current state variables"""
         # Initial Visualization of rescource
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)

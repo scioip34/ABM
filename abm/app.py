@@ -81,7 +81,8 @@ def start_playground():
 
 def save_isims_env(env_dir, _EXP_NAME, _pgt, _envconf):
     """translating a default parameters dictionary to an environment
-    file and using env variable keys instead of class attribute names"""
+    file and using env variable keys instead of class attribute names
+    :param env_dir: directory path of environemnt file"""
     def_params = _pgt.default_params
     def_env_vars = _pgt.def_env_vars
     translator_dict = _pgt.def_params_to_env_vars

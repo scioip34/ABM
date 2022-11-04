@@ -131,45 +131,28 @@ class CSSimulation(Simulation):
         """
         agent_proven = False
         while not agent_proven:
-            if behave_params is None:
-                agent = CSAgent(
-                    id=id,
-                    radius=self.agent_radii,
-                    position=(x, y),
-                    orientation=orient,
-                    env_size=(self.WIDTH, self.HEIGHT),
-                    color=colors.BLUE,
-                    v_field_res=self.v_field_res,
-                    FOV=self.agent_fov,
-                    window_pad=self.window_pad,
-                    pooling_time=self.pooling_time,
-                    pooling_prob=self.pooling_prob,
-                    consumption=self.agent_consumption,
-                    vision_range=self.vision_range,
-                    visual_exclusion=self.visual_exclusion,
-                    patchwise_exclusion=self.patchwise_exclusion,
-                    behave_params=None
-                )
-            else:
-                agent = CSAgent(
-                    id=id,
-                    radius=behave_params["agent_radius"],
-                    position=(x, y),
-                    orientation=orient,
-                    env_size=(self.WIDTH, self.HEIGHT),
-                    color=colors.BLUE,
-                    v_field_res=behave_params["v_field_res"],
-                    FOV=(-float(behave_params["agent_fov"]) * np.pi,
-                         float(behave_params["agent_fov"]) * np.pi),
-                    window_pad=self.window_pad,
-                    pooling_time=behave_params["pooling_time"],
-                    pooling_prob=behave_params["pooling_prob"],
-                    consumption=behave_params["agent_consumption"],
-                    vision_range=behave_params["vision_range"],
-                    visual_exclusion=self.visual_exclusion,
-                    patchwise_exclusion=self.patchwise_exclusion,
-                    behave_params=behave_params
-                )
+            agent = CSAgent(
+                id=id,
+                radius=self.agent_radii,
+                position=(x, y),
+                orientation=orient,
+                env_size=(self.WIDTH, self.HEIGHT),
+                color=colors.BLUE,
+                v_field_res=self.v_field_res,
+                FOV=self.agent_fov,
+                window_pad=self.window_pad,
+                pooling_time=self.pooling_time,
+                pooling_prob=self.pooling_prob,
+                consumption=self.agent_consumption,
+                vision_range=self.vision_range,
+                visual_exclusion=self.visual_exclusion,
+                phototaxis_theta_step=self.phototaxis_theta_step,
+                detection_range=self.detection_range,
+                resource_meter_multiplier=self.resource_meter_multiplier,
+                signalling_cost=self.signalling_cost,
+                patchwise_exclusion=self.patchwise_exclusion,
+                behave_params=None
+            )
             if with_proove:
                 if self.proove_sprite(agent):
                     self.agents.add(agent)

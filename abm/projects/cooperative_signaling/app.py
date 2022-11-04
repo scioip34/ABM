@@ -6,6 +6,8 @@ from dotenv import dotenv_values
 
 from abm.app import save_isims_env
 from cs_simulation.cs_isims import CSPlaygroundSimulation
+from abm.projects.cooperative_signaling.cs_contrib.cs_playgroundtool import \
+    setup_coop_sign_playground
 
 
 def setup_environment():
@@ -26,8 +28,6 @@ def start_playground():
     env_file_dir, EXP_NAME_COPY, envconf = setup_environment()
     # changing env file according to playground default parameters before
     # running any component of the SW
-    from abm.projects.cooperative_signaling.contrib.cs_playgroundtool import \
-        setup_coop_sign_playground
     pgt = setup_coop_sign_playground()
     save_isims_env(env_file_dir, EXP_NAME_COPY, pgt, envconf)
     # Start interactive simulation

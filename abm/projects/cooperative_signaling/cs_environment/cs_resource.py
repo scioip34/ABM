@@ -120,3 +120,16 @@ class CSResource(Rescource):
         # Initial Visualization of rescource
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)
+        self.image.set_colorkey(colors.BACKGROUND)
+        pygame.draw.circle(
+            self.image, self.color, (self.radius, self.radius), self.radius
+        )
+        self.rect = self.image.get_rect()
+        self.rect.centerx = self.center[0]
+        self.rect.centery = self.center[1]
+        self.mask = pygame.mask.from_surface(self.image)
+        if self.is_clicked or self.show_stats:
+            font = pygame.font.Font(None, 18)
+            text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
+            self.image.blit(text, (0, 0))
+            text_rect = text.get_rect(center=self.rect.center)

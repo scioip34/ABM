@@ -134,25 +134,6 @@ class CSAgent(Agent):
         elif self.agent_type == "relocation":
             self.color = colors.PURPLE
 
-    def draw_update(self):
-        """
-        updating the outlook of the agent according to position and orientation
-        """
-        # update position
-        self.rect.x = self.position[0]
-        self.rect.y = self.position[1]
-        # change agent color according to mode
-        self.change_color()
-        # update surface according to new orientation
-        # creating visualization surface for agent as a filled circle
-        self.image = pygame.Surface([self.radius * 2, self.radius * 2])
-        self.image.fill(colors.BACKGROUND)
-        self.image.set_colorkey(colors.BACKGROUND)
-
-        pygame.draw.circle(
-            self.image, self.color, (self.radius, self.radius), self.radius
-        )
-
     def calc_social_V_proj(self, agents):
         """Calculating the socially relevant visual projection field of the
         agent. This is calculated as the

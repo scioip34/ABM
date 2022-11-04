@@ -170,6 +170,17 @@ class CSSimulation(Simulation):
                 self.agents.add(agent)
                 agent_proven = True
 
+    def draw_walls(self):
+        """
+        Drwaing walls on the arena according to initialization, i.e. width,
+        height and padding
+        """
+        pygame.draw.circle(self.screen, colors.BLACK,
+                           center=[self.HEIGHT // 2 + self.window_pad,
+                                   self.WIDTH // 2 + self.window_pad],
+                           radius=self.HEIGHT // 2 - self.window_pad,
+                           width=1)
+
     def start(self):
         start_time = datetime.now()
         print(f"Running simulation start method!")

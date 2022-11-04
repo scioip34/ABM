@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 from abm.app import save_isims_env
-from simulation import CooperativeSignalingPlaygroundSimulation, \
+from simulation import CSPlaygroundSimulation, \
     setup_coop_sign_playground
 
 
@@ -30,7 +30,7 @@ def start_playground():
     pgt = setup_coop_sign_playground()
     save_isims_env(env_file_dir, EXP_NAME_COPY, pgt, envconf)
     # Start interactive simulation
-    sim = CooperativeSignalingPlaygroundSimulation()
+    sim = CSPlaygroundSimulation()
     sim.start()
 
 

@@ -12,6 +12,7 @@ from abm.agent import supcalc
 from abm.contrib import colors
 from abm.monitoring import ifdb, env_saver
 from abm.monitoring.ifdb import pad_to_n_digits
+from abm.projects.cooperative_signaling.agent import CSAgent
 from abm.simulation.isims import PlaygroundSimulation
 import abm.contrib.playgroundtool as pgt
 from abm.simulation.sims import Simulation
@@ -61,7 +62,7 @@ def setup_coop_sign_playground():
     return playground_tool
 
 
-class CooperativeSignalingSimulation(Simulation):
+class CSSimulation(Simulation):
     def __init__(self,
                  agent_behave_param_list=None,
                  collide_agents=True,
@@ -122,6 +123,60 @@ class CooperativeSignalingSimulation(Simulation):
                                       agent.position[
                                           1] + 2 * agent.radius + i * (
                                               font_size + spacing)))
+
+    def add_new_agent(self, id, x, y, orient, with_proove=False,
+                      behave_params=None):
+        """
+        Adding a single new agent into agent sprites
+        """
+        agent_proven = False
+        while not agent_proven:
+            if behave_params is None:
+                agent = CSAgent(
+                    id=id,
+                    radius=self.agent_radii,
+                    position=(x, y),
+                    orientation=orient,
+                    env_size=(self.WIDTH, self.HEIGHT),
+                    color=colors.BLUE,
+                    v_field_res=self.v_field_res,
+                    FOV=self.agent_fov,
+                    window_pad=self.window_pad,
+                    pooling_time=self.pooling_time,
+                    pooling_prob=self.pooling_prob,
+                    consumption=self.agent_consumption,
+                    vision_range=self.vision_range,
+                    visual_exclusion=self.visual_exclusion,
+                    patchwise_exclusion=self.patchwise_exclusion,
+                    behave_params=None
+                )
+            else:
+                agent = CSAgent(
+                    id=id,
+                    radius=behave_params["agent_radius"],
+                    position=(x, y),
+                    orientation=orient,
+                    env_size=(self.WIDTH, self.HEIGHT),
+                    color=colors.BLUE,
+                    v_field_res=behave_params["v_field_res"],
+                    FOV=(-float(behave_params["agent_fov"]) * np.pi,
+                         float(behave_params["agent_fov"]) * np.pi),
+                    window_pad=self.window_pad,
+                    pooling_time=behave_params["pooling_time"],
+                    pooling_prob=behave_params["pooling_prob"],
+                    consumption=behave_params["agent_consumption"],
+                    vision_range=behave_params["vision_range"],
+                    visual_exclusion=self.visual_exclusion,
+                    patchwise_exclusion=self.patchwise_exclusion,
+                    behave_params=behave_params
+                )
+            if with_proove:
+                if self.proove_sprite(agent):
+                    self.agents.add(agent)
+                    agent_proven = True
+            else:
+                self.agents.add(agent)
+                agent_proven = True
 
     def start(self):
         start_time = datetime.now()
@@ -237,8 +292,7 @@ class CooperativeSignalingSimulation(Simulation):
         # sys.exit()
 
 
-class CooperativeSignalingPlaygroundSimulation(PlaygroundSimulation,
-                                               CooperativeSignalingSimulation):
+class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
     """
     SEE: https://docs.python.org/3/tutorial/classes.html#multiple-inheritance
     """

@@ -5,7 +5,8 @@ from pathlib import Path
 from dotenv import dotenv_values
 
 from abm.app import save_isims_env
-from cs_simulation.cs_isims import CSPlaygroundSimulation
+from abm.projects.cooperative_signaling.cs_simulation.cs_isims import \
+    CSPlaygroundSimulation
 from abm.projects.cooperative_signaling.cs_contrib.cs_playgroundtool import \
     setup_coop_sign_playground
 

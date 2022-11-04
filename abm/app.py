@@ -73,19 +73,20 @@ def start_headless():
 def start_playground():
     # changing env file according to playground default parameters before
     # running any component of the SW
-    save_isims_env()
+    save_isims_env(root_abm_dir, EXP_NAME, pgt, envconf)
     # Start interactive simulation
     sim = PlaygroundSimulation()
     sim.start()
 
 
-def save_isims_env():
+def save_isims_env(env_dir, _EXP_NAME, _pgt, _envconf):
     """translating a default parameters dictionary to an environment
-    file and using env variable keys instead of class attribute names"""
-    def_params = pgt.default_params
-    def_env_vars = pgt.def_env_vars
-    translator_dict = pgt.def_params_to_env_vars
-    translated_dict = envconf
+    file and using env variable keys instead of class attribute names
+    :param env_dir: directory path of environemnt file"""
+    def_params = _pgt.default_params
+    def_env_vars = _pgt.def_env_vars
+    translator_dict = _pgt.def_params_to_env_vars
+    translated_dict = _envconf
 
     for k in def_params.keys():
         if k in list(translator_dict.keys()):
@@ -98,10 +99,10 @@ def save_isims_env():
     for def_env_name, def_env_val in def_env_vars.items():
         translated_dict[def_env_name] = def_env_val
 
-    print("Saving playground default params in env file under path ", root_abm_dir)
-    if os.path.isfile(os.path.join(root_abm_dir, f"{EXP_NAME}.env")):
-        os.remove(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
-    generate_env_file(translated_dict, f"{EXP_NAME}.env", root_abm_dir)
+    print("Saving playground default params in env file under path ", env_dir)
+    if os.path.isfile(os.path.join(env_dir, f"{_EXP_NAME}.env")):
+        os.remove(os.path.join(env_dir, f"{_EXP_NAME}.env"))
+    generate_env_file(translated_dict, f"{_EXP_NAME}.env", env_dir)
 
 def generate_env_file(env_data, file_name, save_folder):
     """Generating a single env file under save_folder with file_name including env_data as env format"""

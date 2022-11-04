@@ -1,10 +1,14 @@
 from datetime import datetime
 
+import numpy as np
 import pygame
 
+from abm.agent import supcalc
 from abm.contrib import colors
 from abm.monitoring import ifdb, env_saver
 from abm.projects.cooperative_signaling.cs_agent.cs_agent import CSAgent
+from abm.projects.cooperative_signaling.cs_environment.cs_resource import \
+    CSResource
 from abm.simulation.sims import Simulation
 
 
@@ -69,6 +73,65 @@ class CSSimulation(Simulation):
                                       agent.position[
                                           1] + 2 * agent.radius + i * (
                                               font_size + spacing)))
+
+    def add_new_resource_patch(self, force_id=None):
+        """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with
+        prove_resource method so that the distribution and overlap is following some predefined rules"""
+        max_retries = 7000
+        resource_proven = 0
+        if force_id is None:
+            # ID is not specified so we find a new one
+            if len(self.rescources) > 0:
+                _id = max([resc.id for resc in self.rescources])
+            else:
+                _id = 0
+        else:
+            _id = force_id
+        retries = 0
+        while not resource_proven:
+            if retries > max_retries:
+                raise Exception(
+                    "Reached timeout while trying to create resources without "
+                    "overlap!")
+            radius = self.resc_radius
+            if self.allow_border_patch_overlap:
+                # allowing patches to overlap arena borders (maximum overlap is
+                # radius of patch)
+                x = np.random.randint(self.window_pad - radius,
+                                      self.WIDTH + self.window_pad - radius)
+                y = np.random.randint(self.window_pad - radius,
+                                      self.HEIGHT + self.window_pad - radius)
+            else:
+                # for inhibiting patches to overlap arena borders
+                x = np.random.randint(self.window_pad,
+                                      self.WIDTH + self.window_pad - 2 * radius)
+                y = np.random.randint(self.window_pad,
+                                      self.HEIGHT + self.window_pad - 2 * radius)
+            units = np.random.randint(self.min_resc_units, self.max_resc_units)
+            quality = np.random.uniform(self.min_resc_quality,
+                                        self.max_resc_quality)
+
+            resource = CSResource(
+                id=_id + 1 if force_id is None else _id,
+                radius=radius,
+                position=(x, y),
+                env_size=(self.WIDTH, self.HEIGHT),
+                color=colors.GREY,
+                window_pad=self.window_pad,
+                resc_units=units,
+                quality=quality,
+                des_velocity=self.des_velocity_res,
+                res_theta_abs=self.res_theta_abs)
+
+            # we initialize the resources so that there is no resource-resource
+            # overlap, but there can be
+            # a resource-agent overlap
+            resource_proven = self.proove_sprite(resource,
+                                                 prove_with_agents=False,
+                                                 prove_with_res=True)
+            retries += 1
+        self.rescources.add(resource)
+        return resource.id
 
     def add_new_agent(self, id, x, y, orient, with_proove=False,
                       behave_params=None):
@@ -136,14 +199,13 @@ class CSSimulation(Simulation):
             for agent in self.agents.sprites():
                 # Currently only implemented with single resource patch
                 target_resource = self.rescources.sprites()[0]
-                # TODO: add meter to the agent class
                 # Saving previous values for phototaxis algorithm
-                # agent.prev_meter = agent.meter
-                # distance = supcalc.distance(agent, target_resource)
-                # if distance < agent.detection_range:
-                #     agent.meter = 1 - (distance / agent.detection_range)
-                # else:
-                #     agent.meter = 0
+                agent.prev_meter = agent.meter
+                distance = supcalc.distance(agent, target_resource)
+                if distance < agent.detection_range:
+                    agent.meter = 1 - (distance / agent.detection_range)
+                else:
+                    agent.meter = 0
 
             if not self.is_paused:
                 self.rescources.update()

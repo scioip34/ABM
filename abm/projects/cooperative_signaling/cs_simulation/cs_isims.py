@@ -176,3 +176,26 @@ class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
             filename = f"{pad_to_n_digits(self.t, n=6)}.jpeg"
             path = os.path.join(self.image_save_path, filename)
             pygame.image.save(self.screen, path)
+
+    def update_res_radius(self):
+        """Changing the resource patch radius according to slider value"""
+
+        for res in self.rescources:
+            # # update position
+            res.position[0] = res.center[0] - self.resc_radius
+            res.position[1] = res.center[1] - self.resc_radius
+            res.radius = self.resc_radius
+            res.des_velocity = self.V_res
+            res.rect.x = res.position[0]
+            res.rect.y = res.position[1]
+            res.draw_update()
+
+        for agent in self.agents:
+            agent.detection_range = self.resc_radius
+
+    def act_on_NRES_mismatch(self):
+        """
+        method is called if the requested amount of patches is not the same
+        as what the playground already has
+        """
+        pass

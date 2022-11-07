@@ -61,6 +61,7 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
             new_sign = sign_diff * np.sign(prev_theta)
         else:
             new_sign = taxis_dir
-    # change theta proportional to the meter values
-    new_theta = phototaxis_theta_step * new_sign * meter
+    # change theta proportionally to the meter values
+    # the larger the meter value, the smaller the turning angle
+    new_theta = phototaxis_theta_step * new_sign * (1 - meter)
     return new_theta

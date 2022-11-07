@@ -61,9 +61,7 @@ class CSAgent(Agent):
                     self.prev_meter,
                     self.theta_prev,
                     self.taxis_dir,
-                    self.phototaxis_theta_step,
-                    self.velocity,
-                    desired_velocity=2)
+                    self.phototaxis_theta_step)
                 self.agent_type = "mars_miner"
                 if self.meter > signalling_threshold:
                     self.agent_type = "signalling"

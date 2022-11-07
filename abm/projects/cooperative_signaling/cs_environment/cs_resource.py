@@ -46,7 +46,8 @@ class CSResource(Rescource):
 
     def reflect_from_walls(self):
         """
-        Reflecting resource from the circle arena border.
+        Reflecting resource from the circle arena border. Analogous to CSAgent
+        reflect_from_walls() method.
         """
         # x coordinate - x of the center point of the circle
         x = self.position[0] + self.radius

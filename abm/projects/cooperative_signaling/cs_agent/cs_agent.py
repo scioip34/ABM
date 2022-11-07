@@ -1,9 +1,8 @@
 import numpy as np
-import pygame
 
 from abm.agent import supcalc
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
-    F_reloc_LR
+from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
+    random_walk, F_reloc_LR, reflection_from_circular_wall
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
@@ -301,3 +300,31 @@ class CSAgent(Agent):
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
                 self.velocity = 1
+
+    def reflect_from_walls(self):
+        """
+        Reflecting agent from the circle arena border.
+        """
+        # x coordinate - x of the center point of the circle
+        x = self.position[0] + self.radius
+        dx = x - (self.WIDTH / 2 + self.window_pad)
+        # y coordinate - y of the center point of the circle
+        y = self.position[1] + self.radius
+        dy = y - (self.HEIGHT / 2 + self.window_pad)
+        # radius of the environment
+        e_r = self.HEIGHT / 2
+
+        # return if the agent has not reached the boarder
+        if np.linalg.norm([dx, dy]) + self.radius < e_r:
+            return
+
+        # reflect the agent from the boarder
+        self.orientation = reflection_from_circular_wall(
+            dx, dy, self.orientation)
+
+        # make orientation between 0 and 2pi
+        self.prove_orientation()
+
+        # relocate the agent back inside the circle
+        self.position[0] += (self.radius / 2) * np.cos(self.orientation)
+        self.position[1] -= (self.radius / 2) * np.sin(self.orientation)

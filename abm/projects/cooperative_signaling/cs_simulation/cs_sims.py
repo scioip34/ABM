@@ -94,19 +94,9 @@ class CSSimulation(Simulation):
                     "Reached timeout while trying to create resources without "
                     "overlap!")
             radius = self.resc_radius
-            if self.allow_border_patch_overlap:
-                # allowing patches to overlap arena borders (maximum overlap is
-                # radius of patch)
-                x = np.random.randint(self.window_pad - radius,
-                                      self.WIDTH + self.window_pad - radius)
-                y = np.random.randint(self.window_pad - radius,
-                                      self.HEIGHT + self.window_pad - radius)
-            else:
-                # for inhibiting patches to overlap arena borders
-                x = np.random.randint(self.window_pad,
-                                      self.WIDTH + self.window_pad - 2 * radius)
-                y = np.random.randint(self.window_pad,
-                                      self.HEIGHT + self.window_pad - 2 * radius)
+            # spawning resource in the middle of the environment
+            x = self.WIDTH / 2 + self.window_pad
+            y = self.HEIGHT / 2 + self.window_pad
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality,
                                         self.max_resc_quality)
@@ -170,15 +160,33 @@ class CSSimulation(Simulation):
                 self.agents.add(agent)
                 agent_proven = True
 
+    def create_agents(self):
+        """
+        Creating agents according to how the simulation class was initialized
+        """
+        for i in range(self.N):
+            orient = np.random.uniform(0, 2 * np.pi)
+            dist = np.random.rand() * (
+                    self.HEIGHT / 2 - 2 * self.window_pad - self.agent_radii)
+            x = np.cos(orient) * dist + self.WIDTH / 2
+            y = np.sin(orient) * dist + self.HEIGHT / 2
+            if not self.heterogen_agents:
+                # create agents according to environment variables homogeneously
+                self.add_new_agent(i, x, y, orient)
+            else:
+                self.add_new_agent(
+                    i, x, y, orient,
+                    behave_params=self.agent_behave_param_list[i])
+
     def draw_walls(self):
         """
-        Drwaing walls on the arena according to initialization, i.e. width,
+        Drawing walls on the arena according to initialization, i.e. width,
         height and padding
         """
         pygame.draw.circle(self.screen, colors.BLACK,
-                           center=[self.HEIGHT // 2 + self.window_pad,
-                                   self.WIDTH // 2 + self.window_pad],
-                           radius=self.HEIGHT // 2 - self.window_pad,
+                           center=[self.WIDTH / 2 + self.window_pad,
+                                   self.HEIGHT / 2 + self.window_pad],
+                           radius=self.HEIGHT / 2,
                            width=1)
 
     def start(self):

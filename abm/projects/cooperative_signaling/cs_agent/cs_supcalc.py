@@ -42,8 +42,8 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
                phototaxis_theta_step, velocity, desired_velocity):
     """
     Local phototaxis search according to differential meter values
-    :param meter: current meter (detector) value
-    :param prev_meter: meter (detector) value in previous timestep
+    :param meter: current meter (detector) value between 0 and 1
+    :param prev_meter: meter value in previous timestep between 0 and 1
     :param prev_theta: turning angle in previous timestep
     :param taxis_dir: phototaxis direction [-1, 1, None]
     :param phototaxis_theta_step: maximum turning angle during phototaxis
@@ -53,16 +53,17 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
     diff = meter - prev_meter
     sign_diff = np.sign(diff)
     # positive means the given change in orientation was correct
-    # negative means we need to turn the other direction
     # zero means we are moving in the right direction
     if sign_diff >= 0:
         new_sign = np.sign(prev_theta) if prev_theta != 0 else 1
+    # negative means we need to turn the other direction
     else:
         if taxis_dir is None:
+            # new sign is a flipped sign of the previous theta
             new_sign = sign_diff * np.sign(prev_theta)
         else:
             new_sign = taxis_dir
-
-    new_theta = phototaxis_theta_step * new_sign * meter
+    # change theta proportional to the difference in meter values
+    new_theta = phototaxis_theta_step * new_sign * np.abs(diff)
     new_vel = (desired_velocity - velocity)
     return new_vel, new_theta

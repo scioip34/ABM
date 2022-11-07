@@ -3,7 +3,8 @@ import pygame
 
 from abm.contrib import colors
 from abm.environment.rescource import Rescource
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk
+from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
+    reflection_from_circular_wall
 
 
 class CSResource(Rescource):
@@ -44,55 +45,33 @@ class CSResource(Rescource):
             self.orientation = self.orientation - 2 * np.pi
 
     def reflect_from_walls(self):
-        """reflecting agent from environment boundaries according to a desired
-        x, y coordinate. If this is over any
-        boundaries of the environment, the agents position and orientation will
-        be changed such that the agent is
-         reflected from these boundaries."""
-
-        # Boundary conditions according to center of agent (simple)
+        """
+        Reflecting resource from the circle arena border.
+        """
+        # x coordinate - x of the center point of the circle
         x = self.position[0] + self.radius
+        dx = x - (self.WIDTH / 2 + self.window_pad)
+        # y coordinate - y of the center point of the circle
         y = self.position[1] + self.radius
+        dy = y - (self.HEIGHT / 2 + self.window_pad)
+        # radius of the environment
+        e_r = self.HEIGHT / 2
 
-        # Reflection from left wall
-        if x < self.boundaries_x[0]:
-            self.position[0] = self.boundaries_x[0] - self.radius
+        # return if the agent has not reached the boarder
+        if np.linalg.norm([dx, dy]) + self.radius < e_r:
+            return
 
-            if np.pi / 2 <= self.orientation < np.pi:
-                self.orientation -= np.pi / 2
-            elif np.pi <= self.orientation <= 3 * np.pi / 2:
-                self.orientation += np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
+        # reflect the agent from the boarder
+        self.orientation = reflection_from_circular_wall(
+            dx, dy, self.orientation)
 
-        # Reflection from right wall
-        if x > self.boundaries_x[1]:
+        # make orientation between 0 and 2pi
+        self.prove_orientation()
 
-            self.position[0] = self.boundaries_x[1] - self.radius - 1
-
-            if 3 * np.pi / 2 <= self.orientation < 2 * np.pi:
-                self.orientation -= np.pi / 2
-            elif 0 <= self.orientation <= np.pi / 2:
-                self.orientation += np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-
-        # Reflection from upper wall
-        if y < self.boundaries_y[0]:
-            self.position[1] = self.boundaries_y[0] - self.radius
-
-            if np.pi / 2 <= self.orientation <= np.pi:
-                self.orientation += np.pi / 2
-            elif 0 <= self.orientation < np.pi / 2:
-                self.orientation -= np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-
-        # Reflection from lower wall
-        if y > self.boundaries_y[1]:
-            self.position[1] = self.boundaries_y[1] - self.radius - 1
-            if 3 * np.pi / 2 <= self.orientation <= 2 * np.pi:
-                self.orientation += np.pi / 2
-            elif np.pi <= self.orientation < 3 * np.pi / 2:
-                self.orientation -= np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
+        # relocate the agent back inside the circle
+        relocation = np.min([(self.radius / 2), 5])
+        self.position[0] += relocation * np.cos(self.orientation)
+        self.position[1] -= relocation * np.sin(self.orientation)
 
         self.center = (
             self.position[0] + self.radius, self.position[1] + self.radius)

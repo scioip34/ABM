@@ -36,3 +36,33 @@ def F_reloc_LR(vel_now, V_now, v_desired=None, theta_max=None):
     D_leftright = left_excitation - right_excitation
     theta = D_leftright * theta_max
     return (v_desired - vel_now), theta
+
+
+def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
+               phototaxis_theta_step, velocity, desired_velocity):
+    """
+    Local phototaxis search according to differential meter values
+    :param meter: current meter (detector) value
+    :param prev_meter: meter (detector) value in previous timestep
+    :param prev_theta: turning angle in previous timestep
+    :param taxis_dir: phototaxis direction [-1, 1, None]
+    :param phototaxis_theta_step: maximum turning angle during phototaxis
+    :param velocity: current velocity of agent
+    :param desired_velocity: desired velocity of agent
+    """
+    diff = meter - prev_meter
+    sign_diff = np.sign(diff)
+    # positive means the given change in orientation was correct
+    # negative means we need to turn the other direction
+    # zero means we are moving in the right direction
+    if sign_diff >= 0:
+        new_sign = np.sign(prev_theta) if prev_theta != 0 else 1
+    else:
+        if taxis_dir is None:
+            new_sign = sign_diff * np.sign(prev_theta)
+        else:
+            new_sign = taxis_dir
+
+    new_theta = phototaxis_theta_step * new_sign * meter
+    new_vel = (desired_velocity - velocity)
+    return new_vel, new_theta

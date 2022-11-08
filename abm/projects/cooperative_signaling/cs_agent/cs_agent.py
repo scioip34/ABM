@@ -56,12 +56,13 @@ class CSAgent(Agent):
 
         else:
             if self.meter > 0:
-                theta = phototaxis(
-                    self.meter,
-                    self.prev_meter,
-                    self.theta_prev,
-                    self.taxis_dir,
-                    self.phototaxis_theta_step)
+                theta, taxis_dir = phototaxis(
+                                        self.meter,
+                                        self.prev_meter,
+                                        self.theta_prev,
+                                        self.taxis_dir,
+                                        self.phototaxis_theta_step)
+                self.taxis_dir = taxis_dir
                 vel = (2 - self.velocity)
                 self.agent_type = "mars_miner"
                 if self.meter > signalling_threshold:

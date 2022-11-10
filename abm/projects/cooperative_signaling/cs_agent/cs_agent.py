@@ -59,11 +59,11 @@ class CSAgent(Agent):
         else:
             if self.meter > 0:
                 theta, taxis_dir = phototaxis(
-                                        self.meter,
-                                        self.prev_meter,
-                                        self.theta_prev,
-                                        self.taxis_dir,
-                                        self.phototaxis_theta_step)
+                    self.meter,
+                    self.prev_meter,
+                    self.theta_prev,
+                    self.taxis_dir,
+                    self.phototaxis_theta_step)
                 self.taxis_dir = taxis_dir
                 vel = (2 - self.velocity)
                 self.agent_type = "mars_miner"
@@ -86,12 +86,15 @@ class CSAgent(Agent):
             self.velocity += vel
             # self.prove_velocity()  # possibly bounding velocity of agent
 
-            # updating agent's position
-            self.position[0] += self.velocity * np.cos(self.orientation)
-            self.position[1] -= self.velocity * np.sin(self.orientation)
+            # new agent's position
+            new_pos = (
+                self.position[0] + self.velocity * np.cos(self.orientation),
+                self.position[1] - self.velocity * np.sin(self.orientation)
+            )
 
-            # boundary conditions if applicable
-            self.reflect_from_walls()
+            # update the agent's position with constraints (reflection from the
+            # walls) or with the new position
+            self.position = self.reflect_from_walls(new_pos)
         else:
             # self.agent_type = "signalling"
             print(self.meter)
@@ -289,22 +292,22 @@ class CSAgent(Agent):
                 # stopping agent if too fast during exploration
                 self.velocity = 1
 
-    def reflect_from_walls(self):
+    def reflect_from_walls(self, new_pos=()):
         """
         Reflecting agent from the circle arena border.
         """
         # x coordinate - x of the center point of the circle
-        x = self.position[0] + self.radius
+        x = new_pos[0] + self.radius
         dx = x - (self.WIDTH / 2 + self.window_pad)
         # y coordinate - y of the center point of the circle
-        y = self.position[1] + self.radius
+        y = new_pos[1] + self.radius
         dy = y - (self.HEIGHT / 2 + self.window_pad)
         # radius of the environment
         e_r = self.HEIGHT / 2
 
         # return if the agent has not reached the boarder
         if np.linalg.norm([dx, dy]) + self.radius < e_r:
-            return
+            return new_pos
 
         # reflect the agent from the boarder
         self.orientation = reflection_from_circular_wall(
@@ -314,5 +317,7 @@ class CSAgent(Agent):
         self.prove_orientation()
 
         # relocate the agent back inside the circle
-        self.position[0] += (self.radius / 2) * np.cos(self.orientation)
-        self.position[1] -= (self.radius / 2) * np.sin(self.orientation)
+        return (
+            self.position[0] + (self.radius / 2) * np.cos(self.orientation),
+            self.position[1] - (self.radius / 2) * np.sin(self.orientation)
+        )

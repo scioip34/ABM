@@ -68,11 +68,11 @@ class CSSimulation(Simulation):
                 ]
                 for i, stat_i in enumerate(status):
                     text = font.render(stat_i, True, colors.BLACK)
-                    self.screen.blit(text,
-                                     (agent.position[0] + 2 * agent.radius,
-                                      agent.position[
-                                          1] + 2 * agent.radius + i * (
-                                              font_size + spacing)))
+                    self.screen.blit(
+                        text,
+                        (agent.position[0] + 2 * agent.radius,
+                         agent.position[1] + 2 * agent.radius + i * (
+                                 font_size + spacing)))
 
     def add_new_resource_patch(self, force_id=None):
         """Adding a new resource patch to the resources sprite group. The position of the new resource is proved with

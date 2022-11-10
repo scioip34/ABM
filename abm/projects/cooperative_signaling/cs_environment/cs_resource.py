@@ -58,19 +58,19 @@ class CSResource(Rescource):
         # radius of the environment
         e_r = self.HEIGHT / 2
 
-        # return if the agent has not reached the boarder
+        # return if the resource has not reached the boarder
         if np.linalg.norm([dx, dy]) + self.radius < e_r:
             return
 
-        # reflect the agent from the boarder
+        # reflect the resource from the boarder
         self.orientation = reflection_from_circular_wall(
             dx, dy, self.orientation)
 
         # make orientation between 0 and 2pi
         self.prove_orientation()
 
-        # relocate the agent back inside the circle
-        relocation = np.min([(self.radius / 2), 5])
+        # relocate the resource back inside the circle
+        relocation = self.velocity
         self.position[0] += relocation * np.cos(self.orientation)
         self.position[1] -= relocation * np.sin(self.orientation)
 

@@ -1,11 +1,10 @@
 import numpy as np
-import pygame
 
 from abm.agent import supcalc
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
-    F_reloc_LR
 from abm.agent.agent import Agent
 from abm.contrib import colors
+from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
+    F_reloc_LR, phototaxis
 
 
 class CSAgent(Agent):
@@ -32,28 +31,6 @@ class CSAgent(Agent):
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
 
-    def phototaxis(self, desired_velocity):
-        """Local phototaxis search according to differential meter values"""
-        diff = self.meter - self.prev_meter
-        sign_diff = np.sign(diff)
-        # positive means the given change in orientation was correct
-        # negative means we need to turn the other direction
-        # zero means we are moving in the right direction
-        if sign_diff >= 0:
-            new_sign = sign_diff * np.sign(self.theta_prev)
-            if new_sign == 0:
-                new_sign = 1
-            new_theta = self.phototaxis_theta_step * new_sign * self.meter
-            self.taxis_dir = None
-        else:
-            if self.taxis_dir is None:
-                self.taxis_dir = sign_diff * np.sign(self.theta_prev)
-            new_sign = self.taxis_dir
-            new_theta = self.phototaxis_theta_step * new_sign * self.meter
-
-        new_vel = (desired_velocity - self.velocity)
-        return new_vel, new_theta
-
     def update(self, agents):
         """
         main update method of the agent. This method is called in every timestep
@@ -79,21 +56,27 @@ class CSAgent(Agent):
 
         else:
             if self.meter > 0:
-                vel, theta = self.phototaxis(
-                    desired_velocity=2)
+                theta, taxis_dir = phototaxis(
+                                        self.meter,
+                                        self.prev_meter,
+                                        self.theta_prev,
+                                        self.taxis_dir,
+                                        self.phototaxis_theta_step)
+                self.taxis_dir = taxis_dir
+                vel = (2 - self.velocity)
                 self.agent_type = "mars_miner"
-                # vel = (2 - self.velocity)
                 if self.meter > signalling_threshold:
                     self.agent_type = "signalling"
             else:
-                # carry out movemnt accordingly
+                # carry out movement accordingly
                 vel, theta = random_walk(desired_vel=self.max_exp_vel)
                 vel = (2 - self.velocity)
                 self.agent_type = "mars_miner"
 
         # updating position accordingly
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
-            # updating agent's state variables according to calculated vel and theta
+            # updating agent's state variables according to calculated vel and
+            # theta
             self.orientation += theta
             # storing theta in short term memory for phototaxis
             self.theta_prev = theta
@@ -126,7 +109,10 @@ class CSAgent(Agent):
             self.collected_r -= self.signalling_cost
 
     def change_color(self):
-        """Changing color of agent according to the behavioral mode the agent is currently in."""
+        """
+        Changing color of agent according to the behavioral mode the agent is
+        currently in.
+        """
         if self.agent_type == "mars_miner":
             self.color = colors.BLUE
         elif self.agent_type == "signalling":
@@ -135,10 +121,11 @@ class CSAgent(Agent):
             self.color = colors.PURPLE
 
     def calc_social_V_proj(self, agents):
-        """Calculating the socially relevant visual projection field of the
-        agent. This is calculated as the
-        projection of nearby exploiting agents that are not visually excluded
-        by other agents"""
+        """
+        Calculating the socially relevant visual projection field of the agent.
+        This is calculated as theprojection of nearby exploiting agents that are
+        not visually excluded by other agents
+        """
         signalling = [ag for ag in agents if ag.agent_type == "signalling"]
         self.soc_v_field = self.projection_field(signalling,
                                                  keep_distance_info=True)
@@ -151,14 +138,12 @@ class CSAgent(Agent):
         :param obstacles: list of agents (with same radius) or some other
         obstacle sprites to generate projection field
         :param keep_distance_info: if True, the amplitude of the vpf will
-        reflect the distance of the object from the
-            agent so that exclusion can be easily generated with a single
-            computational step
-        :param non_expl_agents: a list of non-scoial visual cues (non-exploiting
-        agents) that on the other hand can still
-            produce visual exlusion on the projection of social cues. If None
-            only social cues can produce visual
-            exclusion on each other
+        reflect the distance of the object from the agent so that exclusion can
+        be easily generated with a single computational step
+        :param non_expl_agents: a list of non-social visual cues (non-exploiting
+        agents) that on the other hand can still produce visual exclusion on the
+        projection of social cues. If None only social cues can produce visual
+        exclusion on each other
         :param fov: touple of number with borders of fov such as (-np.pi,np.pi),
         if None, self.FOV will be used
         """

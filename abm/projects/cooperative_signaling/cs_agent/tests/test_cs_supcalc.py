@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from abm.projects.cooperative_signaling.cs_agent import cs_supcalc
 
@@ -33,3 +34,42 @@ def test_reflection_from_circular_wall():
     new_orientation = cs_supcalc.reflection_from_circular_wall(
         0, 1, orient)
     assert new_orientation == i_orientation
+
+
+@pytest.mark.parametrize(
+    "meter, prev_meter, prev_theta, taxis_dir, new_theta, new_taxis_dir",
+    [
+        # no change in meter, prev. taxis_dir is None
+        # turn according to prev_theta and set it 1 if prev_theta 0
+        (1, 1, 0, None, 1, None),
+        (1, 1, 1, None, 1, None),
+        (1, 1, -1, None, -1, None),
+
+        # previous meter was larger
+        # and prev_theta > 0
+        (0, 1, 1, None, 0, -1),
+        # prev_theta < 0
+        (0, 1, -1, None, 0, 1),
+
+        # previous meter was smaller
+        # prev_theta > 0
+        (1, 0, 1, None, 1, None),
+        # prev_theta < 0
+        (1, 0, -1, None, -1, None),
+
+        # previous meter was smaller
+        # prev_theta > 0
+        (0.1, 0, 1, None, 0.1, None),
+        # prev_theta < 0
+        (0.1, 0, -1, None, -0.1, None),
+    ]
+)
+def test_phototaxis(meter, prev_meter, prev_theta, taxis_dir, new_theta, new_taxis_dir):
+    """Test phototaxis()"""
+    phototaxis_theta_step = 1
+
+    _new_theta, _new_taxis_dir = cs_supcalc.phototaxis(
+        meter, prev_meter, prev_theta, taxis_dir, phototaxis_theta_step)
+
+    assert new_theta == _new_theta
+    assert new_taxis_dir == _new_taxis_dir

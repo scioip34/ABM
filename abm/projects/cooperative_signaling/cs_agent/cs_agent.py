@@ -2,11 +2,9 @@ import numpy as np
 
 from abm.agent import supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
-    random_walk, F_reloc_LR, reflection_from_circular_wall
+    reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis
 from abm.agent.agent import Agent
 from abm.contrib import colors
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
-    F_reloc_LR, phototaxis
 
 
 class CSAgent(Agent):

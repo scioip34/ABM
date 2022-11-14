@@ -296,10 +296,12 @@ class CSAgent(Agent):
         """
         # x coordinate - x of the center point of the circle
         x = new_pos[0] + self.radius
-        dx = x - (self.WIDTH / 2 + self.window_pad)
+        c_x = (self.WIDTH / 2 + self.window_pad)
+        dx = x - c_x
         # y coordinate - y of the center point of the circle
         y = new_pos[1] + self.radius
-        dy = y - (self.HEIGHT / 2 + self.window_pad)
+        c_y = (self.HEIGHT / 2 + self.window_pad)
+        dy = y - c_y
         # radius of the environment
         e_r = self.HEIGHT / 2
 
@@ -315,8 +317,17 @@ class CSAgent(Agent):
         self.prove_orientation()
 
         # relocate the agent back inside the circle
-
-        return (
+        new_pos = (
             self.position[0] + self.velocity * np.cos(self.orientation),
             self.position[1] - self.velocity * np.sin(self.orientation)
         )
+        # check if the agent is still outside the circle
+        diff = [new_pos[0] - c_x, new_pos[1] - c_y]
+        if np.linalg.norm(diff) + self.radius >= e_r:
+            # if yes, relocate it again
+            dist = np.linalg.norm(diff) + self.radius - e_r
+            new_pos = (
+                self.position[0] + dist * np.cos(self.orientation),
+                self.position[1] - dist * np.sin(self.orientation)
+            )
+        return new_pos

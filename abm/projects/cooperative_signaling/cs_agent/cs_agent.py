@@ -92,7 +92,7 @@ class CSAgent(Agent):
 
             # update the agent's position with constraints (reflection from the
             # walls) or with the new position
-            self.position = self.reflect_from_walls(new_pos)
+            self.position = list(self.reflect_from_walls(new_pos))
         else:
             # self.agent_type = "signalling"
             print(self.meter)

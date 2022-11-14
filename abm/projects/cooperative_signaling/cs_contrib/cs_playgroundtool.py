@@ -7,7 +7,7 @@ def setup_coop_sign_playground():
     # update default parameters
     playground_tool.default_params["framerate"] = 60
     playground_tool.default_params["N_resc"] = 1
-    playground_tool.default_params["patch_radius"] = 1
+    playground_tool.default_params["patch_radius"] = 40
     # new default parameters
     playground_tool.default_params["collide_agents"] = False
     playground_tool.default_params["phototaxis_theta_step"] = 0.2

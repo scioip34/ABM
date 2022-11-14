@@ -246,3 +246,6 @@ cython_debug/
 
 # ignore all copied env files
 *_copy.env
+
+# ignore videos
+*.mp4

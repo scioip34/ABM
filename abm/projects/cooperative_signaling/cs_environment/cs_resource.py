@@ -3,7 +3,8 @@ import pygame
 
 from abm.contrib import colors
 from abm.environment.rescource import Rescource
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk
+from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
+    reflection_from_circular_wall
 
 
 class CSResource(Rescource):
@@ -44,58 +45,44 @@ class CSResource(Rescource):
             self.orientation = self.orientation - 2 * np.pi
 
     def reflect_from_walls(self):
-        """reflecting agent from environment boundaries according to a desired
-        x, y coordinate. If this is over any
-        boundaries of the environment, the agents position and orientation will
-        be changed such that the agent is
-         reflected from these boundaries."""
-
-        # Boundary conditions according to center of agent (simple)
+        """
+        Reflecting resource from the circle arena border. Analogous to CSAgent
+        reflect_from_walls() method.
+        """
+        # x coordinate - x of the center point of the circle
         x = self.position[0] + self.radius
+        c_x = (self.WIDTH / 2 + self.window_pad)
+        dx = x - c_x
+        # y coordinate - y of the center point of the circle
         y = self.position[1] + self.radius
+        c_y = (self.HEIGHT / 2 + self.window_pad)
+        dy = y - c_y
+        # radius of the environment
+        e_r = self.HEIGHT / 2
 
-        # Reflection from left wall
-        if x < self.boundaries_x[0]:
-            self.position[0] = self.boundaries_x[0] - self.radius
+        # return if the resource has not reached the boarder
+        if np.linalg.norm([dx, dy]) + self.radius < e_r:
+            return
 
-            if np.pi / 2 <= self.orientation < np.pi:
-                self.orientation -= np.pi / 2
-            elif np.pi <= self.orientation <= 3 * np.pi / 2:
-                self.orientation += np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
+        # reflect the resource from the boarder
+        self.orientation = reflection_from_circular_wall(
+            dx, dy, self.orientation)
 
-        # Reflection from right wall
-        if x > self.boundaries_x[1]:
+        # make orientation between 0 and 2pi
+        self.prove_orientation()
 
-            self.position[0] = self.boundaries_x[1] - self.radius - 1
-
-            if 3 * np.pi / 2 <= self.orientation < 2 * np.pi:
-                self.orientation -= np.pi / 2
-            elif 0 <= self.orientation <= np.pi / 2:
-                self.orientation += np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-
-        # Reflection from upper wall
-        if y < self.boundaries_y[0]:
-            self.position[1] = self.boundaries_y[0] - self.radius
-
-            if np.pi / 2 <= self.orientation <= np.pi:
-                self.orientation += np.pi / 2
-            elif 0 <= self.orientation < np.pi / 2:
-                self.orientation -= np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-
-        # Reflection from lower wall
-        if y > self.boundaries_y[1]:
-            self.position[1] = self.boundaries_y[1] - self.radius - 1
-            if 3 * np.pi / 2 <= self.orientation <= 2 * np.pi:
-                self.orientation += np.pi / 2
-            elif np.pi <= self.orientation < 3 * np.pi / 2:
-                self.orientation -= np.pi / 2
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-
+        # relocate the resource back inside the circle
+        relocation = self.velocity
+        self.position[0] += relocation * np.cos(self.orientation)
+        self.position[1] -= relocation * np.sin(self.orientation)
         self.center = (
             self.position[0] + self.radius, self.position[1] + self.radius)
+
+        # check if the resource is still outside the circle
+        diff = [self.center[0] - c_x, self.center[1] - c_y]
+        if np.linalg.norm(diff) + self.radius >= e_r:
+            # if yes, relocate it again at the center
+            self.center = (c_x, c_y)
 
     def update(self):
 
@@ -130,6 +117,8 @@ class CSResource(Rescource):
         self.mask = pygame.mask.from_surface(self.image)
         if self.is_clicked or self.show_stats:
             font = pygame.font.Font(None, 18)
-            text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
+            text = font.render(
+                f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True,
+                colors.BLACK)
             self.image.blit(text, (0, 0))
             text_rect = text.get_rect(center=self.rect.center)

@@ -199,3 +199,31 @@ class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
         as what the playground already has
         """
         pass
+
+    def act_on_N_mismatch(self):
+        """
+        method is called if the requested amount of agents is not the same as
+        what the playground already has
+        """
+        if self.N > len(self.agents):
+            diff = self.N - len(self.agents)
+            for i in range(diff):
+                ag_id = len(self.agents)
+                orient = np.random.uniform(0, 2 * np.pi)
+                dist = np.random.rand() * (
+                        self.HEIGHT / 2 - 2 * self.window_pad -
+                        self.agent_radii)
+                x = np.cos(orient) * dist + self.WIDTH / 2
+                y = np.sin(orient) * dist + self.HEIGHT / 2
+                self.add_new_agent(ag_id, x, y, orient, with_proove=False)
+            self.update_agent_decision_params()
+            self.update_agent_fovs()
+        else:
+            while self.N < len(self.agents):
+                for i, ag in enumerate(self.agents):
+                    if i == len(self.agents) - 1:
+                        ag.kill()
+        if self.show_all_stats:
+            for ag in self.agents:
+                ag.show_stats = True
+        self.stats, self.stats_pos = self.create_vis_field_graph()

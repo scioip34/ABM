@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from unittest import mock
 
 from abm.projects.cooperative_signaling.cs_agent import cs_supcalc
 
@@ -9,10 +10,22 @@ def test_random_walk():
     # set random seed
     np.random.seed(42)
 
-    dvel, dtheta = cs_supcalc.random_walk()
-
+    # passing values to override abm.movementparams values read from .env file
+    dvel, dtheta = cs_supcalc.random_walk(desired_vel=1, exp_theta_min=-0.3, exp_theta_max=0.3)
     assert dvel == 1.0
     assert dtheta == -0.0752759286915825
+
+    # test case: not passing min theta, read from module fixed var
+    with mock.patch('abm.contrib.movement_params.exp_theta_min', -0.5):
+        dvel, dtheta = cs_supcalc.random_walk(desired_vel=1, exp_theta_min=None, exp_theta_max=0.3)
+        assert dvel == 1.0
+        assert dtheta == 0.26057144512793295
+
+    # test case: not passing velocity, read from module fixed var
+    with mock.patch('abm.contrib.movement_params.exp_vel_max', 3):
+        dvel, dtheta = cs_supcalc.random_walk(desired_vel=None, exp_theta_min=-0.3, exp_theta_max=0.3)
+        assert dvel == 3
+        assert dtheta == 0.13919636508684308
 
 
 def test_reflection_from_circular_wall():

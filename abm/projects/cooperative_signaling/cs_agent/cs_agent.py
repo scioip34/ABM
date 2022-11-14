@@ -315,7 +315,8 @@ class CSAgent(Agent):
         self.prove_orientation()
 
         # relocate the agent back inside the circle
+
         return (
-            self.position[0] + (self.radius / 2) * np.cos(self.orientation),
-            self.position[1] - (self.radius / 2) * np.sin(self.orientation)
+            self.position[0] + self.velocity * np.cos(self.orientation),
+            self.position[1] - self.velocity * np.sin(self.orientation)
         )

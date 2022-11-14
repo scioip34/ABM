@@ -51,10 +51,12 @@ class CSResource(Rescource):
         """
         # x coordinate - x of the center point of the circle
         x = self.position[0] + self.radius
-        dx = x - (self.WIDTH / 2 + self.window_pad)
+        c_x = (self.WIDTH / 2 + self.window_pad)
+        dx = x - c_x
         # y coordinate - y of the center point of the circle
         y = self.position[1] + self.radius
-        dy = y - (self.HEIGHT / 2 + self.window_pad)
+        c_y = (self.HEIGHT / 2 + self.window_pad)
+        dy = y - c_y
         # radius of the environment
         e_r = self.HEIGHT / 2
 
@@ -73,9 +75,14 @@ class CSResource(Rescource):
         relocation = self.velocity
         self.position[0] += relocation * np.cos(self.orientation)
         self.position[1] -= relocation * np.sin(self.orientation)
-
         self.center = (
             self.position[0] + self.radius, self.position[1] + self.radius)
+
+        # check if the resource is still outside the circle
+        diff = [self.center[0] - c_x, self.center[1] - c_y]
+        if np.linalg.norm(diff) + self.radius >= e_r:
+            # if yes, relocate it again at the center
+            self.center = (c_x, c_y)
 
     def update(self):
 
@@ -110,6 +117,8 @@ class CSResource(Rescource):
         self.mask = pygame.mask.from_surface(self.image)
         if self.is_clicked or self.show_stats:
             font = pygame.font.Font(None, 18)
-            text = font.render(f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True, colors.BLACK)
+            text = font.render(
+                f"{self.resc_left:.2f}, Q{self.unit_per_timestep:.2f}", True,
+                colors.BLACK)
             self.image.blit(text, (0, 0))
             text_rect = text.get_rect(center=self.rect.center)

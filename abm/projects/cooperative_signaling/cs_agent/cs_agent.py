@@ -1,4 +1,5 @@
 import numpy as np
+import pygame
 
 from abm.agent import supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
@@ -29,6 +30,7 @@ class CSAgent(Agent):
         # signaling
         self.signalling_cost = signalling_cost
         self.is_signaling = False
+        self.signaling_marker_radius = 2
 
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
@@ -121,6 +123,23 @@ class CSAgent(Agent):
             self.color = colors.BLUE
         elif self.agent_type == "relocation":
             self.color = colors.PURPLE
+
+    def draw_update(self):
+        """
+        Updating the agent's visualization according to the current behavioral
+        mode of the agent
+        """
+        # run the basic draw update method
+        super().draw_update()
+
+        # draw signaling marker
+        if self.is_signaling:
+            pygame.draw.circle(
+                self.image,
+                colors.RED,
+                (self.radius, self.radius),
+                self.signaling_marker_radius
+            )
 
     def calc_social_V_proj(self, agents):
         """

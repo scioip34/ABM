@@ -137,4 +137,4 @@ def signaling(meter):
     :return: boolean value indicating whether the agent is signaling or not
     """
 
-    return True if meter > 0.5 else False
+    return True if meter > 0.2 else False

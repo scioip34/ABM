@@ -2,7 +2,8 @@ import numpy as np
 
 from abm.agent import supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
-    reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis
+    reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis, \
+    signaling
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
@@ -13,8 +14,6 @@ class CSAgent(Agent):
         super().__init__(**kwargs)
 
         # creating agent status
-        # todo: mutually exclusive states mean that agents can not signal while
-        #  relocate
         self.agent_type = "mars_miner"
         self.meter = 0  # between 0 and 1
         self.prev_meter = 0  # for phototaxis
@@ -26,7 +25,10 @@ class CSAgent(Agent):
         self.detection_range = detection_range
         # for unit detected resource value how much resource should I gain
         self.resource_meter_multiplier = resource_meter_multiplier
+
+        # signaling
         self.signalling_cost = signalling_cost
+        self.is_signaling = False
 
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
@@ -51,8 +53,6 @@ class CSAgent(Agent):
             vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
                                     theta_max=2.5)
             self.agent_type = "relocation"
-            if self.meter > signalling_threshold:
-                self.agent_type = "signalling"
 
         else:
             if self.meter > 0:
@@ -65,8 +65,6 @@ class CSAgent(Agent):
                 self.taxis_dir = taxis_dir
                 vel = (2 - self.velocity)
                 self.agent_type = "mars_miner"
-                if self.meter > signalling_threshold:
-                    self.agent_type = "signalling"
             else:
                 # carry out movement accordingly
                 vel, theta = random_walk(desired_vel=self.max_exp_vel)
@@ -97,6 +95,9 @@ class CSAgent(Agent):
             # self.agent_type = "signalling"
             print(self.meter)
 
+        # update agent's signaling behavior
+        self.is_signaling = signaling(self.meter)
+
         # updating agent visualization
         self.draw_update()
         self.collected_r_before = self.collected_r
@@ -118,8 +119,6 @@ class CSAgent(Agent):
         """
         if self.agent_type == "mars_miner":
             self.color = colors.BLUE
-        elif self.agent_type == "signalling":
-            self.color = colors.RED
         elif self.agent_type == "relocation":
             self.color = colors.PURPLE
 
@@ -129,7 +128,7 @@ class CSAgent(Agent):
         This is calculated as theprojection of nearby exploiting agents that are
         not visually excluded by other agents
         """
-        signalling = [ag for ag in agents if ag.agent_type == "signalling"]
+        signalling = [ag for ag in agents if ag.is_signaling]
         self.soc_v_field = self.projection_field(signalling,
                                                  keep_distance_info=True)
 

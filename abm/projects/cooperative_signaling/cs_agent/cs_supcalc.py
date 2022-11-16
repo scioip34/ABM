@@ -129,3 +129,12 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
     # agents need to turn faster to stay close to the center.
     new_theta = phototaxis_theta_step * new_sign * meter
     return new_theta, new_taxis_dir
+
+
+def signaling(meter):
+    """
+    :param meter: current meter (detector) value between 0 and 1
+    :return: boolean value indicating whether the agent is signaling or not
+    """
+
+    return True if meter > 0.5 else False

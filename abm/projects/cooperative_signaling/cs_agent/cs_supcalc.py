@@ -131,7 +131,7 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
     return new_theta, new_taxis_dir
 
 
-def signaling(meter):
+def signaling(meter, signaling_cost):
     """
     :param meter: current meter (detector) value between 0 and 1
     :return: boolean value indicating whether the agent is signaling or not

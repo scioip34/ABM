@@ -98,7 +98,7 @@ class CSAgent(Agent):
             print(self.meter)
 
         # update agent's signaling behavior
-        self.is_signaling = signaling(self.meter)
+        self.is_signaling = signaling(self.meter, self.signalling_cost)
 
         # updating agent visualization
         self.draw_update()

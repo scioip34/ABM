@@ -31,6 +31,7 @@ class CSAgent(Agent):
         self.signalling_cost = signalling_cost
         self.is_signaling = False
         self.signaling_marker_radius = 5
+        self.signalling_color = colors.GREEN
 
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
@@ -134,12 +135,20 @@ class CSAgent(Agent):
 
         # draw signaling marker
         if self.is_signaling:
-            pygame.draw.circle(
+            pygame.gfxdraw.filled_circle(
                 self.image,
-                colors.GREEN,
-                (self.radius, self.radius),
-                self.signaling_marker_radius
+                self.radius,
+                self.radius,
+                self.signaling_marker_radius,
+                self.signalling_color
             )
+            pygame.gfxdraw.aacircle(self.image,
+                                    self.radius,
+                                    self.radius,
+                                    self.signaling_marker_radius,
+                                    colors.BACKGROUND)
+
+
 
     def calc_social_V_proj(self, agents):
         """

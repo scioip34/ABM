@@ -11,7 +11,8 @@ from abm.contrib import colors
 
 class CSAgent(Agent):
     def __init__(self, phototaxis_theta_step, detection_range,
-                 resource_meter_multiplier, signalling_cost, **kwargs):
+                 resource_meter_multiplier, signalling_cost,
+                 probability_of_starting_signaling, **kwargs):
         super().__init__(**kwargs)
 
         # creating agent status
@@ -32,6 +33,8 @@ class CSAgent(Agent):
         self.is_signaling = False
         self.signaling_marker_radius = 5
         self.signalling_color = colors.GREEN
+        self.probability_of_starting_signaling = \
+            probability_of_starting_signaling
 
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
@@ -99,7 +102,9 @@ class CSAgent(Agent):
             print(self.meter)
 
         # update agent's signaling behavior
-        self.is_signaling = signaling(self.meter, self.signalling_cost)
+        self.is_signaling = signaling(
+            self.meter, self.is_signaling, self.signalling_cost,
+            self.probability_of_starting_signaling)
 
         # updating agent visualization
         self.draw_update()
@@ -147,8 +152,6 @@ class CSAgent(Agent):
                                     self.radius,
                                     self.signaling_marker_radius,
                                     colors.BACKGROUND)
-
-
 
     def calc_social_V_proj(self, agents):
         """

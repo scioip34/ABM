@@ -18,4 +18,3 @@ def test_agent_parameters():
     assert params.agent_decision.eps_w == 2.0
     assert params.agent_movement.exp_vel_min == 0.5
     assert params.agent_movement.reloc_des_vel == 0.5
-

@@ -52,5 +52,6 @@ class AgentParameters(BaseSettings):
     agent_decision: DecisionParameters
 
     class Config:
+        env_file = '.env'
         env_nested_delimiter = '__'
 

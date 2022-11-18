@@ -19,7 +19,8 @@ class CSSimulation(Simulation):
                  phototaxis_theta_step=0.2,
                  detection_range=120,
                  resource_meter_multiplier=1,
-                 signalling_cost=0.5,
+                 signalling_cost=0.2,
+                 probability_of_starting_signaling=0.8,
                  des_velocity_res=1.5,
                  res_theta_abs=0.2,
                  **kwargs):
@@ -31,6 +32,7 @@ class CSSimulation(Simulation):
         :param resource_meter_multiplier: scaling factor of how much resource is
          extraxted for a detected resource unit
         :param signalling_cost: cost of signalling in resource units
+        :param probability_of_starting_signaling: probability of starting signaling
         :param des_velocity_res: desired velocity of resource patch in pixel per
         timestep
         :param res_theta_abs: change in orientation will be pulled from uniform
@@ -43,6 +45,8 @@ class CSSimulation(Simulation):
         self.detection_range = detection_range
         self.resource_meter_multiplier = resource_meter_multiplier
         self.signalling_cost = signalling_cost
+        self.probability_of_starting_signaling = \
+            probability_of_starting_signaling
         self.des_velocity_res = des_velocity_res
         self.res_theta_abs = res_theta_abs
 
@@ -149,6 +153,8 @@ class CSSimulation(Simulation):
                 detection_range=self.detection_range,
                 resource_meter_multiplier=self.resource_meter_multiplier,
                 signalling_cost=self.signalling_cost,
+                probability_of_starting_signaling=
+                self.probability_of_starting_signaling,
                 patchwise_exclusion=self.patchwise_exclusion,
                 behave_params=None
             )

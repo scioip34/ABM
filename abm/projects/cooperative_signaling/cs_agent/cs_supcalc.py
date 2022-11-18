@@ -136,13 +136,15 @@ def signaling(
         meter,
         is_signaling,
         signaling_cost,
-        probability_of_starting_signaling):
+        probability_of_starting_signaling,
+        rand_value):
     """
     :param meter: current meter (detector) value between 0 and 1
     :param is_signaling: boolean indicating whether the agent is currently
     signaling
     :param signaling_cost: cost of signaling
     :param probability_of_starting_signaling: probability of starting signaling
+    :param rand_value: random value between 0 and 1
     :return: boolean value indicating whether the agent is signaling or not
     """
     if meter == 0:
@@ -153,5 +155,4 @@ def signaling(
         return True
     elif meter > signaling_cost:
         # start signaling if signaling cost is smaller than meter value
-        rand_value = random.random()
         return True if rand_value < probability_of_starting_signaling else False

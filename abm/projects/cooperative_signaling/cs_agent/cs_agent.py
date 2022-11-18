@@ -1,3 +1,5 @@
+from random import random
+
 import numpy as np
 import pygame
 
@@ -38,6 +40,13 @@ class CSAgent(Agent):
 
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
+
+        # Add Pygame events
+        self.signaling_rand_event = pygame.USEREVENT + 1
+        # Update signaling random value every 100ms
+        # SEE: https://www.pygame.org/docs/ref/time.html#pygame.time.set_timer
+        pygame.time.set_timer(self.signaling_rand_event, 100)
+        self.signaling_rand_value = random()
 
     def update(self, agents):
         """
@@ -101,10 +110,15 @@ class CSAgent(Agent):
             # self.agent_type = "signalling"
             print(self.meter)
 
+        # update random value when this event is triggered
+        if pygame.event.get(self.signaling_rand_event):
+            # called every 100ms
+            self.signaling_rand_value = random()
+
         # update agent's signaling behavior
         self.is_signaling = signaling(
             self.meter, self.is_signaling, self.signalling_cost,
-            self.probability_of_starting_signaling)
+            self.probability_of_starting_signaling, self.signaling_rand_value)
 
         # updating agent visualization
         self.draw_update()

@@ -20,7 +20,7 @@ class CSSimulation(Simulation):
                  detection_range=120,
                  resource_meter_multiplier=1,
                  signalling_cost=0.2,
-                 probability_of_starting_signaling=0.8,
+                 probability_of_starting_signaling=0.5,
                  des_velocity_res=1.5,
                  res_theta_abs=0.2,
                  **kwargs):

@@ -3,28 +3,30 @@ from pydantic import BaseSettings, BaseModel
 
 class DecisionParameters(BaseModel):
     """Decision variables"""
+    # NOTE: error when trying to parse an uppercase variables from .env
+    # SEE: https://github.com/pydantic/pydantic/issues/3936#issuecomment-1152903692
     # W
-    T_w: float
-    # Eps_w: float = 3
-    # g_w: float = 0.085
-    # B_w: float = 0
-    # w_max: float = 1
-    #
-    # # U
-    # T_u: float = 0.5
-    # Eps_u: float = 3
-    # g_u: float = 0.085
-    # B_u: float = 0
-    # u_max: float = 1
-    #
-    # # Inhibition
-    # S_wu: float = 0.25
-    # S_uw: float = 0.01
-    #
-    # # Calculating Private Information
-    # Tau: int = 10
-    # F_N: float = 2
-    # F_R: float = 1
+    t_w: float = 0.5
+    eps_w: float = 3
+    g_w: float = 0.085
+    b_w: float = 0
+    w_max: float = 1
+
+    # U
+    t_u: float = 0.5
+    eps_u: float = 3
+    g_u: float = 0.085
+    b_u: float = 0
+    u_max: float = 1
+
+    # Inhibition
+    s_wu: float = 0.25
+    s_uw: float = 0.01
+
+    # Calculating Private Information
+    tau: int = 10
+    f_n: float = 2
+    f_r: float = 1
 
 
 class MovementParameters(BaseModel):
@@ -46,9 +48,8 @@ class MovementParameters(BaseModel):
 
 
 class AgentParameters(BaseSettings):
-    test: str
-    # movement_parameters: MovementParameters
-    # dec: DecisionParameters
+    agent_movement: MovementParameters
+    agent_decision: DecisionParameters
 
     class Config:
         env_nested_delimiter = '__'

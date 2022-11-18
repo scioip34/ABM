@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from xvfbwrapper import Xvfb
+
 from abm.parameters.playground_parameters import PlaygroundParameters
 from abm.simulation.sims import Simulation
 
@@ -23,4 +25,6 @@ def test_init_simulation():
     n = kwargs.pop('n')
     t = kwargs.pop('t')
 
-    sim = Simulation(n, t, **kwargs)
+    with Xvfb(width=playground_params.environment.width,
+              height=playground_params.environment.height) as _:
+        sim = Simulation(n, t, **kwargs)

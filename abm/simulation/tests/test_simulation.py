@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from xvfbwrapper import Xvfb
@@ -24,7 +25,7 @@ def test_init_simulation():
 
     n = kwargs.pop('n')
     t = kwargs.pop('t')
-
+    os.environ['SDL_VIDEODRIVER'] = 'dummy'
     with Xvfb(width=playground_params.environment.width,
               height=playground_params.environment.height) as _:
         sim = Simulation(n, t, **kwargs)

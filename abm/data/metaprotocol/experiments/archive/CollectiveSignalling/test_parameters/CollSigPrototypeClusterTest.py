@@ -83,7 +83,7 @@ criteria_exp = [
     Constant("SIGNALLING_COST", 0.5),
     Tunable("RES_VEL", values_override=[1, 1.5, 2, 2.5, 3]),
     Constant("RES_THETA", 0.2),
-    Constant("T", 100000)
+    Constant("T", 100_000)
 ]
 
 # Creating metaprotocol and add defined criteria

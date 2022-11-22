@@ -42,10 +42,7 @@ class CSAgent(Agent):
         self.target_field = np.zeros(self.v_field_res)
 
         # Add Pygame events
-        self.signaling_rand_event = pygame.USEREVENT + 1
-        # Update signaling random value every 100ms
-        # SEE: https://www.pygame.org/docs/ref/time.html#pygame.time.set_timer
-        pygame.time.set_timer(self.signaling_rand_event, 100)
+        self.signaling_rand_event = False
         self.signaling_rand_value = random()
 
     def update(self, agents):
@@ -111,9 +108,10 @@ class CSAgent(Agent):
             print(self.meter)
 
         # update random value when this event is triggered
-        if pygame.event.get(self.signaling_rand_event):
-            # called every 100ms
+        if self.signaling_rand_event:
+            # updated in every N timesteps from cs_sims
             self.signaling_rand_value = random()
+            self.signaling_rand_event = False
 
         # update agent's signaling behavior
         self.is_signaling = signaling(

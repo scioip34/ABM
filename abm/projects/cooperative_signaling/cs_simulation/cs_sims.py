@@ -226,7 +226,7 @@ class CSSimulation(Simulation):
             turned_on_vfield = self.decide_on_vis_field_visibility(
                 turned_on_vfield)
 
-            # Updating agent meters
+            # Updating agent meters and signaling probability
             target_resource = self.rescources.sprites()[0]
             for agent in self.agents.sprites():
                 # Currently only implemented with single resource patch
@@ -238,6 +238,9 @@ class CSSimulation(Simulation):
                     agent.meter = 1 - (distance / agent.detection_range)
                 else:
                     agent.meter = 0
+                # Updating signaling probability with given frequency
+                if self.t % self.agent_signaling_rand_event_update == 0:
+                    agent.signaling_rand_event = True
 
             if not self.is_paused:
                 self.rescources.update()

@@ -106,15 +106,15 @@ class CSSimulation(Simulation):
                     "overlap!")
             radius = self.resc_radius
             # spawning resource in the middle of the environment
-            x = self.WIDTH / 2 + self.window_pad
-            y = self.HEIGHT / 2 + self.window_pad
+            x = self.WIDTH / 2 + self.window_pad - self.detection_range
+            y = self.HEIGHT / 2 + self.window_pad - self.detection_range
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality,
                                         self.max_resc_quality)
 
             resource = CSResource(
                 id=_id + 1 if force_id is None else _id,
-                radius=radius,
+                radius=self.detection_range,
                 position=(x, y),
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.GREY,

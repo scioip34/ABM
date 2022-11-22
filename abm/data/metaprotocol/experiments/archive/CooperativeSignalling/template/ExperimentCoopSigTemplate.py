@@ -1,19 +1,25 @@
 from abm.metarunner.metarunner import Tunable, Constant, MetaProtocol, TunedPairRestrain
 import numpy as np
 import os
+
+# On HPC the filename will be used as experiment name
+# otherwise we will need to pass it for the script, such as
+# EXPERIMENT_NAME=template python ExperimentCoopSigTemplate.py
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 if EXP_NAME == "":
     raise Exception("No experiment name has been passed")
 
 description_text = f"""
-Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
+Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations.
+The filename shall not include underscore characters when running on HPC. This description will be included
+as a txt file in the generated experiment data folder.
 
 Title:      Experiment : {EXP_NAME}
 Date:       DD.MM.YYYY
 Parameters: 
         Testing new subversion of software stack with collective signalling on computainbg cluster   
                 
-Defined by: mezdahun & vagechrikov 
+Project Maintainers (CoopSignalling): mezdahun & vagechrikov  
 """
 
 # Defining fixed criteria for all automized simulations/experiments
@@ -75,15 +81,24 @@ fixed_criteria = [
 # Defining decision param
 arena_size = arena_w * arena_h
 criteria_exp = [
-    Constant("AGENT_FOV", 1),  # unlimited FOV
-    Tunable("N", values_override=[3, 5]),
+    Constant("APP_VERSION", "CooperativeSignaling"),  # Enabling project specific run in headless mode
     Constant("PHOTOTAX_THETA_FAC", 0.2),
-    Constant("DETECTION_RANGE", 150),
+    Constant("DETECTION_RANGE", 200),
+    Constant("METER_TO_RES_MULTI", 1),
+    Constant("SIGNALLING_COST", 0.2),
+    Constant("SIGNALLING_PROB", 0.5),
+    Constant("SIGNAL_PROB_UPDATE_FREQ", 10),
+    Constant("RES_VEL", 1.5),
+    Constant("RES_THETA", 0.2),
+    Constant("AGENT_FOV", 1),  # unlimited FOV
+    Constant("PHOTOTAX_THETA_FAC", 0.2),
     Constant("METER_TO_RES_MULTI", 1),
     Constant("SIGNALLING_COST", 0.5),
-    Tunable("RES_VEL", values_override=[1, 1.5, 2, 2.5, 3]),
     Constant("RES_THETA", 0.2),
-    Constant("T", 100000)
+    Constant("T", 1000),
+    Constant("N", 5),  # Can not be tuned
+    Tunable("RES_VEL", values_override=[1, 5]),
+    Tunable("DETECTION_RANGE", values_override=[90, 120])
 ]
 
 # Creating metaprotocol and add defined criteria
@@ -98,5 +113,5 @@ for crit in criteria_exp:
 # to interruption
 mp.generate_temp_env_files()
 
-# Running the simulations
-mp.run_protocols()
+# Running the simulations with project specific application
+mp.run_protocols(project="CoopSignaling")

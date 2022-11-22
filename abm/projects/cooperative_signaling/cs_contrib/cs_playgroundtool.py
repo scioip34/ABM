@@ -17,6 +17,7 @@ def setup_coop_sign_playground():
     playground_tool.default_params["res_theta_abs"] = 0.2
     playground_tool.default_params["signalling_cost"] = 0.2
     playground_tool.default_params["probability_of_starting_signaling"] = 0.5
+    playground_tool.default_params["agent_signaling_rand_event_update"] = 10
 
     # update def_params_to_env_vars
     playground_tool.def_params_to_env_vars[
@@ -31,6 +32,8 @@ def setup_coop_sign_playground():
         "signalling_cost"] = "SIGNALLING_COST"
     playground_tool.def_params_to_env_vars["des_velocity_res"] = "RES_VEL"
     playground_tool.def_params_to_env_vars["res_theta_abs"] = "RES_THETA"
+    playground_tool.def_params_to_env_vars["agent_signaling_rand_event_update"] = "SIGNAL_PROB_UPDATE_FREQ"
+
     # update help_messages
     playground_tool.help_messages["V_RES"] = '''
         Desired Patch Velocity [px/ts]:

@@ -34,7 +34,7 @@ class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
         self.DET_R_slider = Slider(
             self.screen, self.slider_start_x, slider_start_y, self.slider_width,
             self.slider_height, min=10, max=200, step=5,
-            initial=self.resc_radius)
+            initial=self.detection_range)
         self.DET_R_textbox = TextBox(
             self.screen, self.textbox_start_x, slider_start_y,
             self.textbox_width,

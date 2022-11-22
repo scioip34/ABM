@@ -62,7 +62,6 @@ class CSSimulation(Simulation):
         # Number of time steps after the signaling probability
         # is updated for the agents
         self.agent_signaling_rand_event_update = agent_signaling_rand_event_update
-        print("TEST", self.agent_signaling_rand_event_update)
 
         # Resource parameters
         self.des_velocity_res = des_velocity_res  # 1.5

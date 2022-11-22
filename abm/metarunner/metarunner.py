@@ -213,7 +213,7 @@ class MetaProtocol:
             with open(description_path, "w") as readmefile:
                 readmefile.write(self.description)
 
-    def run_protocol(self, env_path):
+    def run_protocol(self, env_path, project="Base"):
         """Runs a single simulation run according to an env file given by the env path"""
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         default_env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
@@ -224,12 +224,16 @@ class MetaProtocol:
         shutil.copy(env_path, default_env_path)
         os.remove(env_path)
         # here we run the simulation
-        app.start(parallel=self.parallel_run, headless=self.headless)
+        if project == "Base":
+            app.start(parallel=self.parallel_run, headless=self.headless)
+        elif project == "CoopSignaling":
+            from abm import app_collective_signaling
+            app_collective_signaling.start(parallel=self.parallel_run, headless=self.headless)
         os.remove(default_env_path)
         shutil.copyfile(backup_default_env, default_env_path)
         sleep(2)
 
-    def run_protocols(self):
+    def run_protocols(self, project="Base"):
         """Running all remaining protocols in tep env folder"""
         self.save_description()
 
@@ -238,8 +242,9 @@ class MetaProtocol:
 
         glob_pattern = os.path.join(temp_dir, "*.env")
         print("found files: ", sorted(glob.iglob(glob_pattern)))
+
         i = 1
         for env_path in sorted(glob.iglob(glob_pattern)):
             print(f"Running protocol {i}/{len(sorted(glob.iglob(glob_pattern)))}")
-            self.run_protocol(env_path)
-            i+=1
+            self.run_protocol(env_path, project=project)
+            i += 1

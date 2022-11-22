@@ -42,6 +42,7 @@ class CSSimulation(Simulation):
          random number for signalling probability in every N simulation time step
         """
         super().__init__(**kwargs)
+        self.show_all_stats = False
         self.agent_behave_param_list = agent_behave_param_list
         self.collide_agents = collide_agents
         self.phototaxis_theta_step = phototaxis_theta_step

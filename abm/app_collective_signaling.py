@@ -50,7 +50,7 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
         print(f"Read env vars from {env_path}")
         envconf = dotenv_values(env_path)
         app_version = envconf.get("APP_VERSION", "Base")
-        if app_version != "CollectiveSignaling":
+        if app_version != "CooperativeSignaling":
             raise Exception(".env file was not created for project collective "
                             "signaling or no APP_VERSION parameter found!")
     else:

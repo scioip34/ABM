@@ -30,6 +30,8 @@ def setup_coop_sign_playground():
         "resource_meter_multiplier"] = "METER_TO_RES_MULTI"
     playground_tool.def_params_to_env_vars[
         "signalling_cost"] = "SIGNALLING_COST"
+    playground_tool.def_params_to_env_vars[
+        "probability_of_starting_signaling"] = "SIGNALLING_PROB"
     playground_tool.def_params_to_env_vars["des_velocity_res"] = "RES_VEL"
     playground_tool.def_params_to_env_vars["res_theta_abs"] = "RES_THETA"
     playground_tool.def_params_to_env_vars["agent_signaling_rand_event_update"] = "SIGNAL_PROB_UPDATE_FREQ"

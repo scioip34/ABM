@@ -23,8 +23,8 @@ Project Maintainers (CoopSignalling): mezdahun & vagechrikov
 """
 
 # Defining fixed criteria for all automized simulations/experiments
-arena_w = 500
-arena_h = 500
+arena_w = 600
+arena_h = 600
 fixed_criteria = [
     Constant("ENV_WIDTH", arena_w),
     Constant("ENV_HEIGHT", arena_h),
@@ -83,22 +83,20 @@ arena_size = arena_w * arena_h
 criteria_exp = [
     Constant("APP_VERSION", "CooperativeSignaling"),  # Enabling project specific run in headless mode
     Constant("PHOTOTAX_THETA_FAC", 0.2),
-    Constant("DETECTION_RANGE", 200),
     Constant("METER_TO_RES_MULTI", 1),
     Constant("SIGNALLING_COST", 0.2),
     Constant("SIGNALLING_PROB", 0.5),
     Constant("SIGNAL_PROB_UPDATE_FREQ", 10),
-    Constant("RES_VEL", 1.5),
     Constant("RES_THETA", 0.2),
     Constant("AGENT_FOV", 1),  # unlimited FOV
     Constant("PHOTOTAX_THETA_FAC", 0.2),
     Constant("METER_TO_RES_MULTI", 1),
-    Constant("SIGNALLING_COST", 0.5),
+    Constant("SIGNALLING_COST", 0.2),
     Constant("RES_THETA", 0.2),
-    Constant("T", 1000),
-    Constant("N", 5),  # Can not be tuned
-    Tunable("RES_VEL", values_override=[1, 5]),
-    Tunable("DETECTION_RANGE", values_override=[90, 120])
+    Constant("T", 5000),
+    Constant("N", 5),  # Can not be tuned, must be fixed for Replay tool
+    Tunable("RES_VEL", values_override=[1, 1.25, 1.5, 2, 3]),
+    Tunable("DETECTION_RANGE", values_override=[50, 75, 100, 125])
 ]
 
 # Creating metaprotocol and add defined criteria

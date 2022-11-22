@@ -1,20 +1,23 @@
+from random import random
+
 import numpy as np
+import pygame
 
 from abm.agent import supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
-    reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis
+    reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis, \
+    signaling
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
 
 class CSAgent(Agent):
     def __init__(self, phototaxis_theta_step, detection_range,
-                 resource_meter_multiplier, signalling_cost, **kwargs):
+                 resource_meter_multiplier, signalling_cost,
+                 probability_of_starting_signaling, **kwargs):
         super().__init__(**kwargs)
 
         # creating agent status
-        # todo: mutually exclusive states mean that agents can not signal while
-        #  relocate
         self.agent_type = "mars_miner"
         self.meter = 0  # between 0 and 1
         self.prev_meter = 0  # for phototaxis
@@ -26,10 +29,21 @@ class CSAgent(Agent):
         self.detection_range = detection_range
         # for unit detected resource value how much resource should I gain
         self.resource_meter_multiplier = resource_meter_multiplier
+
+        # signaling
         self.signalling_cost = signalling_cost
+        self.is_signaling = False
+        self.signaling_marker_radius = 5
+        self.signalling_color = colors.GREEN
+        self.probability_of_starting_signaling = \
+            probability_of_starting_signaling
 
         # social visual projection field
         self.target_field = np.zeros(self.v_field_res)
+
+        # Add Pygame events
+        self.signaling_rand_event = False
+        self.signaling_rand_value = random()
 
     def update(self, agents):
         """
@@ -51,8 +65,6 @@ class CSAgent(Agent):
             vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
                                     theta_max=2.5)
             self.agent_type = "relocation"
-            if self.meter > signalling_threshold:
-                self.agent_type = "signalling"
 
         else:
             if self.meter > 0:
@@ -65,8 +77,6 @@ class CSAgent(Agent):
                 self.taxis_dir = taxis_dir
                 vel = (2 - self.velocity)
                 self.agent_type = "mars_miner"
-                if self.meter > signalling_threshold:
-                    self.agent_type = "signalling"
             else:
                 # carry out movement accordingly
                 vel, theta = random_walk(desired_vel=self.max_exp_vel)
@@ -97,6 +107,17 @@ class CSAgent(Agent):
             # self.agent_type = "signalling"
             print(self.meter)
 
+        # update random value when this event is triggered
+        if self.signaling_rand_event:
+            # updated in every N timesteps from cs_sims
+            self.signaling_rand_value = random()
+            self.signaling_rand_event = False
+
+        # update agent's signaling behavior
+        self.is_signaling = signaling(
+            self.meter, self.is_signaling, self.signalling_cost,
+            self.probability_of_starting_signaling, self.signaling_rand_value)
+
         # updating agent visualization
         self.draw_update()
         self.collected_r_before = self.collected_r
@@ -118,10 +139,31 @@ class CSAgent(Agent):
         """
         if self.agent_type == "mars_miner":
             self.color = colors.BLUE
-        elif self.agent_type == "signalling":
-            self.color = colors.RED
         elif self.agent_type == "relocation":
             self.color = colors.PURPLE
+
+    def draw_update(self):
+        """
+        Updating the agent's visualization according to the current behavioral
+        mode of the agent
+        """
+        # run the basic draw update method
+        super().draw_update()
+
+        # draw signaling marker
+        if self.is_signaling:
+            pygame.gfxdraw.filled_circle(
+                self.image,
+                self.radius,
+                self.radius,
+                self.signaling_marker_radius,
+                self.signalling_color
+            )
+            pygame.gfxdraw.aacircle(self.image,
+                                    self.radius,
+                                    self.radius,
+                                    self.signaling_marker_radius,
+                                    colors.BACKGROUND)
 
     def calc_social_V_proj(self, agents):
         """
@@ -129,7 +171,7 @@ class CSAgent(Agent):
         This is calculated as theprojection of nearby exploiting agents that are
         not visually excluded by other agents
         """
-        signalling = [ag for ag in agents if ag.agent_type == "signalling"]
+        signalling = [ag for ag in agents if ag.is_signaling]
         self.soc_v_field = self.projection_field(signalling,
                                                  keep_distance_info=True)
 

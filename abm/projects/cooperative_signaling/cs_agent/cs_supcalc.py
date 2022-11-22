@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pygame
 
@@ -37,7 +39,6 @@ def F_reloc_LR(vel_now, V_now, v_desired=None, theta_max=None):
     D_leftright = left_excitation - right_excitation
     theta = D_leftright * theta_max
     return (v_desired - vel_now), theta
-
 
 
 def reflection_from_circular_wall(dx, dy, orientation):
@@ -129,3 +130,29 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
     # agents need to turn faster to stay close to the center.
     new_theta = phototaxis_theta_step * new_sign * meter
     return new_theta, new_taxis_dir
+
+
+def signaling(
+        meter,
+        is_signaling,
+        signaling_cost,
+        probability_of_starting_signaling,
+        rand_value):
+    """
+    :param meter: current meter (detector) value between 0 and 1
+    :param is_signaling: boolean indicating whether the agent is currently
+    signaling
+    :param signaling_cost: cost of signaling
+    :param probability_of_starting_signaling: probability of starting signaling
+    :param rand_value: random value between 0 and 1
+    :return: boolean value indicating whether the agent is signaling or not
+    """
+    if meter == 0:
+        # no signaling if meter is zero
+        return False
+    elif is_signaling:
+        # continue signaling if meter is not zero and agent is already signaling
+        return True
+    elif meter > signaling_cost:
+        # start signaling if signaling cost is smaller than meter value
+        return True if rand_value < probability_of_starting_signaling else False

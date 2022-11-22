@@ -712,16 +712,20 @@ class ExperimentReplay:
 
         max_units = [res_unit for _ in range(int(max_num_res))]
         resc_quality = self.resc_quality[:, t_ind]
-        res_radius = self.env["RADIUS_RESOURCE"]
+        if self.env.get("APP_VERSION", "Base") == "CooperativeSignaling":
+            radius_keyword = "DETECTION_RANGE"
+        else:
+            radius_keyword = "RADIUS_RESOURCE"
+        res_radius = self.env[radius_keyword]
         # if not update_dataframes:
         if res_radius == "----TUNED----":
             # in case the patch size was changed during the simulations we
             # read the radius from the corresponding slider
             var_keys = sorted(list(self.varying_params.keys()))
-            dimnum = var_keys.index("RADIUS_RESOURCE")
+            dimnum = var_keys.index(radius_keyword)
             slider = self.varying_sliders[dimnum]
             indexalongdim = slider.getValue()
-            res_radius = self.varying_params["RADIUS_RESOURCE"][indexalongdim]
+            res_radius = self.varying_params[radius_keyword][indexalongdim]
 
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         if self.show_paths:

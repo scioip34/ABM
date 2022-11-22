@@ -19,9 +19,11 @@ class CSSimulation(Simulation):
                  phototaxis_theta_step=0.2,
                  detection_range=120,
                  resource_meter_multiplier=1,
-                 signalling_cost=0.5,
+                 signalling_cost=0.2,
+                 probability_of_starting_signaling=0.5,
                  des_velocity_res=1.5,
                  res_theta_abs=0.2,
+                 agent_signaling_rand_event_update=10,
                  **kwargs):
         """
         Inherited from Simulation class
@@ -31,18 +33,24 @@ class CSSimulation(Simulation):
         :param resource_meter_multiplier: scaling factor of how much resource is
          extraxted for a detected resource unit
         :param signalling_cost: cost of signalling in resource units
+        :param probability_of_starting_signaling: probability of starting signaling
         :param des_velocity_res: desired velocity of resource patch in pixel per
         timestep
         :param res_theta_abs: change in orientation will be pulled from uniform
         -res_theta_abs to res_theta_abs
+        :param agent_signaling_rand_event_update: updating agent's
+         random number for signalling probability in every N simulation time step
         """
         super().__init__(**kwargs)
+        self.show_all_stats = False
         self.agent_behave_param_list = agent_behave_param_list
         self.collide_agents = collide_agents
         self.phototaxis_theta_step = phototaxis_theta_step
         self.detection_range = detection_range
         self.resource_meter_multiplier = resource_meter_multiplier
         self.signalling_cost = signalling_cost
+        self.probability_of_starting_signaling = \
+            probability_of_starting_signaling
         self.des_velocity_res = des_velocity_res
         self.res_theta_abs = res_theta_abs
 
@@ -51,6 +59,9 @@ class CSSimulation(Simulation):
         self.detection_range = detection_range
         self.resource_meter_multiplier = resource_meter_multiplier
         self.signalling_cost = signalling_cost
+        # Number of time steps after the signaling probability
+        # is updated for the agents
+        self.agent_signaling_rand_event_update = agent_signaling_rand_event_update
 
         # Resource parameters
         self.des_velocity_res = des_velocity_res  # 1.5
@@ -95,15 +106,15 @@ class CSSimulation(Simulation):
                     "overlap!")
             radius = self.resc_radius
             # spawning resource in the middle of the environment
-            x = self.WIDTH / 2 + self.window_pad
-            y = self.HEIGHT / 2 + self.window_pad
+            x = self.WIDTH / 2 + self.window_pad - self.detection_range
+            y = self.HEIGHT / 2 + self.window_pad - self.detection_range
             units = np.random.randint(self.min_resc_units, self.max_resc_units)
             quality = np.random.uniform(self.min_resc_quality,
                                         self.max_resc_quality)
 
             resource = CSResource(
                 id=_id + 1 if force_id is None else _id,
-                radius=radius,
+                radius=self.detection_range,
                 position=(x, y),
                 env_size=(self.WIDTH, self.HEIGHT),
                 color=colors.GREY,
@@ -149,6 +160,8 @@ class CSSimulation(Simulation):
                 detection_range=self.detection_range,
                 resource_meter_multiplier=self.resource_meter_multiplier,
                 signalling_cost=self.signalling_cost,
+                probability_of_starting_signaling=
+                self.probability_of_starting_signaling,
                 patchwise_exclusion=self.patchwise_exclusion,
                 behave_params=None
             )
@@ -213,7 +226,7 @@ class CSSimulation(Simulation):
             turned_on_vfield = self.decide_on_vis_field_visibility(
                 turned_on_vfield)
 
-            # Updating agent meters
+            # Updating agent meters and signaling probability
             target_resource = self.rescources.sprites()[0]
             for agent in self.agents.sprites():
                 # Currently only implemented with single resource patch
@@ -225,6 +238,9 @@ class CSSimulation(Simulation):
                     agent.meter = 1 - (distance / agent.detection_range)
                 else:
                     agent.meter = 0
+                # Updating signaling probability with given frequency
+                if self.t % self.agent_signaling_rand_event_update == 0:
+                    agent.signaling_rand_event = True
 
             if not self.is_paused:
                 self.rescources.update()

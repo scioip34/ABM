@@ -82,6 +82,8 @@ class CSResource(Rescource):
         diff = [self.center[0] - c_x, self.center[1] - c_y]
         if np.linalg.norm(diff) + self.radius >= e_r:
             # if yes, relocate it again at the center
+            self.position[0] = c_x - self.radius
+            self.position[1] = c_y - self.radius
             self.center = (c_x, c_y)
 
     def update(self):

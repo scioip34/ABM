@@ -23,6 +23,7 @@ class CSSimulation(Simulation):
                  probability_of_starting_signaling=0.5,
                  des_velocity_res=1.5,
                  res_theta_abs=0.2,
+                 agent_signaling_rand_event_update=10,
                  **kwargs):
         """
         Inherited from Simulation class
@@ -37,6 +38,8 @@ class CSSimulation(Simulation):
         timestep
         :param res_theta_abs: change in orientation will be pulled from uniform
         -res_theta_abs to res_theta_abs
+        :param agent_signaling_rand_event_update: updating agent's
+         random number for signalling probability in every N simulation time step
         """
         super().__init__(**kwargs)
         self.agent_behave_param_list = agent_behave_param_list
@@ -55,6 +58,10 @@ class CSSimulation(Simulation):
         self.detection_range = detection_range
         self.resource_meter_multiplier = resource_meter_multiplier
         self.signalling_cost = signalling_cost
+        # Number of time steps after the signaling probability
+        # is updated for the agents
+        self.agent_signaling_rand_event_update = agent_signaling_rand_event_update
+        print("TEST", self.agent_signaling_rand_event_update)
 
         # Resource parameters
         self.des_velocity_res = des_velocity_res  # 1.5

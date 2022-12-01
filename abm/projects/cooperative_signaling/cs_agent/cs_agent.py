@@ -58,8 +58,8 @@ class CSAgent(Agent):
         # signalling agents)
         self.calc_social_V_proj(agents)
 
-        # some basic decision process of when to signal and when to explore, etc.
-        signalling_threshold = 0.1
+
+
         if np.max(self.soc_v_field) > self.meter:
             # joining behavior
             vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
@@ -129,7 +129,7 @@ class CSAgent(Agent):
         """Updating agent collected resource values according to distance from resource (as in meter value)
         and current signalling status"""
         self.collected_r += self.meter * self.resource_meter_multiplier
-        if self.agent_type == "signalling":
+        if self.is_signaling:
             self.collected_r -= self.signalling_cost
 
     def change_color(self):
@@ -168,8 +168,8 @@ class CSAgent(Agent):
     def calc_social_V_proj(self, agents):
         """
         Calculating the socially relevant visual projection field of the agent.
-        This is calculated as theprojection of nearby exploiting agents that are
-        not visually excluded by other agents
+        This is calculated as the projection of nearby exploiting agents that
+        are not visually excluded by other agents
         """
         signalling = [ag for ag in agents if ag.is_signaling]
         self.soc_v_field = self.projection_field(signalling,

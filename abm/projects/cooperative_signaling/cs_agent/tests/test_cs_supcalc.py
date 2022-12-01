@@ -3,7 +3,8 @@ import pytest
 from unittest import mock
 
 from abm.projects.cooperative_signaling.cs_agent import cs_supcalc
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import signaling
+from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import signaling, \
+    agent_decision
 
 
 def test_random_walk():
@@ -113,3 +114,27 @@ def test_signaling(meter, is_signaling, signaling_cost,
     new_is_signaling = signaling(meter, is_signaling, signaling_cost,
                                  probability_of_starting_signaling, rand_value)
     assert new_is_signaling == new_true_is_signaling
+
+
+@pytest.mark.parametrize(
+    "meter, max_signal_of_other_agents, max_crowd_density, "
+    "crowd_density_threshold, agent_state",
+    [
+        (0, 0, 0, 0.5, 'exploration'),
+        (0, 0, 0.6, 0.5, 'flocking'),
+        (0, 0.2, 0, 0.5, 'relocation'),
+        # signal has priority over the crowd density
+        (0, 0.3, 0.8, 0.5, 'relocation'),
+        (0.2, 0, 0, 0.5, 'taxis'),
+        (0.2, 0, 0.8, 0.5, 'taxis'),
+        # signaling of others is larger than personal meter
+        (0.2, 0.3, 0, 0.5, 'relocation'),
+        (0.2, 0.3, 0.8, 0.5, 'relocation'),
+        (0.5, 0.2, 0.8, 0.5, 'taxis'),
+    ]
+)
+def test_agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
+                        crowd_density_threshold, agent_state):
+    state = agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
+                           crowd_density_threshold)
+    assert state == agent_state

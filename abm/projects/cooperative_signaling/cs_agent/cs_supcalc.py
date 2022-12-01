@@ -168,12 +168,13 @@ def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
 
     if meter == 0:
         # no meter value, agent is exploring, relocating or flocking
-        if max_crowd_density > crowd_density_threshold:
-            # if the crowd density is high enough, the agent will relocate
-            return 'flocking'
-        elif max_signal_of_other_agents > 0:
+        # NOTE: signaling has priority over flocking
+        if max_signal_of_other_agents > 0:
             # if there is a signal from other agents, relocate
             return 'relocation'
+        elif max_crowd_density > crowd_density_threshold:
+            # if the crowd density is high enough, the agent will relocate
+            return 'flocking'
         else:
             # if there is no signal from other agents, explore
             return 'exploration'

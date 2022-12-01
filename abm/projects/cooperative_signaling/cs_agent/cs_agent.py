@@ -18,7 +18,7 @@ class CSAgent(Agent):
         super().__init__(**kwargs)
 
         # creating agent status
-        self.agent_type = "mars_miner"
+        self.agent_state = "mars_miner"
         self.meter = 0  # between 0 and 1
         self.prev_meter = 0  # for phototaxis
         self.theta_prev = 0  # turning angle in prev timestep
@@ -64,7 +64,7 @@ class CSAgent(Agent):
             # joining behavior
             vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
                                     theta_max=2.5)
-            self.agent_type = "relocation"
+            self.agent_state = "relocation"
 
         else:
             if self.meter > 0:
@@ -76,12 +76,12 @@ class CSAgent(Agent):
                     self.phototaxis_theta_step)
                 self.taxis_dir = taxis_dir
                 vel = (2 - self.velocity)
-                self.agent_type = "mars_miner"
+                self.agent_state = "mars_miner"
             else:
                 # carry out movement accordingly
                 vel, theta = random_walk(desired_vel=self.max_exp_vel)
                 vel = (2 - self.velocity)
-                self.agent_type = "mars_miner"
+                self.agent_state = "mars_miner"
 
         # updating position accordingly
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
@@ -137,9 +137,9 @@ class CSAgent(Agent):
         Changing color of agent according to the behavioral mode the agent is
         currently in.
         """
-        if self.agent_type == "mars_miner":
+        if self.agent_state == "mars_miner":
             self.color = colors.BLUE
-        elif self.agent_type == "relocation":
+        elif self.agent_state == "relocation":
             self.color = colors.PURPLE
 
     def draw_update(self):

@@ -373,13 +373,8 @@ class CSAgent(Agent):
 
     def prove_velocity(self, velocity_limit=1):
         """Restricting the absolute velocity of the agent"""
-        vel_sign = np.sign(self.velocity)
-        if vel_sign == 0:
-            vel_sign = +1
-        if self.get_mode() == 'explore':
-            if np.abs(self.velocity) > velocity_limit:
-                # stopping agent if too fast during exploration
-                self.velocity = 1
+        self.velocity = prove_velocity(self.velocity, self.agent_state,
+                                       velocity_limit=velocity_limit)
 
     def reflect_from_walls(self, new_pos=()):
         """

@@ -6,7 +6,7 @@ import pygame
 from abm.agent import supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
     reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis, \
-    signaling
+    signaling, agent_decision
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
@@ -18,7 +18,8 @@ class CSAgent(Agent):
         super().__init__(**kwargs)
 
         # creating agent status
-        self.agent_state = "mars_miner"
+        # exploration, taxis, relocation or flocking
+        self.agent_state = "exploration"
         self.meter = 0  # between 0 and 1
         self.prev_meter = 0  # for phototaxis
         self.theta_prev = 0  # turning angle in prev timestep
@@ -54,11 +55,66 @@ class CSAgent(Agent):
         the environment. These are not necessarily socially relevant, i.e. all
         agents.
         """
+        # update agent information
+        self.update_social_info(agents)
+
+        # update agent's state
+        self.update_state()
+
+        # perform agent's action i.e. exploration, taxis, relocation or flocking
+        self.perform_action()
+
+        # update agent's signaling behavior
+        self.update_signaling()
+
+        # updating agent visualization
+        self.draw_update()
+
+        # collecting rewards according to meter value and signalling status
+        self.update_rewards()
+
+    def update_state(self):
+        # update agent state based on the decision-making process
+        self.agent_state = agent_decision(self.meter, self.agent_state)
+
+    def update_social_info(self, agents):
         # calculate socially relevant projection field (e.g. according to
         # signalling agents)
         self.calc_social_V_proj(agents)
 
+    def update_signaling(self):
+        # update random value when this event is triggered
+        if self.signaling_rand_event:
+            # updated in every N timesteps from cs_sims
+            self.signaling_rand_value = random()
+            self.signaling_rand_event = False
+        # update agent's signaling behavior
+        self.is_signaling = signaling(
+            self.meter, self.is_signaling, self.signalling_cost,
+            self.probability_of_starting_signaling, self.signaling_rand_value)
 
+    def update_rewards(self):
+        """Updating agent collected resource values according to distance from resource (as in meter value)
+        and current signalling status"""
+        self.collected_r_before = self.collected_r
+
+        self.collected_r += self.meter * self.resource_meter_multiplier
+        if self.is_signaling:
+            self.collected_r -= self.signalling_cost
+
+    def perform_action(self):
+        # update agent color
+        # TODO: remove this because it is executed in draw_update
+        # self.change_color()
+        # perform the agent's action according to the current state
+        if self.agent_state == "exploration":
+            self.exploration()
+        elif self.agent_state == "taxis":
+            self.taxis()
+        elif self.agent_state == "relocation":
+            self.relocation()
+        elif self.agent_state == "flocking":
+            self.flocking()
 
         if np.max(self.soc_v_field) > self.meter:
             # joining behavior
@@ -76,12 +132,12 @@ class CSAgent(Agent):
                     self.phototaxis_theta_step)
                 self.taxis_dir = taxis_dir
                 vel = (2 - self.velocity)
-                self.agent_state = "mars_miner"
+                self.agent_state = "exploration"
             else:
                 # carry out movement accordingly
                 vel, theta = random_walk(desired_vel=self.max_exp_vel)
                 vel = (2 - self.velocity)
-                self.agent_state = "mars_miner"
+                self.agent_state = "exploration"
 
         # updating position accordingly
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
@@ -107,40 +163,31 @@ class CSAgent(Agent):
             # self.agent_type = "signalling"
             print(self.meter)
 
-        # update random value when this event is triggered
-        if self.signaling_rand_event:
-            # updated in every N timesteps from cs_sims
-            self.signaling_rand_value = random()
-            self.signaling_rand_event = False
+    def exploration(self):
+        pass
 
-        # update agent's signaling behavior
-        self.is_signaling = signaling(
-            self.meter, self.is_signaling, self.signalling_cost,
-            self.probability_of_starting_signaling, self.signaling_rand_value)
+    def taxis(self):
+        pass
 
-        # updating agent visualization
-        self.draw_update()
-        self.collected_r_before = self.collected_r
+    def relocation(self):
+        pass
 
-        # collecting rewards according to meter value and signalling status
-        self.update_rewards()
-
-    def update_rewards(self):
-        """Updating agent collected resource values according to distance from resource (as in meter value)
-        and current signalling status"""
-        self.collected_r += self.meter * self.resource_meter_multiplier
-        if self.is_signaling:
-            self.collected_r -= self.signalling_cost
+    def flocking(self):
+        pass
 
     def change_color(self):
         """
         Changing color of agent according to the behavioral mode the agent is
         currently in.
         """
-        if self.agent_state == "mars_miner":
+        if self.agent_state == "exploration":
             self.color = colors.BLUE
+        elif self.agent_state == "taxis":
+            self.color = colors.RED
         elif self.agent_state == "relocation":
             self.color = colors.PURPLE
+        elif self.agent_state == "flocking":
+            self.color = colors.GREEN
 
     def draw_update(self):
         """

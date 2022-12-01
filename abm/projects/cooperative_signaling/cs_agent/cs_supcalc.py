@@ -152,3 +152,36 @@ def signaling(meter, is_signaling, signaling_cost,
     elif meter > signaling_cost:
         # start signaling if signaling cost is smaller than meter value
         return True if rand_value < probability_of_starting_signaling else False
+
+
+def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
+                   crowd_density_threshold=0.5):
+    """
+    Decision tree for the agent's behavior
+    :param meter: current meter (detector) value between 0 and 1
+    :param max_signal_of_other_agents: meter value between 0 and 1
+    :param max_crowd_density: density of the crowd between 0 and 1
+    :param crowd_density_threshold: threshold when the crowd density is high
+    enough to draw agent's attention
+    :return: agent_state: exploration, taxis, relocation or flocking
+    """
+
+    if meter == 0:
+        # no meter value, agent is exploring, relocating or flocking
+        if max_crowd_density > crowd_density_threshold:
+            # if the crowd density is high enough, the agent will relocate
+            return 'flocking'
+        elif max_signal_of_other_agents > 0:
+            # if there is a signal from other agents, relocate
+            return 'relocation'
+        else:
+            # if there is no signal from other agents, explore
+            return 'exploration'
+    elif meter > 0:
+        # meter value, agent performs taxis or relocation
+        if max_signal_of_other_agents > meter:
+            # if a signal from other agents is larger than meter, relocate
+            return 'relocation'
+        else:
+            # if a signal from other agents is smaller than meter, perform taxis
+            return 'taxis'

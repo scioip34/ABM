@@ -24,22 +24,17 @@ def random_walk(desired_vel=None, exp_theta_min=None, exp_theta_max=None):
     return dvel, dtheta
 
 
-def F_reloc_LR(vel_now, V_now, v_desired=None, theta_max=None):
+def f_reloc_lr(velocity, visual_field, velocity_desired=None, theta_max=None):
     """
     Calculating relocation force according to the visual field/source data
-    of the agent according to left-right
-    algorithm
+    of the agent according to left-right algorithm
     """
-    if v_desired is None:
-        v_desired = movement_params.reloc_des_vel
-    if theta_max is None:
-        theta_max = movement_params.reloc_theta_max
-    V_field_len = len(V_now)
-    left_excitation = np.mean(V_now[0:int(V_field_len / 2)])
-    right_excitation = np.mean(V_now[int(V_field_len / 2)::])
-    D_leftright = left_excitation - right_excitation
-    theta = D_leftright * theta_max
-    return (v_desired - vel_now), theta
+    v_field_len = len(visual_field)
+    left_excitation = np.mean(visual_field[0:int(v_field_len / 2)])
+    right_excitation = np.mean(visual_field[int(v_field_len / 2)::])
+    delta_left_right = left_excitation - right_excitation
+    theta = delta_left_right * theta_max
+    return (velocity_desired - velocity), theta
 
 
 def reflection_from_circular_wall(dx, dy, orientation):

@@ -4,7 +4,7 @@ import numpy as np
 import pygame
 
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
-    reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis, \
+    reflection_from_circular_wall, random_walk, f_reloc_lr, phototaxis, \
     signaling, agent_decision, projection_field
 from abm.agent.agent import Agent
 from abm.contrib import colors
@@ -80,32 +80,32 @@ class CSAgent(Agent):
             agents)
 
     def calc_crowing_density_proj(self, agents):
-        # TODO: implement this correctly
-        signalling = [ag for ag in agents if ag.is_signaling]
-        return projection_field(
-            objects=signalling,
+        visual_field = projection_field(
             fov=self.FOV,
             v_field_resolution=self.v_field_res,
             position=tuple(self.position),
             radius=self.radius,
             orientation=self.orientation,
-            keep_distance_info=False,
-            non_expl_agents=None
-        )
+            object_positions=[np.array(ag.position) for ag in agents],
+            object_meters=None)  # not relevant for crowding density
+        # sum of all agents projections at each point in visual field
+        return visual_field.sum(axis=0)
 
-    def calc_others_signaling_density_proj(self, agents):
-        # TODO: implement this correctly
-        signalling = [ag for ag in agents if ag.is_signaling]
-        return projection_field(
-            objects=signalling,
+    def calc_others_signaling_density_proj(self, agents, decay=0.9):
+        visual_field = projection_field(
             fov=self.FOV,
             v_field_resolution=self.v_field_res,
             position=tuple(self.position),
             radius=self.radius,
             orientation=self.orientation,
-            keep_distance_info=False,
-            non_expl_agents=None
-        )
+            object_positions=[ag.position for ag in agents],
+            object_meters=[ag.meter for ag in agents])
+        # max signal at each point in visual field
+        current_signaling_density = visual_field.max(axis=0)
+        new_signaling_density = np.max(
+            [self.others_signaling_density * decay, current_signaling_density],
+            axis=0)
+        return new_signaling_density
 
     def update_state(self):
         # update agent state based on the decision-making process
@@ -155,7 +155,9 @@ class CSAgent(Agent):
 
     def relocation(self):
         # TODO: implement proper relocation
-        vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
+        vel, theta = f_reloc_lr(self.velocity,
+                                self.soc_v_field,
+                                velocity_desired=2,
                                 theta_max=2.5)
         self.update_agent_position(theta, vel)
 

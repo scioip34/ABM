@@ -1,5 +1,3 @@
-from collections import OrderedDict
-
 import numpy as np
 import pygame
 
@@ -184,175 +182,97 @@ def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
             return 'taxis'
 
 
-def rank_v_source_data(ranking_key, data, reverse=True):
-    """
-    Ranking source data of visual projection field by the visual angle
-    :param: ranking_key: stribg key according to which the dictionary is sorted
-    """
-    return OrderedDict(sorted(
-        data.items(),
-        key=lambda kv: kv[1][ranking_key],
-        reverse=reverse))
-
-
-def projection_field(objects, fov, v_field_resolution, position, radius,
-                     orientation, keep_distance_info=False,
-                     non_expl_agents=None):
+def projection_field(fov, v_field_resolution, position, radius,
+                     orientation, object_positions, object_meters=None):
     """
     Calculating visual projection field for the agent given the visible
     obstacles in the environment
-    :param objects: list of agents (with same radius) or some other
     obstacle sprites to generate projection field
     :param fov: tuple of number with borders of fov such as (-np.pi,np.pi)
     :param v_field_resolution: visual field resolution in pixels
-    :param position: tuple with position of the agent (x,y)
+    :param position: np.xarray of agent's position
     :param radius: radius of the agent
     :param orientation: orientation of the agent
-    :param keep_distance_info: if True, the amplitude of the vpf will
-    reflect the distance of the object from the agent so that exclusion can
-    be easily generated with a single computational step
-    :param non_expl_agents: a list of non-social visual cues (non-exploiting
-    agents) that on the other hand can still produce visual exclusion on the
-    projection of social cues. If None only social cues can produce visual
-    exclusion on each other
-
+    :param object_positions: list of np.xarray of object's positions
+    :param object_meters: list of object's meters, default is None
+    :return: projection field np.xarray with shape (n objects, field resolution)
     """
-    # extracting obstacle coordinates
-    obj_coords = [ob.position for ob in objects]
-    meters = [ob.meter for ob in objects]
-
-    # if non-social cues can visually exclude social ones we also
-    # concatenate these to the obstacle coords
-    if non_expl_agents is not None:
-        len_social = len(objects)
-        obj_coords.extend([ob.position for ob in non_expl_agents])
-
     # initializing visual field and relative angles
-    v_field = np.zeros(v_field_resolution)
+    v_field = np.zeros(len(object_positions), v_field_resolution)
     phis = np.linspace(-np.pi, np.pi, v_field_resolution)
 
     # center point
-    v1_s_x = position[0] + radius
-    v1_s_y = position[1] + radius
+    agents_center = position + radius
 
     # point on agent's edge circle according to it's orientation
-    v1_e_x = position[0] + (1 + np.cos(orientation)) * radius
-    v1_e_y = position[1] + (1 - np.sin(orientation)) * radius
+    agent_edge = position + np.array(
+        [1 + np.cos(orientation), 1 - np.sin(orientation)]) * radius
 
     # vector between center and edge according to orientation
-    v1_x = v1_e_x - v1_s_x
-    v1_y = v1_e_y - v1_s_y
-    v1 = np.array([v1_x, v1_y])
+    v1 = agents_center - agent_edge
 
-    # calculating closed angle between obstacle and agent according to the
-    # position of the obstacle.
-    # then calculating visual projection size according to visual angle on
-    # the agent's retina according to distance
-    # between agent and obstacle
+    # 1. Calculating closed angle between object and agent according to the
+    # position of the object.
+    # 2. Calculating visual projection size according to visual angle on
+    # the agent's retina according to distance between agent and object
+    for i, obj_position in enumerate(object_positions):
+        # continue if the object and the agent position completely coincide
+        if obj_position[0] == position[0] and obj_position[1] == position[1]:
+            continue
 
-    vis_field_source_data = {}
-    for i, obstacle_coord in enumerate(obj_coords):
-        x_coincidence = obstacle_coord[0] == position[0]
-        y_coincidence = obstacle_coord[1] == position[1]
+        # center of obstacle (as it must be another agent)
+        object_center = obj_position + radius
 
-        if not(x_coincidence and y_coincidence):
-            # center of obstacle (as it must be another agent)
-            v2_e_x = obstacle_coord[0] + radius
-            v2_e_y = obstacle_coord[1] + radius
-            # vector between agent center and obstacle center
-            v2_x = v2_e_x - v1_s_x
-            v2_y = v2_e_y - v1_s_y
-            v2 = np.array([v2_x, v2_y])
-            # calculating closed angle between v1 and v2
-            # (rotated with the orientation of the agent as it is relative)
-            closed_angle = angle_between(v1, v2)
-            closed_angle = (closed_angle % (2 * np.pi))
-            # at this point closed angle between 0 and 2pi, but we need it
-            # between -pi and pi
-            # we also need to take our orientation convention into
-            # consideration to recalculate
-            # theta=0 is pointing to the right
-            if 0 < closed_angle < np.pi:
-                closed_angle = -closed_angle
-            else:
-                closed_angle = 2 * np.pi - closed_angle
-            # calculating the visual angle from focal agent to target
-            c1 = np.array([v1_s_x, v1_s_y])
-            c2 = np.array([v2_e_x, v2_e_y])
-            distance = np.linalg.norm(c2 - c1)
-            vis_angle = 2 * np.arctan(radius / (1 * distance))
-            # finding where in the retina the projection belongs to
-            phi_target = find_nearest(phis, closed_angle)
-            # if target is visible we save its projection into the VPF
-            # source data
-            if fov[0] < closed_angle < fov[1]:
-                vis_field_source_data[i] = {}
-                vis_field_source_data[i]["vis_angle"] = vis_angle
-                vis_field_source_data[i]["phi_target"] = phi_target
-                vis_field_source_data[i]["distance"] = distance
-                vis_field_source_data[i]["meter"] = meters[i]
-                # the projection size is proportional to the visual angle.
-                # If the projection is maximal (i.e.
-                # taking each pixel of the retina) the angle is 2pi from
-                # this we just calculate the proj. size
-                # using a single proportion
-                vis_field_source_data[i]["proj_size"] = (vis_angle / (
-                        2 * np.pi)) * v_field_resolution
-                proj_size = vis_field_source_data[i]["proj_size"]
-                vis_field_source_data[i]["proj_start"] = int(
-                    phi_target - proj_size / 2)
-                vis_field_source_data[i]["proj_end"] = int(
-                    phi_target + proj_size / 2)
-                vis_field_source_data[i]["proj_start_ex"] = int(
-                    phi_target - proj_size / 2)
-                vis_field_source_data[i]["proj_end_ex"] = int(
-                    phi_target + proj_size / 2)
-                vis_field_source_data[i]["proj_size_ex"] = proj_size
-                if non_expl_agents is not None:
-                    if i < len_social:
-                        vis_field_source_data[i][
-                            "is_social_cue"] = True
-                    else:
-                        vis_field_source_data[i][
-                            "is_social_cue"] = False
-                else:
-                    vis_field_source_data[i]["is_social_cue"] = True
-    # calculating visual exclusion if requested
-    # TODO
-    # if self.visual_exclusion:
-    #     self.exlude_V_source_data()
+        # vector between agent center and object center
+        v2 = object_center - agents_center
 
-    # TODO
-    # if non_expl_agents is not None:
-    #     # removing non-social cues from the source data after calculating
-    #     # exclusions
-    #     self.remove_nonsocial_V_source_data()
-
-    # sorting VPF source data according to visual angle
-    vis_field_source_data = rank_v_source_data(
-        "vis_angle", vis_field_source_data)
-
-    for k, v in vis_field_source_data.items():
-        vis_angle = v["vis_angle"]
-        phi_target = v["phi_target"]
-        proj_size = v["proj_size"]
-        proj_start = v["proj_start_ex"]
-        proj_end = v["proj_end_ex"]
-        # circular boundaries to the VPF as there is 360 degree vision
-        if proj_start < 0:
-            v_field[v_field_resolution + proj_start:v_field_resolution] = 1
-            proj_start = 0
-        if proj_end >= v_field_resolution:
-            v_field[0:proj_end - v_field_resolution] = 1
-            proj_end = v_field_resolution - 1
-        # weighing projection amplitude with rank information if requested
-        if not keep_distance_info:
-            v_field[proj_start:proj_end] = 1
+        # calculating closed angle between v1 and v2
+        # (rotated with the orientation of the agent as it is relative)
+        closed_angle = angle_between(v1, v2)
+        closed_angle = (closed_angle % (2 * np.pi))
+        # at this point closed angle between 0 and 2pi, but we need it between
+        # -pi and pi
+        # we also need to take our orientation convention into consideration to
+        # recalculate theta=0 is pointing to the right
+        if 0 < closed_angle < np.pi:
+            closed_angle = -closed_angle
         else:
-            v_field[proj_start:proj_end] = v["meter"]
+            closed_angle = 2 * np.pi - closed_angle
+
+        distance = np.linalg.norm(object_center - agents_center)
+
+        # calculating the visual angle from focal agent to target
+        vis_angle = 2 * np.arctan(radius / (1 * distance))
+
+        # finding where in the retina the projection belongs to
+        phi_target = find_nearest(phis, closed_angle)
+
+        # if target is visible we save its projection into the VPF
+        # source data
+        if fov[0] < closed_angle < fov[1]:
+            # the projection size is proportional to the visual angle.
+            # If the projection is maximal (i.e. taking each pixel of the
+            # retina) the angle is 2pi from this we just calculate the
+            # projection size using a single proportion
+            proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
+            proj_start = int(phi_target - proj_size / 2)
+            proj_end = int(phi_target + proj_size / 2)
+
+            # circular boundaries to the VPF as there is 360 degree vision
+            if proj_start < 0:
+                v_field[i][v_field_resolution + proj_start:v_field_resolution] = 1
+                proj_start = 0
+            if proj_end >= v_field_resolution:
+                v_field[i][0:proj_end - v_field_resolution] = 1
+                proj_end = v_field_resolution - 1
+
+            v_field[i][proj_start:proj_end] = 1
+
+            if object_meters is not None:
+                v_field[i] *= object_meters[i]
 
     # post_processing and limiting FOV
     v_field_post = np.flip(v_field)
-    v_field_post[phis < fov[0]] = 0
-    v_field_post[phis > fov[1]] = 0
+    v_field_post[:, phis < fov[0]] = 0
+    v_field_post[:, phis > fov[1]] = 0
     return v_field_post

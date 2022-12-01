@@ -4,6 +4,8 @@ import numpy as np
 import pygame
 
 from abm.agent import supcalc
+from abm.projects.cooperative_signaling.cs_agent.cs_agent_utils import \
+    prove_velocity
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
     reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis, \
     signaling, agent_decision
@@ -38,13 +40,14 @@ class CSAgent(Agent):
         self.signalling_color = colors.GREEN
         self.probability_of_starting_signaling = \
             probability_of_starting_signaling
-
-        # social visual projection field
-        self.target_field = np.zeros(self.v_field_res)
-
-        # Add Pygame events
         self.signaling_rand_event = False
         self.signaling_rand_value = random()
+
+        # social information
+        # social visual projection field
+        self.target_field = np.zeros(self.v_field_res)
+        self.crowing_density = np.zeros(self.v_field_res)
+        self.others_signaling_density = np.zeros(self.v_field_res)
 
     def update(self, agents):
         """
@@ -75,7 +78,12 @@ class CSAgent(Agent):
 
     def update_state(self):
         # update agent state based on the decision-making process
-        self.agent_state = agent_decision(self.meter, self.agent_state)
+        self.agent_state = agent_decision(
+            meter=self.meter,
+            max_signal_of_other_agents=self.others_signaling_density.max(
+                initial=0),
+            max_crowd_density=self.crowing_density.max(initial=0),
+            crowd_density_threshold=0.5)
 
     def update_social_info(self, agents):
         # calculate socially relevant projection field (e.g. according to
@@ -106,74 +114,68 @@ class CSAgent(Agent):
         # update agent color
         # TODO: remove this because it is executed in draw_update
         # self.change_color()
-        # perform the agent's action according to the current state
-        if self.agent_state == "exploration":
-            self.exploration()
-        elif self.agent_state == "taxis":
-            self.taxis()
-        elif self.agent_state == "relocation":
-            self.relocation()
-        elif self.agent_state == "flocking":
-            self.flocking()
 
-        if np.max(self.soc_v_field) > self.meter:
-            # joining behavior
-            vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
-                                    theta_max=2.5)
-            self.agent_state = "relocation"
-
+        # we freeze agents when we move them
+        if not self.is_moved_with_cursor:
+            # perform the agent's action according to the current state
+            if self.agent_state == "exploration":
+                self.exploration()
+            elif self.agent_state == "taxis":
+                self.taxis()
+            elif self.agent_state == "relocation":
+                self.relocation()
+            elif self.agent_state == "flocking":
+                self.flocking()
         else:
-            if self.meter > 0:
-                theta, taxis_dir = phototaxis(
-                    self.meter,
-                    self.prev_meter,
-                    self.theta_prev,
-                    self.taxis_dir,
-                    self.phototaxis_theta_step)
-                self.taxis_dir = taxis_dir
-                vel = (2 - self.velocity)
-                self.agent_state = "exploration"
-            else:
-                # carry out movement accordingly
-                vel, theta = random_walk(desired_vel=self.max_exp_vel)
-                vel = (2 - self.velocity)
-                self.agent_state = "exploration"
-
-        # updating position accordingly
-        if not self.is_moved_with_cursor:  # we freeze agents when we move them
-            # updating agent's state variables according to calculated vel and
-            # theta
-            self.orientation += theta
-            # storing theta in short term memory for phototaxis
-            self.theta_prev = theta
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-            self.velocity += vel
-            # self.prove_velocity()  # possibly bounding velocity of agent
-
-            # new agent's position
-            new_pos = (
-                self.position[0] + self.velocity * np.cos(self.orientation),
-                self.position[1] - self.velocity * np.sin(self.orientation)
-            )
-
-            # update the agent's position with constraints (reflection from the
-            # walls) or with the new position
-            self.position = list(self.reflect_from_walls(new_pos))
-        else:
-            # self.agent_type = "signalling"
             print(self.meter)
 
     def exploration(self):
-        pass
+        vel, theta = random_walk(desired_vel=self.max_exp_vel)
+        # QUESTION: why is this 2?
+        vel = (2 - self.velocity)
+        self.update_agent_position(theta, vel)
 
     def taxis(self):
-        pass
+        theta, self.taxis_dir = phototaxis(
+            self.meter,
+            self.prev_meter,
+            self.theta_prev,
+            self.taxis_dir,
+            self.phototaxis_theta_step)
+
+        # QUESTION: why is this 2?
+        vel = (2 - self.velocity)
+        self.update_agent_position(theta, vel)
 
     def relocation(self):
-        pass
+        # TODO: implement proper relocation
+        vel, theta = F_reloc_LR(self.velocity, self.soc_v_field, 2,
+                                theta_max=2.5)
+        self.update_agent_position(theta, vel)
 
     def flocking(self):
-        pass
+        # TODO: implement proper flocking
+        theta, vel = 0, 0
+        self.update_agent_position(theta, vel)
+
+    def update_agent_position(self, theta, vel):
+        # updating agent's state variables according to calculated vel and
+        # theta
+        self.orientation += theta
+        # storing theta in short term memory for phototaxis
+        self.theta_prev = theta
+        self.prove_orientation()  # bounding orientation into 0 and 2pi
+        self.velocity += vel
+        # self.prove_velocity()  # possibly bounding velocity of agent
+
+        # new agent's position
+        new_pos = (
+            self.position[0] + self.velocity * np.cos(self.orientation),
+            self.position[1] - self.velocity * np.sin(self.orientation)
+        )
+        # update the agent's position with constraints (reflection from the
+        # walls) or with the new position
+        self.position = list(self.reflect_from_walls(new_pos))
 
     def change_color(self):
         """

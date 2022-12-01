@@ -198,7 +198,7 @@ def projection_field(fov, v_field_resolution, position, radius,
     :return: projection field np.xarray with shape (n objects, field resolution)
     """
     # initializing visual field and relative angles
-    v_field = np.zeros(len(object_positions), v_field_resolution)
+    v_field = np.zeros((len(object_positions), v_field_resolution))
     phis = np.linspace(-np.pi, np.pi, v_field_resolution)
 
     # center point

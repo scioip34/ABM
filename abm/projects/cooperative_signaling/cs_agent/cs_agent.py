@@ -4,8 +4,6 @@ import numpy as np
 import pygame
 
 from abm.agent import supcalc
-from abm.projects.cooperative_signaling.cs_agent.cs_agent_utils import \
-    prove_velocity
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
     reflection_from_circular_wall, random_walk, F_reloc_LR, phototaxis, \
     signaling, agent_decision
@@ -166,7 +164,7 @@ class CSAgent(Agent):
         self.theta_prev = theta
         self.prove_orientation()  # bounding orientation into 0 and 2pi
         self.velocity += vel
-        # self.prove_velocity()  # possibly bounding velocity of agent
+        self.prove_velocity()  # possibly bounding velocity of agent
 
         # new agent's position
         new_pos = (
@@ -373,8 +371,11 @@ class CSAgent(Agent):
 
     def prove_velocity(self, velocity_limit=1):
         """Restricting the absolute velocity of the agent"""
-        self.velocity = prove_velocity(self.velocity, self.agent_state,
-                                       velocity_limit=velocity_limit)
+        if self.agent_state == 'exploration':
+            if np.abs(self.velocity) > velocity_limit:
+                # stopping agent if too fast during exploration
+                # QUESTION: can we return velocity_limit instead of 1?
+                self.velocity = velocity_limit
 
     def reflect_from_walls(self, new_pos=()):
         """

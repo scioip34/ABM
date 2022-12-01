@@ -8,5 +8,6 @@ def prove_velocity(velocity, agent_state, velocity_limit=1):
     if agent_state == 'exploration':
         if np.abs(velocity) > velocity_limit:
             # stopping agent if too fast during exploration
-            return 1
+            # QUESTION: can we return velocity_limit instead of 1?
+            return velocity_limit
     return velocity

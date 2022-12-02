@@ -227,3 +227,63 @@ class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
             for ag in self.agents:
                 ag.show_stats = True
         self.stats, self.stats_pos = self.create_vis_field_graph()
+
+    def draw_visual_fields(self):
+        """
+        Visualizing the range of vision for agents as opaque circles around the
+        agents
+        """
+        r = 100
+
+        for agent in self.agents:
+            if agent.agent_state == "relocation":
+                visual_field = agent.signaling_proj
+            elif agent.agent_state == "flocking":
+                visual_field = (agent.crowd_proj / agent.crowd_proj.max()) / 2
+            else:
+                visual_field = np.zeros_like(agent.signaling_proj)
+            phis = np.linspace(agent.orientation, 2 * np.pi - agent.orientation,
+                               visual_field.shape[0])
+            fov = agent.FOV
+
+            # Center and radius of pie chart
+            cx = agent.position[0] + agent.radius
+            cy = agent.position[1] + agent.radius
+
+            p_proj = [(cx + int(agent.radius * np.cos(phis[0])),
+                       cy + int(agent.radius * - np.sin(phis[0])))]
+            for i, ang in enumerate(phis):
+                height = visual_field[i]
+                x = cx + int(r * np.cos(ang) * height)
+                y = cy + int(r * - np.sin(ang) * height)
+                p_proj.append((x, y))
+            p_proj.append((cx + int(agent.radius * np.cos(phis[-1])),
+                           cy + int(agent.radius * - np.sin(phis[-1]))))
+
+            image = pygame.Surface(
+                [self.vis_area_end_width, self.vis_area_end_height])
+            image.fill(colors.BACKGROUND)
+            image.set_colorkey(colors.BACKGROUND)
+            image.set_alpha(10)
+
+            if 0 < fov[1] < np.pi:
+                p_fov = [(cx, cy)]
+                # Get points on arc
+                angles = [agent.orientation + fov[0],
+                          agent.orientation + fov[1]]
+                step_size = (angles[1] - angles[0]) / 50
+                angles_array = np.arange(angles[0], angles[1] + step_size,
+                                         step_size)
+                for n in angles_array:
+                    x = cx + int(r * np.cos(n))
+                    y = cy + int(r * - np.sin(n))
+                    p_fov.append((x, y))
+                p_fov.append((cx, cy))
+                pygame.draw.polygon(image, colors.GREEN, p_fov)
+            elif fov[1] == np.pi:
+                cx, cy, r = agent.position[0] + agent.radius, agent.position[
+                    1] + agent.radius, 100
+                pygame.draw.circle(image, colors.GREEN, (cx, cy), r)
+
+            pygame.draw.polygon(image, colors.BLACK, p_proj)
+            self.screen.blit(image, (0, 0))

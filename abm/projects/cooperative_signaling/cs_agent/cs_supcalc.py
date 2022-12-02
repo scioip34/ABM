@@ -188,11 +188,11 @@ def projection_field(fov, v_field_resolution, position, radius,
     Calculating visual projection field for the agent given the visible
     obstacles in the environment
     obstacle sprites to generate projection field
-    :param fov: tuple of number with borders of fov such as (-np.pi,np.pi)
+    :param fov: tuple of number with borders of fov such as (-np.pi, np.pi)
     :param v_field_resolution: visual field resolution in pixels
     :param position: np.xarray of agent's position
     :param radius: radius of the agent
-    :param orientation: orientation of the agent
+    :param orientation: orientation angle between 0 and 2pi
     :param object_positions: list of np.xarray of object's positions
     :param object_meters: list of object's meters, default is None
     :return: projection field np.xarray with shape (n objects, field resolution)
@@ -249,30 +249,34 @@ def projection_field(fov, v_field_resolution, position, radius,
 
         # if target is visible we save its projection into the VPF
         # source data
-        if fov[0] < closed_angle < fov[1]:
+        if fov[0] <= closed_angle <= fov[1]:
             # the projection size is proportional to the visual angle.
             # If the projection is maximal (i.e. taking each pixel of the
             # retina) the angle is 2pi from this we just calculate the
             # projection size using a single proportion
             proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
-            proj_start = int(phi_target - proj_size / 2)
-            proj_end = int(phi_target + proj_size / 2)
+            proj_start = int(phi_target - np.floor(proj_size / 2))
+            proj_end = int(phi_target + np.floor(proj_size / 2))
 
             # circular boundaries to the VPF as there is 360 degree vision
             if proj_start < 0:
-                v_field[i][v_field_resolution + proj_start:v_field_resolution] = 1
+                v_field[i, v_field_resolution + proj_start:v_field_resolution] = 1
                 proj_start = 0
             if proj_end >= v_field_resolution:
-                v_field[i][0:proj_end - v_field_resolution] = 1
-                proj_end = v_field_resolution - 1
+                v_field[i, 0:proj_end - (v_field_resolution - 1)] = 1
+                proj_end = v_field_resolution
 
-            v_field[i][proj_start:proj_end] = 1
+            v_field[i, proj_start:proj_end] = 1
 
             if object_meters is not None:
                 v_field[i] *= object_meters[i]
 
     # post_processing and limiting FOV
-    v_field_post = np.flip(v_field)
+    # flip field data along second dimension
+    # TODO: why we need to flip the field?
+    # v_field_post = np.flip(v_field, axis=1)
+    v_field_post = v_field
+
     v_field_post[:, phis < fov[0]] = 0
     v_field_post[:, phis > fov[1]] = 0
     return v_field_post

@@ -4,7 +4,7 @@ from unittest import mock
 
 from abm.projects.cooperative_signaling.cs_agent import cs_supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import signaling, \
-    agent_decision
+    agent_decision, projection_field
 
 
 def test_random_walk():
@@ -138,3 +138,21 @@ def test_agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
     state = agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
                            crowd_density_threshold)
     assert state == agent_state
+
+
+@pytest.mark.parametrize(
+    "fov, v_field_resolution, position, radius, orientation, object_positions, "
+    "object_meters, true_projection",
+    [
+        ((-np.pi, np.pi), 8, np.array([-1, -1]), 1, 0, [np.array([0, -1])], None,
+         [[1, 0, 0, 0, 0, 0, 1, 1]]),
+    ]
+)
+def test_projection_field(fov, v_field_resolution, position, radius,
+                          orientation, object_positions, object_meters,
+                          true_projection):
+    projection = projection_field(fov, v_field_resolution, position, radius,
+                                  orientation, object_positions, object_meters)
+    projection.shape == (len(object_positions), v_field_resolution)
+
+    assert np.all(projection == true_projection)

@@ -40,10 +40,9 @@ class CSAgent(Agent):
         self.signaling_rand_event = False
         self.signaling_rand_value = random()
 
-        # social information
-        # social visual projection field
-        self.crowd_density = np.zeros(self.v_field_res)
-        self.others_signaling_density = np.zeros(self.v_field_res)
+        # social information: visual field projections
+        self.crowd_proj = np.zeros(self.v_field_res)
+        self.signaling_proj = np.zeros(self.v_field_res)
 
     def update(self, agents):
         """
@@ -75,9 +74,8 @@ class CSAgent(Agent):
     def update_social_info(self, agents):
         # calculate socially relevant projection field (e.g. according to
         # signalling agents)
-        self.crowd_density = self.calc_crowing_density_proj(agents)
-        self.others_signaling_density = self.calc_others_signaling_density_proj(
-            agents)
+        self.crowd_proj = self.calc_crowing_density_proj(agents)
+        self.signaling_proj = self.calc_others_signaling_density_proj(agents)
 
     def calc_crowing_density_proj(self, agents):
         visual_field = projection_field(
@@ -92,30 +90,38 @@ class CSAgent(Agent):
         return visual_field.sum(axis=0)
 
     def calc_others_signaling_density_proj(self, agents, decay_factor=0.1):
+        pos = [np.array(ag.position) for ag in agents if ag.is_signaling]
+
+        # continue if nobody is signaling
+        if len(pos) == 0:
+            return np.zeros_like(self.signaling_proj)
+
+        meters = [ag.meter for ag in agents if ag.is_signaling]
         visual_field = projection_field(
             fov=self.FOV,
             v_field_resolution=self.v_field_res,
             position=np.array(self.position),
             radius=self.radius,
             orientation=self.orientation,
-            object_positions=[np.array(ag.position) for ag in agents],
-            object_meters=[ag.meter for ag in agents])
+            object_positions=pos,
+            object_meters=meters)
+
         # max signal at each point in visual field
-        current_signaling_density = visual_field.max(axis=0)
+        current_signaling_proj = visual_field.max(axis=0)
         # decay previous signaling density
-        decay = self.others_signaling_density * decay_factor
-        new_signaling_density = np.max(
-            [self.others_signaling_density - decay, current_signaling_density],
-            axis=0)
-        return new_signaling_density
+        # decay = self.signaling_proj * decay_factor
+        # new_signaling_proj = np.max(
+        #     [self.signaling_proj - decay, current_signaling_proj],
+        #     axis=0)
+        # return new_signaling_proj
+        return current_signaling_proj
 
     def update_state(self):
         # update agent state based on the decision-making process
         self.agent_state = agent_decision(
             meter=self.meter,
-            max_signal_of_other_agents=self.others_signaling_density.max(
-                initial=0),
-            max_crowd_density=self.crowd_density.max(initial=0),
+            max_signal_of_other_agents=self.signaling_proj.max(initial=0),
+            max_crowd_density=self.crowd_proj.max(initial=0),
             crowd_density_threshold=0.5)
 
     def perform_action(self):
@@ -157,14 +163,14 @@ class CSAgent(Agent):
 
     def relocation(self):
         vel, theta = f_reloc_lr(self.velocity,
-                                self.others_signaling_density,
+                                self.signaling_proj,
                                 velocity_desired=2,
                                 theta_max=2.5)
         self.update_agent_position(theta, vel)
 
     def flocking(self):
         vel, theta = f_reloc_lr(self.velocity,
-                                self.crowd_density,
+                                self.crowd_proj,
                                 velocity_desired=2,
                                 theta_max=2.5)
         self.update_agent_position(theta, vel)

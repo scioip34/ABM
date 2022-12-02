@@ -169,6 +169,7 @@ class CSAgent(Agent):
         self.update_agent_position(theta, vel)
 
     def flocking(self):
+        # TODO: implement flocking correctly
         vel, theta = f_reloc_lr(self.velocity,
                                 self.crowd_proj,
                                 velocity_desired=2,

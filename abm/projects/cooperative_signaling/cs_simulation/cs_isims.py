@@ -242,7 +242,7 @@ class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
                 visual_field = (agent.crowd_proj / agent.crowd_proj.max()) / 2
             else:
                 visual_field = np.zeros_like(agent.signaling_proj)
-            phis = np.linspace(agent.orientation, 2 * np.pi - agent.orientation,
+            phis = np.linspace(agent.orientation, 2 * np.pi + agent.orientation,
                                visual_field.shape[0])
             fov = agent.FOV
 

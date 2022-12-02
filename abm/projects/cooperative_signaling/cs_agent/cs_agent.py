@@ -89,7 +89,7 @@ class CSAgent(Agent):
         # sum of all agents projections at each point in visual field
         return visual_field.sum(axis=0)
 
-    def calc_others_signaling_density_proj(self, agents, decay_factor=0.1):
+    def calc_others_signaling_density_proj(self, agents, decay_factor=0.01):
         pos = [np.array(ag.position) for ag in agents if ag.is_signaling]
 
         # continue if nobody is signaling
@@ -108,13 +108,14 @@ class CSAgent(Agent):
 
         # max signal at each point in visual field
         current_signaling_proj = visual_field.max(axis=0)
+        # TODO: decay does not work
         # decay previous signaling density
-        # decay = self.signaling_proj * decay_factor
-        # new_signaling_proj = np.max(
-        #     [self.signaling_proj - decay, current_signaling_proj],
-        #     axis=0)
-        # return new_signaling_proj
-        return current_signaling_proj
+        decay_factor = 1
+        decay = self.signaling_proj * decay_factor
+        new_signaling_proj = np.max(
+            [self.signaling_proj - decay, current_signaling_proj],
+            axis=0)
+        return new_signaling_proj
 
     def update_state(self):
         # update agent state based on the decision-making process

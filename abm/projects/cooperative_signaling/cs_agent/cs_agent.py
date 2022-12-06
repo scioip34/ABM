@@ -85,7 +85,8 @@ class CSAgent(Agent):
             radius=self.radius,
             orientation=self.orientation,
             object_positions=[np.array(ag.position) for ag in agents],
-            object_meters=None)  # not relevant for crowding density
+            object_meters=None,  # not relevant for crowding density
+            max_proj_size=self.v_field_res * 0.05)  # crowding only works if proj sitze is smaller than 5% of vfield
         # sum of all agents projections at each point in visual field
         return visual_field.sum(axis=0)
 

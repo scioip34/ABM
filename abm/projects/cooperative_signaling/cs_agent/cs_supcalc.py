@@ -183,7 +183,7 @@ def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
 
 
 def projection_field(fov, v_field_resolution, position, radius,
-                     orientation, object_positions, object_meters=None):
+                     orientation, object_positions, object_meters=None, max_proj_size=None):
     """
     Calculating visual projection field for the agent given the visible
     obstacles in the environment
@@ -195,6 +195,7 @@ def projection_field(fov, v_field_resolution, position, radius,
     :param orientation: orientation angle between 0 and 2pi
     :param object_positions: list of np.xarray of object's positions
     :param object_meters: list of object's meters, default is None
+    :param max_proj_size: maximum projection size to include in the visual proj. field
     :return: projection field np.xarray with shape (n objects, field resolution)
     """
     # initializing visual field and relative angles
@@ -255,21 +256,33 @@ def projection_field(fov, v_field_resolution, position, radius,
             # retina) the angle is 2pi from this we just calculate the
             # projection size using a single proportion
             proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
-            proj_start = int(phi_target - np.floor(proj_size / 2))
-            proj_end = int(phi_target + np.floor(proj_size / 2))
 
-            # circular boundaries to the VPF as there is 360 degree vision
-            if proj_start < 0:
-                v_field[i, v_field_resolution + proj_start:v_field_resolution] = 1
-                proj_start = 0
-            if proj_end >= v_field_resolution:
-                v_field[i, 0:proj_end - (v_field_resolution - 1)] = 1
-                proj_end = v_field_resolution
+            # Check if projection size is valid
+            if max_proj_size is None:
+                # If no maximum projection size is passed, all projection is valid in the FOV
+                valid_proj = True
+            elif proj_size <= max_proj_size:
+                # If there is a max projection size, only smaller projections are valid
+                valid_proj = True
+            else:
+                valid_proj = False
 
-            v_field[i, proj_start:proj_end] = 1
+            if valid_proj:
+                proj_start = int(phi_target - np.floor(proj_size / 2))
+                proj_end = int(phi_target + np.floor(proj_size / 2))
 
-            if object_meters is not None:
-                v_field[i] *= object_meters[i]
+                # circular boundaries to the VPF as there is 360 degree vision
+                if proj_start < 0:
+                    v_field[i, v_field_resolution + proj_start:v_field_resolution] = 1
+                    proj_start = 0
+                if proj_end >= v_field_resolution:
+                    v_field[i, 0:proj_end - (v_field_resolution - 1)] = 1
+                    proj_end = v_field_resolution
+
+                v_field[i, proj_start:proj_end] = 1
+
+                if object_meters is not None:
+                    v_field[i] *= object_meters[i]
 
     # post_processing and limiting FOV
     # flip field data along second dimension

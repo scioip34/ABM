@@ -239,7 +239,7 @@ class CSPlaygroundSimulation(PlaygroundSimulation, CSSimulation):
             if agent.agent_state == "relocation":
                 visual_field = agent.signaling_proj
             elif agent.agent_state == "flocking":
-                visual_field = (agent.crowd_proj / agent.crowd_proj.max()) / 2
+                visual_field = agent.crowd_proj
             else:
                 visual_field = np.zeros_like(agent.signaling_proj)
             phis = np.linspace(agent.orientation, 2 * np.pi + agent.orientation,

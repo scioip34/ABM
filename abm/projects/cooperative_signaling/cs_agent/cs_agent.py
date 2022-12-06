@@ -90,6 +90,8 @@ class CSAgent(Agent):
         # sum of all agents projections at each point in visual field
         svfield = visual_field.sum(axis=0)
         normed_v_field = svfield / len(agents)  # normalizing the visual field with number of agents
+        # for debug resons we pass this as static foraging social projection (for visualization)
+        self.soc_v_field = normed_v_field
         return normed_v_field
 
     def calc_others_signaling_density_proj(self, agents, decay_factor=0.01):

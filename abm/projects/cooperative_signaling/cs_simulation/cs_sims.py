@@ -252,7 +252,8 @@ class CSSimulation(Simulation):
             else:
                 # Still calculating visual fields
                 for ag in self.agents:
-                    ag.calc_social_V_proj(self.agents)
+                    # DEBUG: updating visual projections also when paused
+                    ag.update_social_info(self.agents)
 
             # Draw environment and agents
             if self.with_visualization:

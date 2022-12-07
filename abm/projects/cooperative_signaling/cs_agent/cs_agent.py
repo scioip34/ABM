@@ -84,7 +84,7 @@ class CSAgent(Agent):
             position=np.array(self.position),
             radius=self.radius,
             orientation=self.orientation,
-            object_positions=[np.array(ag.position) for ag in agents],
+            object_positions=[np.array(ag.position) for ag in agents if ag is not self],
             object_meters=None,  # not relevant for crowding density
             max_proj_size=self.v_field_res * 0.05)  # crowding only works if proj sitze is smaller than 5% of vfield
         # sum of all agents projections at each point in visual field
@@ -95,13 +95,13 @@ class CSAgent(Agent):
         return normed_v_field
 
     def calc_others_signaling_density_proj(self, agents, decay_factor=0.01):
-        pos = [np.array(ag.position) for ag in agents if ag.is_signaling]
+        pos = [np.array(ag.position) for ag in agents if ag.is_signaling if ag is not self]
 
         # continue if nobody is signaling
         if len(pos) == 0:
             return np.zeros_like(self.signaling_proj)
 
-        meters = [ag.meter for ag in agents if ag.is_signaling]
+        meters = [ag.meter for ag in agents if ag.is_signaling if ag is not self]
         visual_field = projection_field(
             fov=self.FOV,
             v_field_resolution=self.v_field_res,

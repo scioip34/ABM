@@ -210,7 +210,7 @@ def projection_field(fov, v_field_resolution, position, radius,
         [1 + np.cos(orientation), 1 - np.sin(orientation)]) * radius
 
     # vector between center and edge according to orientation
-    v1 = agents_center - agent_edge
+    v1 = agent_edge - agents_center
 
     # 1. Calculating closed angle between object and agent according to the
     # position of the object.
@@ -302,7 +302,7 @@ def calculate_closed_angle(v1, v2):
     # at this point closed angle between 0 and 2pi, but we need it between -pi and pi
     # we also need to take our orientation convention into consideration to
     # recalculate theta=0 is pointing to the right
-    if 0 < closed_angle < np.pi:
+    if 0 <= closed_angle <= np.pi:
         closed_angle = -closed_angle
     else:
         closed_angle = 2 * np.pi - closed_angle

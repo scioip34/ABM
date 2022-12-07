@@ -159,10 +159,9 @@ def test_projection_field(fov, v_field_resolution, position, radius,
 
 
 @pytest.mark.parametrize("v1, v2, expected_output", [
-    ([1, 0], [1, 0], 0),  # vectors are equal
-    ([1, 0], [0, 1], np.pi/2),  # 90-degree angle
-    ([1, 0], [-1, 0], np.pi),  # 180-degree angle
-    ([1, 0], [-1, -1], 3*np.pi/2),  # 270-degree angle
+    ([1, 0], [1, 0], 2 * np.pi),  # vectors are equal
+    ([1, 0], [0, 1], - np.pi/2),  # 90-degree angle
+    ([1, 0], [-1, 0], np.pi)  # 180-degree angle
 ])
 def test_calculate_closed_angle(v1, v2, expected_output):
     actual_output = calculate_closed_angle(v1, v2)

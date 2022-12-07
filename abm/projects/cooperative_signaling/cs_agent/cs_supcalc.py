@@ -305,5 +305,5 @@ def calculate_closed_angle(v1, v2):
     if 0 < closed_angle < np.pi:
         closed_angle = -closed_angle
     else:
-        closed_angle -= 2 * np.pi
+        closed_angle = 2 * np.pi - closed_angle
     return closed_angle

@@ -132,8 +132,6 @@ class CSAgent(Agent):
 
     def perform_action(self):
         # update agent color
-        # TODO: remove this because it is executed in draw_update
-        # self.change_color()
 
         # we freeze agents when we move them
         if not self.is_moved_with_cursor:
@@ -151,7 +149,6 @@ class CSAgent(Agent):
 
     def exploration(self):
         vel, theta = random_walk(desired_vel=self.max_exp_vel)
-        # QUESTION: why is this 2?
         vel = (2 - self.velocity)
         self.update_agent_position(theta, vel)
 
@@ -163,7 +160,6 @@ class CSAgent(Agent):
             self.taxis_dir,
             self.phototaxis_theta_step)
 
-        # QUESTION: why is this 2?
         vel = (2 - self.velocity)
         self.update_agent_position(theta, vel)
 

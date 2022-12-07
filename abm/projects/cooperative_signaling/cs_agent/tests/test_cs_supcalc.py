@@ -4,7 +4,7 @@ from unittest import mock
 
 from abm.projects.cooperative_signaling.cs_agent import cs_supcalc
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import signaling, \
-    agent_decision, projection_field
+    agent_decision, projection_field, calculate_closed_angle
 
 
 def test_random_walk():
@@ -153,6 +153,18 @@ def test_projection_field(fov, v_field_resolution, position, radius,
                           true_projection):
     projection = projection_field(fov, v_field_resolution, position, radius,
                                   orientation, object_positions, object_meters)
-    projection.shape == (len(object_positions), v_field_resolution)
+    assert projection.shape == (len(object_positions), v_field_resolution)
 
     assert np.all(projection == true_projection)
+
+
+@pytest.mark.parametrize("v1, v2, expected_output", [
+    ([1, 0], [1, 0], 0),  # vectors are equal
+    ([1, 0], [0, 1], np.pi/2),  # 90-degree angle
+    ([1, 0], [-1, 0], np.pi),  # 180-degree angle
+    ([1, 0], [-1, -1], 3*np.pi/2),  # 270-degree angle
+])
+def test_calculate_closed_angle(v1, v2, expected_output):
+    actual_output = calculate_closed_angle(v1, v2)
+    assert np.isclose(actual_output, expected_output)
+

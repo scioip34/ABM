@@ -228,17 +228,7 @@ def projection_field(fov, v_field_resolution, position, radius,
         v2 = object_center - agents_center
 
         # calculating closed angle between v1 and v2
-        # (rotated with the orientation of the agent as it is relative)
-        closed_angle = angle_between(v1, v2)
-        closed_angle = (closed_angle % (2 * np.pi))
-        # at this point closed angle between 0 and 2pi, but we need it between
-        # -pi and pi
-        # we also need to take our orientation convention into consideration to
-        # recalculate theta=0 is pointing to the right
-        if 0 < closed_angle < np.pi:
-            closed_angle = -closed_angle
-        else:
-            closed_angle = 2 * np.pi - closed_angle
+        closed_angle = calculate_closed_angle(v1, v2)
 
         distance = np.linalg.norm(object_center - agents_center)
 
@@ -258,14 +248,7 @@ def projection_field(fov, v_field_resolution, position, radius,
             proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
 
             # Check if projection size is valid
-            if max_proj_size is None:
-                # If no maximum projection size is passed, all projection is valid in the FOV
-                valid_proj = True
-            elif proj_size <= max_proj_size:
-                # If there is a max projection size, only smaller projections are valid
-                valid_proj = True
-            else:
-                valid_proj = False
+            valid_proj = validate_projection_size(max_proj_size, proj_size)
 
             if valid_proj:
                 proj_start = int(phi_target - np.floor(proj_size / 2))
@@ -293,3 +276,34 @@ def projection_field(fov, v_field_resolution, position, radius,
     v_field_post[:, phis < fov[0]] = 0
     v_field_post[:, phis > fov[1]] = 0
     return v_field_post
+
+
+def validate_projection_size(max_proj_size, proj_size):
+    if max_proj_size is None:
+        # If no maximum projection size is passed, all projection is valid in the FOV
+        valid_proj = True
+    elif proj_size <= max_proj_size:
+        # If there is a max projection size, only smaller projections are valid
+        valid_proj = True
+    else:
+        valid_proj = False
+    return valid_proj
+
+
+def calculate_closed_angle(v1, v2):
+    """
+    Calculating closed angle between two vectors v1 and v2. Rotated with the orientation of the agent as it is relative.
+    :param v1: vector 1; np.xarray
+    :param v2: vector 2; np.xarray
+    :return: closed angle between v1 and v2
+    """
+    closed_angle = angle_between(v1, v2)
+    closed_angle = (closed_angle % (2 * np.pi))
+    # at this point closed angle between 0 and 2pi, but we need it between -pi and pi
+    # we also need to take our orientation convention into consideration to
+    # recalculate theta=0 is pointing to the right
+    if 0 < closed_angle < np.pi:
+        closed_angle = -closed_angle
+    else:
+        closed_angle -= 2 * np.pi
+    return closed_angle

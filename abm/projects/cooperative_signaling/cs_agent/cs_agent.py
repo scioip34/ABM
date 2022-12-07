@@ -261,7 +261,6 @@ class CSAgent(Agent):
         if self.agent_state == 'exploration':
             if np.abs(self.velocity) > velocity_limit:
                 # stopping agent if too fast during exploration
-                # QUESTION: can we return velocity_limit instead of 1?
                 self.velocity = velocity_limit
 
     def reflect_from_walls(self, new_pos=()):

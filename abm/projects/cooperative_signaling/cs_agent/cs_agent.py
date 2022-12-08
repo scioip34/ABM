@@ -96,7 +96,7 @@ class CSAgent(Agent):
         self.soc_v_field = normed_v_field
         return normed_v_field
 
-    def calc_others_signaling_density_proj(self, agents, memory_depth=20):
+    def calc_others_signaling_density_proj(self, agents, memory_depth=1):
         current_pos = [np.array(ag.position) for ag in agents if ag.is_signaling if ag is not self]
         current_meters = [ag.meter for ag in agents if ag.is_signaling if ag is not self]
 
@@ -125,13 +125,13 @@ class CSAgent(Agent):
 
     def extend_signaling_agent_positions_with_memory(self, memory_depth):
         pos, meters = [], []
-        for n, (p, m) in enumerate(self.memory_signaling, start=1):
+        for n, (p, m) in enumerate(self.memory_signaling):
             decay_factor = 1 - n / memory_depth
             # append positions if somebody was signaling in the last n's timestep
             if p:
                 pos.extend(p)
                 meters.extend([_m * decay_factor for _m in m])
-            if n > memory_depth:
+            if n >= memory_depth:
                 # remove memory if it is older than memory_depth
                 self.memory_signaling.pop(-1)
                 break

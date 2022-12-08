@@ -79,7 +79,12 @@ class CSAgent(Agent):
         self.crowd_proj = self.calc_crowing_density_proj(agents)
         self.signaling_proj = self.calc_others_signaling_density_proj(agents)
 
-    def calc_crowing_density_proj(self, agents):
+    def calc_crowing_density_proj(self, agents, max_proj_size_percentage=0.05):
+        """
+        :param agents: agents
+        :param max_proj_size_percentage: crowding only works if proj size is smaller than some percentage of vfield.
+        Default is 5%.
+        """
         visual_field = projection_field(
             fov=self.FOV,
             v_field_resolution=self.v_field_res,
@@ -88,11 +93,12 @@ class CSAgent(Agent):
             orientation=self.orientation,
             object_positions=[np.array(ag.position) for ag in agents if ag is not self],
             object_meters=None,  # not relevant for crowding density
-            max_proj_size=self.v_field_res * 0.05)  # crowding only works if proj sitze is smaller than 5% of vfield
+            max_proj_size=self.v_field_res * max_proj_size_percentage)
         # sum of all agents projections at each point in visual field
         svfield = visual_field.sum(axis=0)
-        normed_v_field = svfield / len(agents)  # normalizing the visual field with number of agents
-        # for debug resons we pass this as static foraging social projection (for visualization)
+        # normalizing the visual field with number of agents
+        normed_v_field = svfield / len(agents)
+        # for debug reasons we pass this as static foraging social projection (for visualization)
         self.soc_v_field = normed_v_field
         return normed_v_field
 
@@ -186,7 +192,6 @@ class CSAgent(Agent):
         self.update_agent_position(theta, vel)
 
     def flocking(self):
-        # TODO: implement flocking correctly
         vel, theta = f_reloc_lr(self.velocity,
                                 self.crowd_proj,
                                 velocity_desired=2,

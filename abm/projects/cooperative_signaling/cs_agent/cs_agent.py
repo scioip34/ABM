@@ -104,7 +104,7 @@ class CSAgent(Agent):
         self.memory_signaling.insert(0, (current_pos, current_meters))
 
         # combine memory and the current state
-        pos, meters = self.add_memory_to_current_positions(memory_depth)
+        pos, meters = self.extend_signaling_agent_positions_with_memory(memory_depth)
 
         # continue if nobody was signaling
         if len(pos) == 0:
@@ -123,7 +123,7 @@ class CSAgent(Agent):
         signaling_proj = visual_field.max(axis=0)
         return signaling_proj
 
-    def add_memory_to_current_positions(self, memory_depth):
+    def extend_signaling_agent_positions_with_memory(self, memory_depth):
         pos, meters = [], []
         for n, (p, m) in enumerate(self.memory_signaling, start=1):
             decay_factor = 1 - n / memory_depth

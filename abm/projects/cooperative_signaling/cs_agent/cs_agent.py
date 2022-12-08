@@ -43,6 +43,8 @@ class CSAgent(Agent):
         # social information: visual field projections
         self.crowd_proj = np.zeros(self.v_field_res)
         self.signaling_proj = np.zeros(self.v_field_res)
+        # memory to store the coordinates of previously signaling agents
+        self.memory_signaling = []
 
     def update(self, agents):
         """
@@ -94,14 +96,20 @@ class CSAgent(Agent):
         self.soc_v_field = normed_v_field
         return normed_v_field
 
-    def calc_others_signaling_density_proj(self, agents, decay_factor=0.01):
-        pos = [np.array(ag.position) for ag in agents if ag.is_signaling if ag is not self]
+    def calc_others_signaling_density_proj(self, agents, memory_depth=20):
+        current_pos = [np.array(ag.position) for ag in agents if ag.is_signaling if ag is not self]
+        current_meters = [ag.meter for ag in agents if ag.is_signaling if ag is not self]
 
-        # continue if nobody is signaling
+        # update memory: insert current position and meter at the beginning of the list
+        self.memory_signaling.insert(0, (current_pos, current_meters))
+
+        # combine memory and the current state
+        pos, meters = self.add_memory_to_current_positions(memory_depth)
+
+        # continue if nobody was signaling
         if len(pos) == 0:
             return np.zeros_like(self.signaling_proj)
 
-        meters = [ag.meter for ag in agents if ag.is_signaling if ag is not self]
         visual_field = projection_field(
             fov=self.FOV,
             v_field_resolution=self.v_field_res,
@@ -112,15 +120,22 @@ class CSAgent(Agent):
             object_meters=meters)
 
         # max signal at each point in visual field
-        current_signaling_proj = visual_field.max(axis=0)
-        # TODO: decay does not work
-        # decay previous signaling density
-        decay_factor = 1
-        decay = self.signaling_proj * decay_factor
-        new_signaling_proj = np.max(
-            [self.signaling_proj - decay, current_signaling_proj],
-            axis=0)
-        return new_signaling_proj
+        signaling_proj = visual_field.max(axis=0)
+        return signaling_proj
+
+    def add_memory_to_current_positions(self, memory_depth):
+        pos, meters = [], []
+        for n, (p, m) in enumerate(self.memory_signaling, start=1):
+            decay_factor = 1 - n / memory_depth
+            # append positions if somebody was signaling in the last n's timestep
+            if p:
+                pos.extend(p)
+                meters.extend([_m * decay_factor for _m in m])
+            if n > memory_depth:
+                # remove memory if it is older than memory_depth
+                self.memory_signaling.pop(-1)
+                break
+        return pos, meters
 
     def update_state(self):
         # update agent state based on the decision-making process

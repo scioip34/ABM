@@ -269,9 +269,7 @@ def projection_field(fov, v_field_resolution, position, radius,
 
     # post_processing and limiting FOV
     # flip field data along second dimension
-    # TODO: why we need to flip the field?
-    # v_field_post = np.flip(v_field, axis=1)
-    v_field_post = v_field
+    v_field_post = np.flip(v_field, axis=1)
 
     v_field_post[:, phis < fov[0]] = 0
     v_field_post[:, phis > fov[1]] = 0

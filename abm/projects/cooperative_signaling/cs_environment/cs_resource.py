@@ -97,7 +97,6 @@ class CSResource(Rescource):
             self.prove_orientation()  # bounding orientation into 0 and 2pi
 
             self.current_step_time_left = levy_walk(exponent=1.5)
-            print(self.current_step_time_left)
 
         self.current_step_time_left -= 1
 

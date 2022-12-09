@@ -52,7 +52,6 @@ class CSSimulation(Simulation):
         self.probability_of_starting_signaling = \
             probability_of_starting_signaling
         self.des_velocity_res = des_velocity_res
-        self.res_theta_abs = res_theta_abs
 
         # Agent parameters
         self.phototaxis_theta_step = phototaxis_theta_step

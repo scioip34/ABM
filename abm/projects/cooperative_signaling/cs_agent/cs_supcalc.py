@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pygame
 
@@ -20,6 +22,15 @@ def random_walk(desired_vel=None, exp_theta_min=None, exp_theta_max=None):
     dvel = desired_vel
     dtheta = np.random.uniform(exp_theta_min, exp_theta_max)
     return dvel, dtheta
+
+
+def levy_walk(exponent=1.5):
+    """
+    Draw the step size from a power-law distribution.
+    :param exponent: exponent of the power-law distribution
+    :return: step size
+    """
+    return random.paretovariate(exponent)
 
 
 def f_reloc_lr(velocity, visual_field, velocity_desired=None, theta_max=None):

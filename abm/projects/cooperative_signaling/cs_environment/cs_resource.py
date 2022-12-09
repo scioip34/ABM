@@ -4,7 +4,7 @@ import pygame
 from abm.contrib import colors
 from abm.environment.rescource import Rescource
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
-    reflection_from_circular_wall
+    reflection_from_circular_wall, levy_walk
 
 
 class CSResource(Rescource):
@@ -24,6 +24,7 @@ class CSResource(Rescource):
         # State variables
         self.velocity = 0
         self.orientation = 0
+        self.current_step_time_left = 0
 
     def update_clicked_status(self, mouse):
         """Checking if the resource patch was clicked on a mouse event"""
@@ -88,11 +89,18 @@ class CSResource(Rescource):
 
     def update(self):
 
-        # applying random movement on resource patch
-        _, theta = random_walk(exp_theta_min=-self.res_theta_abs,
-                               exp_theta_max=self.res_theta_abs)
-        self.orientation += theta
-        self.prove_orientation()  # bounding orientation into 0 and 2pi
+        if self.current_step_time_left <= 0:
+            # applying random movement on resource patch
+            _, theta = random_walk(exp_theta_min=-self.res_theta_abs,
+                                   exp_theta_max=self.res_theta_abs)
+            self.orientation += theta
+            self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+            self.current_step_time_left = levy_walk(exponent=1.5)
+            print(self.current_step_time_left)
+
+        self.current_step_time_left -= 1
+
         self.velocity += (self.des_velocity - self.velocity)
 
         # updating agent's position

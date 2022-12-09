@@ -91,13 +91,15 @@ class CSResource(Rescource):
 
         if self.current_step_time_left <= 0:
             # applying random movement on resource patch
-            _, theta = random_walk(exp_theta_min=-self.res_theta_abs,
-                                   exp_theta_max=self.res_theta_abs)
+            step_size, theta = levy_walk(
+                exponent=1,
+                max_step_size=100,
+                exp_theta_min=-self.res_theta_abs,
+                exp_theta_max=self.res_theta_abs)
             self.orientation += theta
-            self.prove_orientation()  # bounding orientation into 0 and 2pi
-
-            self.current_step_time_left = levy_walk(exponent=1.5)
-
+            # bounding orientation into 0 and 2pi
+            self.prove_orientation()
+            self.current_step_time_left = step_size
         self.current_step_time_left -= 1
 
         self.velocity += (self.des_velocity - self.velocity)

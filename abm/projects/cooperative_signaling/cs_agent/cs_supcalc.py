@@ -24,13 +24,23 @@ def random_walk(desired_vel=None, exp_theta_min=None, exp_theta_max=None):
     return dvel, dtheta
 
 
-def levy_walk(exponent=1.5):
+def levy_walk(exponent=1.5, max_step_size=100, desired_vel=None, exp_theta_min=None, exp_theta_max=None):
     """
     Draw the step size from a power-law distribution.
     :param exponent: exponent of the power-law distribution
+    :param max_step_size: maximum step size
+    :param desired_vel: desired velocity of the agent
+    :param exp_theta_min: minimum angle of the agent's orientation
+    :param exp_theta_max: maximum angle of the agent's orientation
     :return: step size
     """
-    return random.paretovariate(exponent)
+    _, dtheta = random_walk(desired_vel=desired_vel, exp_theta_min=exp_theta_min, exp_theta_max=exp_theta_max)
+    step_size = np.int32(np.random.pareto(exponent))
+
+    # truncate the step size to the maximum step size
+    if step_size > max_step_size:
+        step_size = max_step_size
+    return step_size, dtheta
 
 
 def f_reloc_lr(velocity, visual_field, velocity_desired=None, theta_max=None):

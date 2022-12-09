@@ -14,7 +14,7 @@ def setup_coop_sign_playground():
     playground_tool.default_params["detection_range"] = 120
     playground_tool.default_params["resource_meter_multiplier"] = 1
     playground_tool.default_params["des_velocity_res"] = 1.5
-    playground_tool.default_params["res_theta_abs"] = 1
+    playground_tool.default_params["res_theta_abs"] = 0.2
     playground_tool.default_params["signalling_cost"] = 0.2
     playground_tool.default_params["probability_of_starting_signaling"] = 0.5
     playground_tool.default_params["agent_signaling_rand_event_update"] = 10

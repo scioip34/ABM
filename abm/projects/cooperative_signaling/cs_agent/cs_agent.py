@@ -6,6 +6,7 @@ import pygame
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
     reflection_from_circular_wall, random_walk, f_reloc_lr, phototaxis, \
     signaling, agent_decision, projection_field
+from abm.projects.cooperative_signaling.cs_contrib import cs_signaling_params as cssigparams
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
@@ -79,7 +80,7 @@ class CSAgent(Agent):
         self.crowd_proj = self.calc_crowing_density_proj(agents)
         self.signaling_proj = self.calc_others_signaling_density_proj(agents)
 
-    def calc_crowing_density_proj(self, agents, max_proj_size_percentage=0.05):
+    def calc_crowing_density_proj(self, agents, max_proj_size_percentage=cssigparams.max_proj_size_percentage):
         """
         :param agents: agents
         :param max_proj_size_percentage: crowding only works if proj size is smaller than some percentage of vfield.
@@ -149,7 +150,7 @@ class CSAgent(Agent):
             meter=self.meter,
             max_signal_of_other_agents=self.signaling_proj.max(initial=0),
             max_crowd_density=self.crowd_proj.max(initial=0),
-            crowd_density_threshold=0.5)
+            crowd_density_threshold=cssigparams.crowd_density_threshold)
 
     def perform_action(self):
         # update agent color

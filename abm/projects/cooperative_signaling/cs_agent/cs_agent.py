@@ -276,7 +276,7 @@ class CSAgent(Agent):
                                     self.signaling_marker_radius,
                                     colors.BACKGROUND)
 
-    def prove_velocity(self, velocity_limit=1):
+    def prove_velocity(self, velocity_limit=2):
         """Restricting the absolute velocity of the agent"""
         if self.agent_state == 'exploration':
             if np.abs(self.velocity) > velocity_limit:

@@ -6,7 +6,7 @@ import pygame
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
     reflection_from_circular_wall, random_walk, f_reloc_lr, phototaxis, \
     signaling, agent_decision, projection_field
-from abm.projects.cooperative_signaling.cs_contrib import cs_signaling_params as cssigparams
+from abm.projects.cooperative_signaling.cs_contrib import cs_params
 from abm.agent.agent import Agent
 from abm.contrib import colors
 
@@ -80,7 +80,7 @@ class CSAgent(Agent):
         self.crowd_proj = self.calc_crowing_density_proj(agents)
         self.signaling_proj = self.calc_others_signaling_density_proj(agents)
 
-    def calc_crowing_density_proj(self, agents, max_proj_size_percentage=cssigparams.max_proj_size_percentage):
+    def calc_crowing_density_proj(self, agents, max_proj_size_percentage=cs_params.max_proj_size_percentage):
         """
         :param agents: agents
         :param max_proj_size_percentage: crowding only works if proj size is smaller than some percentage of vfield.
@@ -103,7 +103,7 @@ class CSAgent(Agent):
         self.soc_v_field = normed_v_field
         return normed_v_field
 
-    def calc_others_signaling_density_proj(self, agents, memory_depth=cssigparams.memory_depth):
+    def calc_others_signaling_density_proj(self, agents, memory_depth=cs_params.memory_depth):
         current_pos = [np.array(ag.position) for ag in agents if ag.is_signaling if ag is not self]
         current_meters = [ag.meter for ag in agents if ag.is_signaling if ag is not self]
 
@@ -150,7 +150,7 @@ class CSAgent(Agent):
             meter=self.meter,
             max_signal_of_other_agents=self.signaling_proj.max(initial=0),
             max_crowd_density=self.crowd_proj.max(initial=0),
-            crowd_density_threshold=cssigparams.crowd_density_threshold)
+            crowd_density_threshold=cs_params.crowd_density_threshold)
 
     def perform_action(self):
         # update agent color
@@ -171,10 +171,10 @@ class CSAgent(Agent):
 
     def exploration(self):
         vel, theta = random_walk(desired_vel=self.max_exp_vel)
-        vel = (cssigparams.max_speed - self.velocity)
+        vel = (cs_params.max_speed - self.velocity)
         self.update_agent_position(theta, vel)
 
-    def taxis(self, max_speed=cssigparams.max_speed):
+    def taxis(self, max_speed=cs_params.max_speed):
         theta, self.taxis_dir = phototaxis(
             self.meter,
             self.prev_meter,
@@ -185,14 +185,14 @@ class CSAgent(Agent):
         vel = (max_speed - self.velocity)
         self.update_agent_position(theta, vel)
 
-    def relocation(self, max_speed=cssigparams.max_speed):
+    def relocation(self, max_speed=cs_params.max_speed):
         vel, theta = f_reloc_lr(self.velocity,
                                 self.signaling_proj,
                                 velocity_desired=max_speed,
                                 theta_max=2.5)
         self.update_agent_position(theta, vel)
 
-    def flocking(self, max_speed=cssigparams.max_speed):
+    def flocking(self, max_speed=cs_params.max_speed):
         vel, theta = f_reloc_lr(self.velocity,
                                 self.crowd_proj,
                                 velocity_desired=max_speed,
@@ -277,7 +277,7 @@ class CSAgent(Agent):
                                     self.signaling_marker_radius,
                                     colors.BACKGROUND)
 
-    def prove_velocity(self, velocity_limit=cssigparams.max_speed):
+    def prove_velocity(self, velocity_limit=cs_params.max_speed):
         """Restricting the absolute velocity of the agent"""
         if self.agent_state == 'exploration':
             if np.abs(self.velocity) > velocity_limit:

@@ -18,4 +18,3 @@ memory_depth = int(envconf.get("MEMORY_DEPTH", 5))
 
 # Max agent speed
 max_speed = float(envconf.get("MAX_SPEED", 1.5))
-

@@ -103,7 +103,7 @@ class CSAgent(Agent):
         self.soc_v_field = normed_v_field
         return normed_v_field
 
-    def calc_others_signaling_density_proj(self, agents, memory_depth=1):
+    def calc_others_signaling_density_proj(self, agents, memory_depth=cssigparams.memory_depth):
         current_pos = [np.array(ag.position) for ag in agents if ag.is_signaling if ag is not self]
         current_meters = [ag.meter for ag in agents if ag.is_signaling if ag is not self]
 
@@ -171,10 +171,10 @@ class CSAgent(Agent):
 
     def exploration(self):
         vel, theta = random_walk(desired_vel=self.max_exp_vel)
-        vel = (2 - self.velocity)
+        vel = (cssigparams.max_speed - self.velocity)
         self.update_agent_position(theta, vel)
 
-    def taxis(self):
+    def taxis(self, max_speed=cssigparams.max_speed):
         theta, self.taxis_dir = phototaxis(
             self.meter,
             self.prev_meter,
@@ -182,20 +182,20 @@ class CSAgent(Agent):
             self.taxis_dir,
             self.phototaxis_theta_step)
 
-        vel = (2 - self.velocity)
+        vel = (max_speed - self.velocity)
         self.update_agent_position(theta, vel)
 
-    def relocation(self):
+    def relocation(self, max_speed=cssigparams.max_speed):
         vel, theta = f_reloc_lr(self.velocity,
                                 self.signaling_proj,
-                                velocity_desired=2,
+                                velocity_desired=max_speed,
                                 theta_max=2.5)
         self.update_agent_position(theta, vel)
 
-    def flocking(self):
+    def flocking(self, max_speed=cssigparams.max_speed):
         vel, theta = f_reloc_lr(self.velocity,
                                 self.crowd_proj,
-                                velocity_desired=2,
+                                velocity_desired=max_speed,
                                 theta_max=2.5)
         self.update_agent_position(theta, vel)
 
@@ -277,7 +277,7 @@ class CSAgent(Agent):
                                     self.signaling_marker_radius,
                                     colors.BACKGROUND)
 
-    def prove_velocity(self, velocity_limit=2):
+    def prove_velocity(self, velocity_limit=cssigparams.max_speed):
         """Restricting the absolute velocity of the agent"""
         if self.agent_state == 'exploration':
             if np.abs(self.velocity) > velocity_limit:

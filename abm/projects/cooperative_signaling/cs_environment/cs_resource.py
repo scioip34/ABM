@@ -3,8 +3,7 @@ import pygame
 
 from abm.contrib import colors
 from abm.environment.rescource import Rescource
-from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import random_walk, \
-    reflection_from_circular_wall, levy_walk
+from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import reflection_from_circular_wall, levy_walk
 
 
 class CSResource(Rescource):

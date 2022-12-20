@@ -52,7 +52,6 @@ class CSSimulation(Simulation):
         self.probability_of_starting_signaling = \
             probability_of_starting_signaling
         self.des_velocity_res = des_velocity_res
-        self.res_theta_abs = res_theta_abs
 
         # Agent parameters
         self.phototaxis_theta_step = phototaxis_theta_step
@@ -252,7 +251,8 @@ class CSSimulation(Simulation):
             else:
                 # Still calculating visual fields
                 for ag in self.agents:
-                    ag.calc_social_V_proj(self.agents)
+                    # DEBUG: updating visual projections also when paused
+                    ag.update_social_info(self.agents)
 
             # Draw environment and agents
             if self.with_visualization:

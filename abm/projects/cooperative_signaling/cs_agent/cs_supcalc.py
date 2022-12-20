@@ -1,8 +1,7 @@
-import random
-
 import numpy as np
 import pygame
 
+from abm.agent.supcalc import angle_between, find_nearest
 from abm.contrib import movement_params
 
 
@@ -23,22 +22,36 @@ def random_walk(desired_vel=None, exp_theta_min=None, exp_theta_max=None):
     return dvel, dtheta
 
 
-def F_reloc_LR(vel_now, V_now, v_desired=None, theta_max=None):
+def levy_walk(exponent=1.5, max_step_size=100, desired_vel=None, exp_theta_min=None, exp_theta_max=None):
+    """
+    Draw the step size from a power-law distribution.
+    :param exponent: exponent of the power-law distribution
+    :param max_step_size: maximum step size
+    :param desired_vel: desired velocity of the agent
+    :param exp_theta_min: minimum angle of the agent's orientation
+    :param exp_theta_max: maximum angle of the agent's orientation
+    :return: step size
+    """
+    _, dtheta = random_walk(desired_vel=desired_vel, exp_theta_min=exp_theta_min, exp_theta_max=exp_theta_max)
+    step_size = np.int32(np.random.pareto(exponent))
+
+    # truncate the step size to the maximum step size
+    if step_size > max_step_size:
+        step_size = max_step_size
+    return step_size, dtheta
+
+
+def f_reloc_lr(velocity, visual_field, velocity_desired=None, theta_max=None):
     """
     Calculating relocation force according to the visual field/source data
-    of the agent according to left-right
-    algorithm
+    of the agent according to left-right algorithm
     """
-    if v_desired is None:
-        v_desired = movement_params.reloc_des_vel
-    if theta_max is None:
-        theta_max = movement_params.reloc_theta_max
-    V_field_len = len(V_now)
-    left_excitation = np.mean(V_now[0:int(V_field_len / 2)])
-    right_excitation = np.mean(V_now[int(V_field_len / 2)::])
-    D_leftright = left_excitation - right_excitation
-    theta = D_leftright * theta_max
-    return (v_desired - vel_now), theta
+    v_field_len = len(visual_field)
+    left_excitation = np.mean(visual_field[0:int(v_field_len / 2)])
+    right_excitation = np.mean(visual_field[int(v_field_len / 2)::])
+    delta_left_right = left_excitation - right_excitation
+    theta = delta_left_right * theta_max
+    return (velocity_desired - velocity), theta
 
 
 def reflection_from_circular_wall(dx, dy, orientation):
@@ -132,12 +145,8 @@ def phototaxis(meter, prev_meter, prev_theta, taxis_dir,
     return new_theta, new_taxis_dir
 
 
-def signaling(
-        meter,
-        is_signaling,
-        signaling_cost,
-        probability_of_starting_signaling,
-        rand_value):
+def signaling(meter, is_signaling, signaling_cost,
+              probability_of_starting_signaling, rand_value):
     """
     :param meter: current meter (detector) value between 0 and 1
     :param is_signaling: boolean indicating whether the agent is currently
@@ -156,3 +165,162 @@ def signaling(
     elif meter > signaling_cost:
         # start signaling if signaling cost is smaller than meter value
         return True if rand_value < probability_of_starting_signaling else False
+
+
+def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
+                   crowd_density_threshold=0.5):
+    """
+    Decision tree for the agent's behavior
+    :param meter: current meter (detector) value between 0 and 1
+    :param max_signal_of_other_agents: meter value between 0 and 1
+    :param max_crowd_density: density of the crowd between 0 and 1
+    :param crowd_density_threshold: threshold when the crowd density is high
+    enough to draw agent's attention
+    :return: agent_state: exploration, taxis, relocation or flocking
+    """
+
+    if meter == 0:
+        # no meter value, agent is exploring, relocating or flocking
+        # NOTE: signaling has priority over flocking
+        if max_signal_of_other_agents > 0:
+            # if there is a signal from other agents, relocate
+            return 'relocation'
+        elif max_crowd_density > crowd_density_threshold:
+            # if the crowd density is high enough, the agent will relocate
+            return 'flocking'
+        else:
+            # if there is no signal from other agents, explore
+            return 'exploration'
+    elif meter > 0:
+        # meter value, agent performs taxis or relocation
+        if max_signal_of_other_agents > meter:
+            # if a signal from other agents is larger than meter, relocate
+            return 'relocation'
+        else:
+            # if a signal from other agents is smaller than meter, perform taxis
+            return 'taxis'
+
+
+def projection_field(fov, v_field_resolution, position, radius,
+                     orientation, object_positions, object_meters=None, max_proj_size=None):
+    """
+    Calculating visual projection field for the agent given the visible
+    obstacles in the environment
+    obstacle sprites to generate projection field
+    :param fov: tuple of number with borders of fov such as (-np.pi, np.pi)
+    :param v_field_resolution: visual field resolution in pixels
+    :param position: np.xarray of agent's position
+    :param radius: radius of the agent
+    :param orientation: orientation angle between 0 and 2pi
+    :param object_positions: list of np.xarray of object's positions
+    :param object_meters: list of object's meters, default is None
+    :param max_proj_size: maximum projection size to include in the visual proj. field
+    :return: projection field np.xarray with shape (n objects, field resolution)
+    """
+    # initializing visual field and relative angles
+    v_field = np.zeros((len(object_positions), v_field_resolution))
+    phis = np.linspace(-np.pi, np.pi, v_field_resolution)
+
+    # center point
+    agents_center = position + radius
+
+    # point on agent's edge circle according to it's orientation
+    agent_edge = position + np.array(
+        [1 + np.cos(orientation), 1 - np.sin(orientation)]) * radius
+
+    # vector between center and edge according to orientation
+    v1 = agent_edge - agents_center
+
+    # 1. Calculating closed angle between object and agent according to the
+    # position of the object.
+    # 2. Calculating visual projection size according to visual angle on
+    # the agent's retina according to distance between agent and object
+    for i, obj_position in enumerate(object_positions):
+        # continue if the object and the agent position completely coincide
+        if obj_position[0] == position[0] and obj_position[1] == position[1]:
+            continue
+
+        # center of obstacle (as it must be another agent)
+        object_center = obj_position + radius
+
+        # vector between agent center and object center
+        v2 = object_center - agents_center
+
+        # calculating closed angle between v1 and v2
+        closed_angle = calculate_closed_angle(v1, v2)
+
+        distance = np.linalg.norm(object_center - agents_center)
+
+        # calculating the visual angle from focal agent to target
+        vis_angle = 2 * np.arctan(radius / (1 * distance))
+
+        # finding where in the retina the projection belongs to
+        phi_target = find_nearest(phis, closed_angle)
+
+        # if target is visible we save its projection into the VPF
+        # source data
+        if fov[0] <= closed_angle <= fov[1]:
+            # the projection size is proportional to the visual angle.
+            # If the projection is maximal (i.e. taking each pixel of the
+            # retina) the angle is 2pi from this we just calculate the
+            # projection size using a single proportion
+            proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
+
+            # Check if projection size is valid
+            valid_proj = validate_projection_size(max_proj_size, proj_size)
+
+            if valid_proj:
+                proj_start = int(phi_target - np.floor(proj_size / 2))
+                proj_end = int(phi_target + np.floor(proj_size / 2))
+
+                # circular boundaries to the VPF as there is 360 degree vision
+                if proj_start < 0:
+                    v_field[i, v_field_resolution + proj_start:v_field_resolution] = 1
+                    proj_start = 0
+                if proj_end >= v_field_resolution:
+                    v_field[i, 0:proj_end - (v_field_resolution - 1)] = 1
+                    proj_end = v_field_resolution
+
+                v_field[i, proj_start:proj_end] = 1
+
+                if object_meters is not None:
+                    v_field[i] *= object_meters[i]
+
+    # post_processing and limiting FOV
+    # flip field data along second dimension
+    v_field_post = np.flip(v_field, axis=1)
+
+    v_field_post[:, phis < fov[0]] = 0
+    v_field_post[:, phis > fov[1]] = 0
+    return v_field_post
+
+
+def validate_projection_size(max_proj_size, proj_size):
+    if max_proj_size is None:
+        # If no maximum projection size is passed, all projection is valid in the FOV
+        valid_proj = True
+    elif proj_size <= max_proj_size:
+        # If there is a max projection size, only smaller projections are valid
+        valid_proj = True
+    else:
+        valid_proj = False
+    return valid_proj
+
+
+def calculate_closed_angle(v1, v2):
+    """
+    Calculating closed angle between two vectors v1 and v2. Rotated with the orientation of the agent as it is relative.
+    :param v1: vector 1; np.xarray
+    :param v2: vector 2; np.xarray
+    :return: closed angle between v1 and v2
+    """
+    closed_angle = angle_between(v1, v2)
+    closed_angle = (closed_angle % (2 * np.pi))
+    # at this point closed angle between 0 and 2pi, but we need it between -pi and pi
+    # we also need to take our orientation convention into consideration to
+    # recalculate theta=0 is pointing to the right
+    if 0 <= closed_angle <= np.pi:
+        closed_angle = -closed_angle
+    else:
+        closed_angle = 2 * np.pi - closed_angle
+    return closed_angle

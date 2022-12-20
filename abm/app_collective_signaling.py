@@ -39,7 +39,7 @@ def start_playground():
 
 
 def start(parallel=False, headless=False, agent_behave_param_list=None):
-    """starting simulation with interactive interface"""
+    """starting simulation without interactive interface"""
     # Define root abm directory from which env file is read out
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 

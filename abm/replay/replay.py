@@ -780,6 +780,8 @@ class ExperimentReplay:
 
     def draw_res_patch(self, id, posx, posy, max_unit, resc_left, resc_quality, radius):
         """Drawing a single resource patch"""
+        if isinstance(radius, str):
+            radius = int(float(radius))
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
         image.set_colorkey(colors.BACKGROUND)

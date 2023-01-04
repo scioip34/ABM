@@ -126,7 +126,7 @@ class VFSimulation(Simulation):
                 # Still calculating visual fields
                 for ag in self.agents:
                     # DEBUG: updating visual projections also when paused
-                    ag.calc_soc_v_proj(self.agents)
+                    ag.update_social_info(self.agents)
 
             # Draw environment and agents
             if self.with_visualization:

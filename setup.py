@@ -37,6 +37,7 @@ setup(
         'console_scripts': [
             'abm-start=abm.app:start',
             'abm-start-coopsig=abm.app_collective_signaling:start',
+            'abm-start-visflock=abm.app_visual_flocking:start',
             'headless-abm-start=abm.app:start_headless',
             'playground-start=abm.app:start_playground',
             'playground-start-coopsig=abm.app_collective_signaling:start_playground'

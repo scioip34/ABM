@@ -14,6 +14,10 @@ class VFAgent(Agent):
         # flocking or emergency
         self.agent_state = "flocking"
 
+        # boundary conditions
+        # infinite or walls
+        self.boundary_cond = "walls"
+
         # preparing phi values for algorithm according to FOV
         self.PHI = np.arange(-np.pi, np.pi, (2*np.pi)/self.v_field_res)
 
@@ -43,10 +47,32 @@ class VFAgent(Agent):
         self.perform_action()
 
         # boundary conditions if applicable
-        self.reflect_from_walls()
+        if self.boundary_cond == "walls":
+            self.reflect_from_walls()
+        elif self.boundary_cond == "infinite":
+            self.teleport_infinite_arena()
 
         # updating agent visualization
         self.draw_update()
+
+
+    def teleport_infinite_arena(self):
+        """In case the boundary conditions are infinite (as in now reflection from walls is requested) the
+        agents are teleported on a torus when reaching walls."""
+
+        # Boundary conditions according to center of agent (simple)
+        x = self.position[0] + self.radius
+        y = self.position[1] + self.radius
+
+        if x < self.boundaries_x[0]:
+            self.position[0] = self.boundaries_x[1] - self.radius
+        elif x > self.boundaries_x[1]:
+            self.position[0] = self.boundaries_x[0] + self.radius
+
+        if y < self.boundaries_y[0]:
+            self.position[1] = self.boundaries_y[1] - self.radius
+        elif y > self.boundaries_y[1]:
+            self.position[1] = self.boundaries_y[0] + self.radius
 
     def update_social_info(self, agents):
         # calculate socially relevant projection field (e.g. according to
@@ -64,7 +90,11 @@ class VFAgent(Agent):
             position=np.array(self.position),
             radius=self.radius,
             orientation=self.orientation,
-            object_positions=[np.array(ag.position) for ag in agents_of_interest])
+            object_positions=[np.array(ag.position) for ag in agents_of_interest],
+            boundary_cond=self.boundary_cond,
+            arena_width=self.WIDTH,
+            arena_height=self.HEIGHT,
+            ag_id=self.id)
         # sum of all agents projections at each point in visual field
         svfield = visual_field.sum(axis=0)
         # binarize v field

@@ -5,9 +5,20 @@ from abm.projects.visual_flocking.vf_contrib import vf_params
 
 from scipy import integrate
 
+def distance_infinite(p1, p2, L=500, dim=2):
+    """ Returns the distance vector of two position vectors x,y
+        by tanking periodic boundary conditions into account.
+        Input parameters: L - system size, dim - no. of dimension
+    """
+    distvec = p2 - p1
+    distvec_periodic = np.copy(distvec)
+    distvec_periodic[distvec < -0.5*L] += L
+    distvec_periodic[distvec > 0.5*L] -= L
+    return distvec_periodic
 
 def projection_field(fov, v_field_resolution, position, radius,
-                     orientation, object_positions):
+                     orientation, object_positions,
+                     boundary_cond="walls", arena_width=None, arena_height=None, vision_range=None, ag_id=0):
     """
     Calculating visual projection field for the agent given the visible
     obstacles in the environment
@@ -18,6 +29,8 @@ def projection_field(fov, v_field_resolution, position, radius,
     :param radius: radius of the agent
     :param orientation: orientation angle between 0 and 2pi
     :param max_proj_size: maximum projection size to include in the visual proj. field
+    :param boundary_cond: boundary condition either infinite or walls. If walls projection field
+    is calculated according to euclidean coordinates in 2D space, otherwise on a torus.
     :return: projection field np.xarray with shape (n objects, field resolution)
     """
     # initializing visual field and relative angles
@@ -49,10 +62,36 @@ def projection_field(fov, v_field_resolution, position, radius,
         # vector between agent center and object center
         v2 = object_center - agents_center
 
+        # in case torus, positions might change
+        if boundary_cond == "infinite":
+            if ag_id==0:
+                print(f"ag: {agents_center}")
+                print(f"obbef: {object_center}")
+            if np.abs(v2[0]) > arena_width/2:
+                if agents_center[0] < object_center[0]:
+                    object_center[0] -= arena_width
+                elif agents_center[0] > object_center[0]:
+                    object_center[0] += arena_width
+            if np.abs(v2[1]) > arena_height/2:
+                if agents_center[1] < object_center[1]:
+                    object_center[1] -= arena_height
+                elif agents_center[1] > object_center[1]:
+                    object_center[1] += arena_height
+            if ag_id == 0:
+                print(f"obaft: {object_center}")
+
+            # recalculating v2 after teleporting on torus
+            v2 = object_center - agents_center
+
         # calculating closed angle between v1 and v2
         closed_angle = calculate_closed_angle(v1, v2)
 
         distance = np.linalg.norm(object_center - agents_center)
+
+        # limiting vision range if requested
+        if vision_range is not None:
+            if distance > vision_range:
+                continue
 
         # calculating the visual angle from focal agent to target
         vis_angle = 2 * np.arctan(radius / (1 * distance))

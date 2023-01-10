@@ -5,6 +5,12 @@ import numpy as np
 import os
 import json
 import glob
+import colorcet as cc
+
+clist_1 = ['#303030', '#443762', '#534b7a', '#5c6c73', '#4b9847', '#5cc22c', '#a9dc63', '#dbef97', '#f8faca']
+# clist_1.reverse()
+# pssoibilities: fire, CET_L18, CET_L17, CET_L17_r, 20, CET_CBL1, CET_CBL2
+cmap = cc.cm.CET_L20
 
 # under this path the individual summary statistics are saved
 # with _N<number of agents> post tag.
@@ -15,10 +21,16 @@ min_data_val = 0
 max_data_val = 1
 
 # set of agent numbers to summarize for
-Ns = [3, 5, 10, 25, 50] #, 100]
+Ns = [3, 5, 10, 25, 50, 100]
+
+# Manually definig the sparified y ticks and their rotations
+sparse_y_indices = [0, 4, 8]  # int((len(y_labels)-1)/2), len(y_labels)-1]
+y_tick_rotations = [45, 33.75, 22.5, 11.25, 0, -11.25, -22.5, -33.75, -45]
+sparese_y_tick_rotations = [0, 0, 0]
+only_numpatches = False
 
 # figure shape
-fig_shape = [3, 5]
+fig_shape = [3, 6]
 fig, ax = plt.subplots(fig_shape[0], fig_shape[1],
                        constrained_layout=True, figsize=(fig_shape[1] * 3, fig_shape[0] * 3),
                        sharex=False)
@@ -38,8 +50,10 @@ for wi in range(fig_shape[0]):
                 maxval = np.max(collapsed_data[:, coli])
                 collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
             agent_dim = 4
-            #cmap = mpl.colors.LinearSegmentedColormap.from_list("", ['#f8f8f8', '#aedaae', '#64bc64', '#1a9e1a'])
-            im = plt.imshow(collapsed_data, vmin=min_data_val, vmax=max_data_val, origin="lower")#, cmap=cmap)
+            import seaborn as sns
+            # cmap = sns.cubehelix_palette(start=1, rot=0, dark=0.1, light=.95, reverse=False, as_cmap=True)
+            # mpl.colors.LinearSegmentedColormap.from_list("", clist_1)
+            im = plt.imshow(collapsed_data, vmin=min_data_val, vmax=max_data_val, origin="lower", cmap=cmap)
             plt.title(f"$N_A$={Ns[ni]}")
 
             # creating x-axis and labels
@@ -62,21 +76,8 @@ for wi in range(fig_shape[0]):
                     y_labels = envvars["DEC_EPSW"]
                     # y_labels.reverse()
 
-            # Manually definig the sparified y ticks and their rotations
-            sparse_y_indices = [0, 2, 4, 6, 8]  # int((len(y_labels)-1)/2), len(y_labels)-1]
-            y_tick_rotations = [45, 33.75, 22.5, 11.25, 0, -11.25, -22.5, -33.75, -45]
-            sparese_y_tick_rotations = [45, 0, 0, 0, -45]
-
-            # The first plot is detailed shows all ticks and labels
-            if hi == 0 and wi == 0:
-                plt.ylabel("Social Excitability ($\epsilon_w$)")
-                plt.yticks([i for i in range(len(y_labels))], y_labels, ha='right', rotation_mode='anchor')
-                # for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
-                #     print(ticki, tick)
-                #     tick.set_rotation(y_tick_rotations[ticki])
-
             # The others are sparsified for better readability
-            elif hi == 0:
+            if hi == 0:
                 plt.yticks([i for i in sparse_y_indices],
                            [y_labels[i] for i in sparse_y_indices], ha='right', rotation_mode='anchor')
                 for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
@@ -115,7 +116,8 @@ for hi in range(fig_shape[1]):
         #     maxval = np.max(collapsed_data[:, coli])
         #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
         agent_dim = 4
-        im_iid = plt.imshow(collapsed_data, vmin=0, vmax=max_data_val_iid, origin="lower")#, cmap=mpl.colormaps["bwr_r"])
+        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", clist_1)
+        im_iid = plt.imshow(collapsed_data, vmin=0, vmax=max_data_val_iid, origin="lower", cmap=cmap)
 
         # creating x-axis and labels
         # reading original labels with long names
@@ -137,21 +139,7 @@ for hi in range(fig_shape[1]):
                 y_labels = envvars["DEC_EPSW"]
                 # y_labels.reverse()
 
-        # Manually definig the sparified y ticks and their rotations
-        sparse_y_indices = [0, 2, 4, 6, 8]  # int((len(y_labels)-1)/2), len(y_labels)-1]
-        y_tick_rotations = [45, 33.75, 22.5, 11.25, 0, -11.25, -22.5, -33.75, -45]
-        sparese_y_tick_rotations = [-45, 0, 0, 0, 45]
-
-        # The first plot is detailed shows all ticks and labels
-        if hi == 0 and wi == 0:
-            plt.ylabel("Social Excitability ($\epsilon_w$)")
-            plt.yticks([i for i in range(len(y_labels))], y_labels, ha='right', rotation_mode='anchor')
-            # for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
-            #     print(ticki, tick)
-            #     tick.set_rotation(y_tick_rotations[ticki])
-
-        # The others are sparsified for better readability
-        elif hi == 0:
+        if hi == 0:
             plt.yticks([i for i in sparse_y_indices],
                        [y_labels[i] for i in sparse_y_indices], ha='right', rotation_mode='anchor')
             for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
@@ -162,7 +150,7 @@ for hi in range(fig_shape[1]):
             plt.yticks([], [])
 
         if hi == 0 and wi == fig_shape[0] - 1:
-            plt.xlabel("Environment")
+            plt.xlabel("Number of Patches")
             plt.xticks([i for i in range(0, len(conc_x_labels), 2)],
                        [conc_x_labels[i] for i in range(0, len(conc_x_labels), 2)],
                        ha='right', rotation_mode='anchor')
@@ -178,6 +166,16 @@ for hi in range(fig_shape[1]):
         plt.xticks([], [])
 
 #### Relocation Time ####
+## finding data range
+max_data_val_rt = 0
+for hi in range(fig_shape[1]):
+    ni = hi
+    if ni < len(Ns):
+        collapsed_data = np.load(os.path.join(data_path, f"coll_reloctime_N{Ns[ni]}.npy"))
+        max_data_val_rt = max(np.max(collapsed_data), max_data_val_rt)
+
+print(f"MAX DATA: ", max_data_val_rt)
+
 wi = 2
 for hi in range(fig_shape[1]):
     ni = hi
@@ -192,8 +190,8 @@ for hi in range(fig_shape[1]):
         #     maxval = np.max(collapsed_data[:, coli])
         #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
         agent_dim = 4
-        cmap = mpl.colors.LinearSegmentedColormap.from_list("", ['#f8f8f8', '#e4b3ce', '#d06ea5', '#bb297b'])
-        im_reloc = plt.imshow(collapsed_data, vmin=min_data_val, vmax=max_data_val, origin="lower")# , cmap=cmap)
+        # cmap = mpl.colors.LinearSegmentedColormap.from_list("", clist_1)
+        im_reloc = plt.imshow(collapsed_data, vmin=0, vmax=max_data_val_rt, origin="lower", cmap=cmap)
 
         # creating x-axis and labels
         # reading original labels with long names
@@ -202,8 +200,9 @@ for hi in range(fig_shape[1]):
         # simplifying and concatenating labels
         conc_x_labels = []
         for li in range(0, len(labels), 2):
-            conc_x_labels.append(labels[li + 1].replace("N_RESOURCES=", "").replace(".0,", " x ") +
-                                 labels[li].replace("MIN_RESOURCE_PER_PATCH=", "").replace(".0", "U"))
+            # conc_x_labels.append(labels[li + 1].replace("N_RESOURCES=", "").replace(".0,", " x ") +
+            #                      labels[li].replace("MIN_RESOURCE_PER_PATCH=", "").replace(".0", "U"))
+            conc_x_labels.append(labels[li + 1].replace("N_RESOURCES=", "").replace(".0,", ""))
 
         # creating y-axis labels
         tuned_env_pattern = os.path.join(data_path, "tuned_env*.json")
@@ -215,43 +214,29 @@ for hi in range(fig_shape[1]):
                 y_labels = envvars["DEC_EPSW"]
                 # y_labels.reverse()
 
-        # Manually definig the sparified y ticks and their rotations
-        sparse_y_indices = [0, 2, 4, 6, 8]  # int((len(y_labels)-1)/2), len(y_labels)-1]
-        y_tick_rotations = [45, 33.75, 22.5, 11.25, 0, -11.25, -22.5, -33.75, -45]
-        sparese_y_tick_rotations = [-45, 0, 0, 0, 45]
-
-        # The first plot is detailed shows all ticks and labels
-        if hi == 0 and wi == 0:
+        if hi == 0 and wi == fig_shape[0] - 1:
             plt.ylabel("Social Excitability ($\epsilon_w$)")
             plt.yticks([i for i in range(len(y_labels))], y_labels, ha='right', rotation_mode='anchor')
-            # for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
-            #     print(ticki, tick)
-            #     tick.set_rotation(y_tick_rotations[ticki])
-
-        # The others are sparsified for better readability
-        elif hi == 0:
-            plt.yticks([i for i in sparse_y_indices],
-                       [y_labels[i] for i in sparse_y_indices], ha='right', rotation_mode='anchor')
-            for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
-                tick.set_rotation(sparese_y_tick_rotations[ticki])
-
-        # The ones in second or other columns have same y axis
-        else:
-            plt.yticks([], [])
-
-        if hi == 0 and wi == fig_shape[0] - 1:
-            plt.xlabel("Environment")
+            plt.xlabel("Number of Patches")
             plt.xticks([i for i in range(0, len(conc_x_labels))],
                        [conc_x_labels[i] for i in range(0, len(conc_x_labels))],
                        ha='right', rotation_mode='anchor')
             for tick in ax[wi, hi].get_xticklabels():
                 tick.set_rotation(45)
         elif wi == fig_shape[0]-1:
-            plt.xticks([i for i in range(0, len(conc_x_labels), 2)],
-                       [conc_x_labels[i] for i in range(0, len(conc_x_labels), 2)],
-                       ha='left', rotation_mode='anchor')
+            plt.xticks([i for i in range(1, len(conc_x_labels), 3)],
+                       [conc_x_labels[i] for i in range(1, len(conc_x_labels), 3)],
+                       ha='right', rotation_mode='anchor')
             for tick in ax[wi, hi].get_xticklabels():
-                tick.set_rotation(360-45)
+                tick.set_rotation(45)
+        elif hi == 0:
+            plt.yticks([i for i in sparse_y_indices],
+                       [y_labels[i] for i in sparse_y_indices], ha='right', rotation_mode='anchor')
+            for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
+                tick.set_rotation(sparese_y_tick_rotations[ticki])
+        else:
+            plt.yticks([], [])
+
     else:
         plt.axes(ax[wi, hi])
         plt.yticks([], [])

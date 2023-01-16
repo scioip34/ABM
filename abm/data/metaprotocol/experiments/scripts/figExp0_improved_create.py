@@ -10,7 +10,7 @@ import colorcet as cc
 clist_1 = ['#303030', '#443762', '#534b7a', '#5c6c73', '#4b9847', '#5cc22c', '#a9dc63', '#dbef97', '#f8faca']
 # clist_1.reverse()
 # pssoibilities: fire, CET_L18, CET_L17, CET_L17_r, 20, CET_CBL1, CET_CBL2
-cmap = cc.cm.CET_L20
+cmap = cc.cm.CET_CBL2
 
 # under this path the individual summary statistics are saved
 # with _N<number of agents> post tag.

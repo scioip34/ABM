@@ -77,6 +77,7 @@ for ni in range(fig_shape[0]):
             plt.plot(lines_occ[..., env_i], label=f"Occlusion", color=c_occ, linewidth=line_th, ls="--")
             plt.fill_between([i for i in range(len(lines_occ[..., env_i]))], lines_occ[..., env_i] - stds_occ[..., env_i],
                              lines_occ[..., env_i] + stds_occ[..., env_i], alpha=0.3, color=c_occ)
+            ax[ni, env_i].legend()
 
         else:
             plt.plot(lines_noocc[..., env_i], color=c_ide, linewidth=line_th)
@@ -136,10 +137,12 @@ for ni in range(fig_shape[0]):
     # fig.text(0.06, 0.5, 'common ylabel', ha='center', va='center', rotation='vertical')
     # ax.set_xlabel("Social Excitability ($\epsilon_w$)", fontdict=FS)
 
-    plt.legend()
-plt.subplots_adjust(hspace=0, wspace=0, top=0.8, bottom=0.2, left=0.2, right=0.8)
-fig.supxlabel('Social Excitability ($\epsilon_w$)', size=FS["fontsize"], y=0.13)
-fig.supylabel('Absolute Search Efficiency', size=FS["fontsize"], x=0.08)
+    # plt.legend()
+#, top=0.95, bottom=0.2, left=0.2, right=0.8)
+fig.supxlabel('Social Excitability ($\epsilon_w$)', size=FS["fontsize"], y=0.01)
+fig.supylabel('Absolute Search Efficiency', size=FS["fontsize"], x=0.025)
+plt.tight_layout()
+plt.subplots_adjust(hspace=0, wspace=0)
 plt.show()
 
 

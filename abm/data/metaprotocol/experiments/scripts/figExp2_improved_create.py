@@ -218,14 +218,15 @@ for ni in range(fig_shape[0]):
         if ni == len(Ns) - 1:
             sparsing_factor = 10
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{int(2*round(fovs[i], 1))}$\pi$" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
+            curax.legend()
             # for ticki, tick in enumerate(curax.get_xticklabels()):
             #     tick.set_rotation(-45)
         plt.fill_between([i for i in range(len(fovs))], dist_std_neg[:, eps_i], dist_std_pos[:, eps_i], alpha=0.3, color=colors[eps_i])
 
-plt.legend()
-plt.subplots_adjust(hspace=0, wspace=0, top=0.8, bottom=0.2, left=0.2, right=0.8)
-fig.supylabel('Relative Search Efficiency', size=FS["fontsize"], x=0.125)
-fig.supxlabel("Field of View", size=FS["fontsize"], y=0.125)
+plt.tight_layout()
+plt.subplots_adjust(hspace=0, wspace=0, bottom=0.08, left=0.08) #, top=0.8, bottom=0.2, left=0.2, right=0.8)
+fig.supylabel('Relative Search Efficiency', size=FS["fontsize"], x=0.0125)
+fig.supxlabel("Field of View", size=FS["fontsize"], y=0.0125)
 plt.show()
 
 #     for env_i in range(len(num_patches)):

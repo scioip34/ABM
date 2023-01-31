@@ -28,7 +28,7 @@ arena_h = 600
 fixed_criteria = [
     Constant("ENV_WIDTH", arena_w),
     Constant("ENV_HEIGHT", arena_h),
-    Constant("USE_IFDB_LOGGING", 1),
+    Constant("USE_IFDB_LOGGING", 0),
     Constant("USE_RAM_LOGGING", 1),  # as we have plenty of resources we don't have to deal with IFDB on HPC
     Constant("USE_ZARR_FORMAT", 1),
     Constant("SAVE_CSV_FILES", 1),
@@ -97,8 +97,8 @@ criteria_exp = [
     Constant("CROWD_DENSITY_THRESHOLD", 0.2),
     Constant("T", 500),
     Constant("N", 5),  # Can not be tuned, must be fixed for Replay tool
-    Tunable("RES_VEL", values_override=[1, 1.25, 1.5, 2, 3]),
-    Tunable("DETECTION_RANGE", values_override=[50, 75, 100, 125])
+    Tunable("RES_VEL", values_override=[1, 1.25]), #, 1.5, 2, 3]),
+    Tunable("DETECTION_RANGE", values_override=[50, 75]) #, 100, 125])
 ]
 
 # Creating metaprotocol and add defined criteria

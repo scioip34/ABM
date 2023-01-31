@@ -143,6 +143,20 @@ for ni in range(fig_shape[0]):
 
     # plt.legend()
 #, top=0.95, bottom=0.2, left=0.2, right=0.8)
+
+### Plotting Intermediate Follow Up
+ni = 0
+N = Ns[0]
+num_patches = [8]
+# Loading data
+# try:
+collapsed_data_occ = np.mean(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
+collstd_occ = np.std(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
+# Finding appropriate columns where number of patches will match
+num_patches_ind_occ = [0]
+print(f"In oclluded case will use columns {num_patches_ind_occ}")
+
+
 fig.supxlabel('Social Excitability ($\epsilon_w$)', size=FS["fontsize"], y=0.01)
 fig.supylabel('Absolute Search Efficiency', size=FS["fontsize"], x=0.025)
 plt.tight_layout()

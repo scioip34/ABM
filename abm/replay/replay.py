@@ -52,6 +52,7 @@ class ExperimentReplay:
         self.full_height = self.action_area_height
 
         self.env = self.experiment.env
+        self.project_version = self.experiment.project_version
 
         self.connected_params = self.env.get('SUMMARY_CONNECTED_PARAMS')
         if self.connected_params is None:
@@ -61,12 +62,16 @@ class ExperimentReplay:
         self.posy_z = self.experiment.agent_summary['posy']
         self.orientation_z = self.experiment.agent_summary['orientation']
         self.agmodes_z = self.experiment.agent_summary['mode']
-        self.coll_resc_z = self.experiment.agent_summary['collresource']
-
         self.res_pos_x_z = self.experiment.res_summary['posx']
         self.res_pos_y_z = self.experiment.res_summary['posy']
-        self.resc_left_z = self.experiment.res_summary['resc_left']
-        self.resc_quality_z = self.experiment.res_summary['quality']
+
+        if self.project_version=="Base":
+            self.coll_resc_z = self.experiment.agent_summary['collresource']
+            self.resc_left_z = self.experiment.res_summary['resc_left']
+            self.resc_quality_z = self.experiment.res_summary['quality']
+        elif self.project_version=="CooperativeSignaling":
+            self.meter_z = self.experiment.agent_summary['meter']
+            self.sig_z = self.experiment.agent_summary['signalling']
 
         self.varying_params = self.experiment.varying_params
         self.index_prev = None
@@ -451,13 +456,16 @@ class ExperimentReplay:
         self.posy = self.posy_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.orientation = self.orientation_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.agmodes = self.agmodes_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.radius = self.env["RADIUS_AGENT"]
-
         self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        if self.project_version=="Base":
+            self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        elif self.project_version=="CooperativeSignaling":
+            self.meter = self.meter_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.sig = self.sig_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
 
     def on_print_reloc_time(self):
         """print mean relative relocation time"""
@@ -691,12 +699,15 @@ class ExperimentReplay:
         posy = self.posy[:, t_ind]
         orientation = self.orientation[:, t_ind]
         mode = self.agmodes[:, t_ind]
-        coll_resc = self.coll_resc[:, t_ind]
         radius = self.env["RADIUS_AGENT"]
 
         res_posx = self.res_pos_x[:, t_ind]
         res_posy = self.res_pos_y[:, t_ind]
-        resc_left = self.resc_left[:, t_ind]
+
+        if self.project_version=="Base":
+            coll_resc = self.coll_resc[:, t_ind]
+            resc_left = self.resc_left[:, t_ind]
+            resc_quality = self.resc_quality[:, t_ind]
 
         res_unit = self.env["MIN_RESOURCE_PER_PATCH"]
         if res_unit == "----TUNED----":
@@ -711,8 +722,8 @@ class ExperimentReplay:
             max_num_res = max(self.varying_params["N_RESOURCES"])
 
         max_units = [res_unit for _ in range(int(max_num_res))]
-        resc_quality = self.resc_quality[:, t_ind]
-        if self.env.get("APP_VERSION", "Base") == "CooperativeSignaling":
+
+        if self.project_version == "CooperativeSignaling":
             radius_keyword = "DETECTION_RANGE"
         else:
             radius_keyword = "RADIUS_RESOURCE"
@@ -727,13 +738,19 @@ class ExperimentReplay:
             indexalongdim = slider.getValue()
             res_radius = self.varying_params[radius_keyword][indexalongdim]
 
-        self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
+        if self.project_version=="Base":
+            self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
+        elif self.project_version=="CooperativeSignaling":
+            self.draw_resources(res_posx, res_posy, [1], [1], [1], res_radius)
         if self.show_paths:
             self.draw_agent_paths(self.posx[:, max(0, t_ind - self.path_length):t_ind],
                                   self.posy[:, max(0, t_ind - self.path_length):t_ind],
                                   radius,
                                   modes=self.agmodes[:, max(0, t_ind - self.path_length):t_ind])
-        self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
+        if self.project_version=="Base":
+            self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
+        elif self.project_version == "CooperativeSignaling":
+            self.draw_agents(posx, posy, orientation, mode, [0 for i in range(len(posx))], radius)
 
         num_agents = len(posx)
         if self.show_stats:
@@ -830,6 +847,11 @@ class ExperimentReplay:
                 return colors.RED
             else:
                 return "Collide"
+        elif mode == 4:
+            if not to_text:
+                return colors.RED
+            else:
+                return "Crowd"
 
     def draw_agent_stat_summary(self, ids, posx, posy, orientation, mode, coll_resc, previous_metrics=None):
         """Showing the summary of agent data for given frame"""

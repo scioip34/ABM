@@ -154,14 +154,14 @@ def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):
         fields[f"collectedr_{agent_name}"] = float(agent.collected_r)
         fields[f"expl_patch_id_{agent_name}"] = int(agent.exploited_patch_id)
         # only storing visual field edges to compress data and keep real time simulations
-        fields[f"vfield_up_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}"
+        fields[f"vfield_up_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field, 1) < agent.soc_v_field)[0]}"
         fields[f"vfield_down_{agent_name}"] = f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}"
 
     body = {
-            "measurement": measurement_name,
-            "time": time,
-            "fields": fields
-        }
+        "measurement": measurement_name,
+        "time": time,
+        "fields": fields
+    }
 
     # write the measurement in batches
     batch_bodies_agents.append(body)
@@ -202,6 +202,20 @@ def mode_to_int(mode):
         return int(2)
     elif mode == "collide":
         return int(3)
+
+
+def cs_mode_to_int(mode):
+    """converts a string agent mode / agent state flag into an int so that it can be saved in arrays"""
+    if mode == "exploration":
+        return int(0)
+    elif mode == "taxis":
+        return int(1)
+    elif mode == "relocation":
+        return int(2)
+    elif mode == "collide":
+        return int(3)
+    elif mode == "flocking":
+        return int(4)
 
 
 def save_resource_data_RAM(resources, t):

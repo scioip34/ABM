@@ -260,14 +260,8 @@ class CSSimulation(Simulation):
                 pygame.display.flip()
             # Monitoring with IFDB (also when paused)
             if self.save_in_ifd:
-                ifdb.save_agent_data(
-                    self.ifdb_client, self.agents, self.t,
-                    exp_hash=self.ifdb_hash,
-                    batch_size=self.write_batch_size)
-                ifdb.save_resource_data(
-                    self.ifdb_client, self.rescources, self.t,
-                    exp_hash=self.ifdb_hash,
-                    batch_size=self.write_batch_size)
+                raise Exception("Saving data in IFDB requested but this is not implemented for Cooperative Signalling "
+                                "project! Use RAM saving by setting USE_IFDB_LOGGING=0 and USE_RAM_LOGGING=1")
             elif self.save_in_ram:
                 # saving data in ram for data processing, only when not paused
                 if not self.is_paused:

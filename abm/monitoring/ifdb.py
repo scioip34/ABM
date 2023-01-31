@@ -18,6 +18,7 @@ batch_bodies_resources = []
 resources_dict = {}
 agents_dict = {}
 
+
 def create_ifclient():
     """Connecting to the InfluxDB defined with environmental variables and returning a client instance.
         Args:
@@ -50,6 +51,7 @@ def pad_to_n_digits(number, n=3):
     else:
         return str(number)
 
+
 def save_agent_data_RAM(agents, t):
     """Saving relevant agent data into InfluxDB intance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
@@ -57,7 +59,7 @@ def save_agent_data_RAM(agents, t):
     """
     global agents_dict
     if t % 500 == 0:
-        print(f"Agent data size in memory: {sys.getsizeof(agents_dict)/1024} MB", )
+        print(f"Agent data size in memory: {sys.getsizeof(agents_dict) / 1024} MB", )
     for agent in agents:
         if agent.id not in list(agents_dict.keys()):
             agents_dict[agent.id] = {}
@@ -89,8 +91,41 @@ def save_agent_data_RAM(agents, t):
         agents_dict[agent.id][f"collectedr"].append(float(agent.collected_r))
         agents_dict[agent.id][f"expl_patch_id"].append(int(agent.exploited_patch_id))
         # only storing visual field edges to compress data and keep real time simulations
-        agents_dict[agent.id][f"vfield_up"].append(f"{np.where(np.roll(agent.soc_v_field,1) < agent.soc_v_field)[0]}")
-        agents_dict[agent.id][f"vfield_down"].append(f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}")
+        agents_dict[agent.id][f"vfield_up"].append(f"{np.where(np.roll(agent.soc_v_field, 1) < agent.soc_v_field)[0]}")
+        agents_dict[agent.id][f"vfield_down"].append(
+            f"{np.where(np.roll(agent.soc_v_field, 1) > agent.soc_v_field)[0]}")
+
+
+def cs_save_agent_data_RAM(agents, t):
+    """Saving relevant agent data into RAM. Cooperative Signalling specific version."""
+    global agents_dict
+    if t % 500 == 0:
+        print(f"Agent data size in memory: {sys.getsizeof(agents_dict) / 1024} MB", )
+    for agent in agents:
+        if agent.id not in list(agents_dict.keys()):
+            # decide which parameters should be saved and create an entry for each of them
+            agents_dict[agent.id] = {}
+            agent_name = f"agent-{pad_to_n_digits(agent.id, n=2)}"
+            agents_dict[agent.id]['agent_name'] = agent_name
+            agents_dict[agent.id][f"posx"] = []
+            agents_dict[agent.id][f"posy"] = []
+            agents_dict[agent.id][f"orientation"] = []
+            agents_dict[agent.id][f"velocity"] = []
+            agents_dict[agent.id][f"meter"] = []
+            agents_dict[agent.id][f"signalling"] = []
+            agents_dict[agent.id][f"mode"] = []
+
+        # format the data as a single measurement for influx
+        agents_dict[agent.id][f"posx"].append(int(agent.position[0]))
+        agents_dict[agent.id][f"posy"].append(int(agent.position[1]))
+        agents_dict[agent.id][f"orientation"].append(float(agent.orientation))
+        agents_dict[agent.id][f"velocity"].append(float(agent.velocity))
+        agents_dict[agent.id][f"meter"].append(float(agent.meter))
+        issig = agent.is_signaling
+        if issig is None:
+            issig = False
+        agents_dict[agent.id][f"signalling"].append(int(float(issig)))
+        agents_dict[agent.id][f"mode"].append(int(cs_mode_to_int(agent.agent_state)))
 
 
 def save_agent_data(ifclient, agents, t, exp_hash="", batch_size=None):

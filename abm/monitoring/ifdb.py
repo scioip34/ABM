@@ -224,7 +224,7 @@ def save_resource_data_RAM(resources, t):
     the unique measurement in the database"""
     global resources_dict
     if t % 500 == 0:
-        print(f"Resource data size in memory: {sys.getsizeof(resources_dict)/1024} MB", )
+        print(f"Resource data size in memory: {sys.getsizeof(resources_dict) / 1024} MB", )
     ids_in_run = []
     for res in resources:
         if res.id not in list(resources_dict.keys()):
@@ -257,6 +257,28 @@ def save_resource_data_RAM(resources, t):
     #         resources_dict[res_id]["end_time"] = t
 
 
+def cs_save_resource_data_RAM(resources, t):
+    """Saving relevant resource patch data in RAM. Cooperative Signalling specific version."""
+    global resources_dict
+    if t % 500 == 0:
+        print(f"Resource data size in memory: {sys.getsizeof(resources_dict) / 1024} MB", )
+    for res in resources:
+        if res.id not in list(resources_dict.keys()):
+            resources_dict[res.id] = {}
+            resources_dict[res.id]["start_time"] = 0
+            resources_dict[res.id]["end_time"] = None
+
+            res_name = f"res-{pad_to_n_digits(res.id, n=3)}"
+            resources_dict[res.id]["res_name"] = res_name
+
+            resources_dict[res.id]["pos_x"] = []
+            resources_dict[res.id]["pos_y"] = []
+            resources_dict[res.id]["radius"] = int(res.radius)
+
+        resources_dict[res.id]["pos_x"].append(int(res.position[0]))
+        resources_dict[res.id]["pos_y"].append(int(res.position[1]))
+
+
 def save_resource_data(ifclient, resources, t, exp_hash="", batch_size=None):
     """Saving relevant resource patch data into InfluxDB instance
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
@@ -281,10 +303,10 @@ def save_resource_data(ifclient, resources, t, exp_hash="", batch_size=None):
         fields[f"quality_{res_name}"] = float(res.unit_per_timestep)
 
     body = {
-            "measurement": measurement_name,
-            "time": time,
-            "fields": fields
-        }
+        "measurement": measurement_name,
+        "time": time,
+        "fields": fields
+    }
 
     batch_bodies_resources.append(body)
     # write the measurement in batches

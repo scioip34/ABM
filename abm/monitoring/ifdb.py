@@ -365,7 +365,8 @@ def save_simulation_params(ifclient, sim, exp_hash=""):
     ifclient.write_points(body)
 
 
-def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfield=False, pop_num=None):
+def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfield=False, pop_num=None,
+                     project_version="Base"):
     """Saving the whole influx database as a single csv file
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
@@ -389,7 +390,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
         for mes_name in measurement_names:
             print(f"Querying data with measurement name: {mes_name}")
             data_dict = ifclient.query(f"select * from {mes_name}", chunked=True, chunk_size=110000)
-            print(f"Queried data size in memory: {sys.getsizeof(data_dict)/1024} MB", )
+            print(f"Queried data size in memory: {sys.getsizeof(data_dict) / 1024} MB", )
             print("Keys: ", list(data_dict.keys()))
             ret = data_dict[mes_name]
             if exp_hash != "":
@@ -418,7 +419,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                 filename = mes_name
             save_file_path = os.path.join(save_dir, f'{filename}.json')
             with open(save_file_path, "w") as f:
-                json.dump(resources_dict, f,)
+                json.dump(resources_dict, f, )
 
             print("Saving agent data as json file...")
             mes_name = f"agent_data{exp_hash}"
@@ -435,79 +436,97 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
             num_res = len(resources_dict)
             t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
             posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
-                                 chunks = (num_res, t_len), dtype = 'float')
+                                 chunks=(num_res, t_len), dtype='float')
             posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zarr"), mode='w', shape=(num_res, t_len),
-                                 chunks = (num_res, t_len), dtype = 'float')
-            rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
-                                  chunks = (num_res, t_len), dtype = 'float')
-            qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
-                                 chunks = (num_res, t_len), dtype = 'float')
+                                 chunks=(num_res, t_len), dtype='float')
             resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
-                               chunks = (num_res, t_len), dtype = 'float')
+                               chunks=(num_res, t_len), dtype='float')
+            if project_version == "Base":
+                rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
+                                      chunks=(num_res, t_len), dtype='float')
+                qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
+                                     chunks=(num_res, t_len), dtype='float')
+            elif project_version == "CooperativeSignaling":
+                # Here we can save project specific resource data in individual zarr arrays
+                pass
             for res_id, res_dict in resources_dict.items():
-                posxzarr[res_id-1, :] = resources_dict[res_id]['pos_x']
-                posyzarr[res_id-1, :] = resources_dict[res_id]['pos_y']
-                rleftzarr[res_id-1, :] = resources_dict[res_id]['resc_left']
-                qualzarr[res_id-1, :] = resources_dict[res_id]['quality']
-                resrad[res_id-1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
+                posxzarr[res_id - 1, :] = resources_dict[res_id]['pos_x']
+                posyzarr[res_id - 1, :] = resources_dict[res_id]['pos_y']
+                resrad[res_id - 1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
+                if project_version == "Base":
+                    rleftzarr[res_id - 1, :] = resources_dict[res_id]['resc_left']
+                    qualzarr[res_id - 1, :] = resources_dict[res_id]['quality']
+                elif project_version == "CooperativeSignaling":
+                    # Here we can save project specific resource data in individual zarr arrays
+                    pass
 
             print(f"Saving agent data as compressed zarr arrays in {save_dir}...")
             num_ag = len(agents_dict)
             v_field_len = int(float(ifdbp.envconf.get("VISUAL_FIELD_RESOLUTION")))
             aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zarr"), mode='w', shape=(num_ag, t_len),
-                                 chunks=(num_ag, t_len), dtype='float')
+                                  chunks=(num_ag, t_len), dtype='float')
             aposyzarr = zarr.open(os.path.join(save_dir, "ag_posy.zarr"), mode='w', shape=(num_ag, t_len),
-                                 chunks=(num_ag, t_len), dtype='float')
+                                  chunks=(num_ag, t_len), dtype='float')
             aorizarr = zarr.open(os.path.join(save_dir, "ag_ori.zarr"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
             avelzarr = zarr.open(os.path.join(save_dir, "ag_vel.zarr"), mode='w', shape=(num_ag, t_len),
                                  chunks=(num_ag, t_len), dtype='float')
-            awzarr = zarr.open(os.path.join(save_dir, "ag_w.zarr"), mode='w', shape=(num_ag, t_len),
-                                 chunks=(num_ag, t_len), dtype='float')
-            auzarr = zarr.open(os.path.join(save_dir, "ag_u.zarr"), mode='w', shape=(num_ag, t_len),
-                                 chunks=(num_ag, t_len), dtype='float')
-            aiprivzarr = zarr.open(os.path.join(save_dir, "ag_ipriv.zarr"), mode='w', shape=(num_ag, t_len),
-                                 chunks=(num_ag, t_len), dtype='float')
             amodezarr = zarr.open(os.path.join(save_dir, "ag_mode.zarr"), mode='w', shape=(num_ag, t_len),
-                                 chunks=(num_ag, t_len), dtype='float')
-            acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zarr"), mode='w', shape=(num_ag, t_len),
                                   chunks=(num_ag, t_len), dtype='float')
-            aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zarr"), mode='w', shape=(num_ag, t_len),
-                                  chunks=(num_ag, t_len), dtype='float')
-            if v_field_len is not None and save_extracted_vfield:
-                avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zarr"), mode='w', shape=(num_ag, t_len, v_field_len),
-                                      chunks=(num_ag, 1, v_field_len), dtype='float')
+            if project_version == "Base":
+                awzarr = zarr.open(os.path.join(save_dir, "ag_w.zarr"), mode='w', shape=(num_ag, t_len),
+                                   chunks=(num_ag, t_len), dtype='float')
+                auzarr = zarr.open(os.path.join(save_dir, "ag_u.zarr"), mode='w', shape=(num_ag, t_len),
+                                   chunks=(num_ag, t_len), dtype='float')
+                aiprivzarr = zarr.open(os.path.join(save_dir, "ag_ipriv.zarr"), mode='w', shape=(num_ag, t_len),
+                                       chunks=(num_ag, t_len), dtype='float')
+                acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zarr"), mode='w', shape=(num_ag, t_len),
+                                       chunks=(num_ag, t_len), dtype='float')
+                aexplrzarr = zarr.open(os.path.join(save_dir, "ag_explr.zarr"), mode='w', shape=(num_ag, t_len),
+                                       chunks=(num_ag, t_len), dtype='float')
+                if v_field_len is not None and save_extracted_vfield:
+                    avfzarr = zarr.open(os.path.join(save_dir, "ag_vf.zarr"), mode='w',
+                                        shape=(num_ag, t_len, v_field_len),
+                                        chunks=(num_ag, 1, v_field_len), dtype='float')
+            elif project_version == "CooperativeSignaling":
+                asigzarr = zarr.open(os.path.join(save_dir, "ag_sig.zarr"), mode='w', shape=(num_ag, t_len),
+                                     chunks=(num_ag, t_len), dtype='float')
+                ameterzarr = zarr.open(os.path.join(save_dir, "ag_meter.zarr"), mode='w', shape=(num_ag, t_len),
+                                       chunks=(num_ag, t_len), dtype='float')
 
             for ag_id, ag_ict in agents_dict.items():
-                aposxzarr[ag_id-1, :] = agents_dict[ag_id]['posx']
-                aposyzarr[ag_id-1, :] = agents_dict[ag_id]['posy']
-                aorizarr[ag_id-1, :] = agents_dict[ag_id]['orientation']
-                avelzarr[ag_id-1, :] = agents_dict[ag_id]['velocity']
-                awzarr[ag_id-1, :] = agents_dict[ag_id]['w']
-                auzarr[ag_id-1, :] = agents_dict[ag_id]['u']
-                aiprivzarr[ag_id-1, :] = agents_dict[ag_id]['Ipriv']
-                amodezarr[ag_id-1, :] = agents_dict[ag_id]['mode']
-                acollrzarr[ag_id-1, :] = agents_dict[ag_id]['collectedr']
-                aexplrzarr[ag_id-1, :] = agents_dict[ag_id]['expl_patch_id']
-                if v_field_len is not None and save_extracted_vfield:
-                    agents_dict[ag_id]['vfield_up'] = np.array(
-                        [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
-                            "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_up']], dtype=object)
-                    agents_dict[ag_id]['vfield_down'] = np.array(
-                        [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
-                            "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_down']], dtype=object)
-                    for t in range(t_len):
-                        vfup = json.loads(agents_dict[ag_id]['vfield_up'][t])
-                        vfdown = json.loads(agents_dict[ag_id]['vfield_down'][t])
-                        if vfup != []:
-                            vfup = [int(float(v)) for v in vfup]
-                            vfdown = [int(float(v)) for v in vfdown]
-                            vf = reconstruct_VPF(v_field_len, vfup, vfdown)
-                        else:
-                            vf = np.zeros(v_field_len)
-                        avfzarr[ag_id-1, t, :] = vf
+                aposxzarr[ag_id - 1, :] = agents_dict[ag_id]['posx']
+                aposyzarr[ag_id - 1, :] = agents_dict[ag_id]['posy']
+                aorizarr[ag_id - 1, :] = agents_dict[ag_id]['orientation']
+                avelzarr[ag_id - 1, :] = agents_dict[ag_id]['velocity']
+                amodezarr[ag_id - 1, :] = agents_dict[ag_id]['mode']
+                if project_version == "Base":
+                    awzarr[ag_id - 1, :] = agents_dict[ag_id]['w']
+                    auzarr[ag_id - 1, :] = agents_dict[ag_id]['u']
+                    aiprivzarr[ag_id - 1, :] = agents_dict[ag_id]['Ipriv']
+                    acollrzarr[ag_id - 1, :] = agents_dict[ag_id]['collectedr']
+                    aexplrzarr[ag_id - 1, :] = agents_dict[ag_id]['expl_patch_id']
+                    if v_field_len is not None and save_extracted_vfield:
+                        agents_dict[ag_id]['vfield_up'] = np.array(
+                            [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                                "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_up']], dtype=object)
+                        agents_dict[ag_id]['vfield_down'] = np.array(
+                            [i.replace("   ", " ").replace("  ", " ").replace("[  ", "[").replace(
+                                "[ ", "[").replace(" ", ", ") for i in agents_dict[ag_id]['vfield_down']], dtype=object)
+                        for t in range(t_len):
+                            vfup = json.loads(agents_dict[ag_id]['vfield_up'][t])
+                            vfdown = json.loads(agents_dict[ag_id]['vfield_down'][t])
+                            if vfup != []:
+                                vfup = [int(float(v)) for v in vfup]
+                                vfdown = [int(float(v)) for v in vfdown]
+                                vf = reconstruct_VPF(v_field_len, vfup, vfdown)
+                            else:
+                                vf = np.zeros(v_field_len)
+                            avfzarr[ag_id - 1, t, :] = vf
+                elif project_version == "CooperativeSignaling":
+                    asigzarr[ag_id - 1, :] = agents_dict[ag_id]['signalling']
+                    ameterzarr[ag_id - 1, :] = agents_dict[ag_id]['meter']
 
         print("Cleaning global data structure!")
         resources_dict = {}
         agents_dict = {}
-

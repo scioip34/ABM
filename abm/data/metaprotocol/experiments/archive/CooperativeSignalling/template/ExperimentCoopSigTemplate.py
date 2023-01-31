@@ -93,7 +93,9 @@ criteria_exp = [
     Constant("METER_TO_RES_MULTI", 1),
     Constant("SIGNALLING_COST", 0.2),
     Constant("RES_THETA", 0.2),
-    Constant("T", 5000),
+    Constant("MAX_PROJ_SIZE_PERCENTAGE", 0.05),
+    Constant("CROWD_DENSITY_THRESHOLD", 0.2),
+    Constant("T", 500),
     Constant("N", 5),  # Can not be tuned, must be fixed for Replay tool
     Tunable("RES_VEL", values_override=[1, 1.25, 1.5, 2, 3]),
     Tunable("DETECTION_RANGE", values_override=[50, 75, 100, 125])

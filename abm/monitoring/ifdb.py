@@ -114,6 +114,7 @@ def cs_save_agent_data_RAM(agents, t):
             agents_dict[agent.id][f"meter"] = []
             agents_dict[agent.id][f"signalling"] = []
             agents_dict[agent.id][f"mode"] = []
+            agents_dict[agent.id][f"collectedr"] = []
 
         # format the data as a single measurement for influx
         agents_dict[agent.id][f"posx"].append(int(agent.position[0]))
@@ -121,6 +122,7 @@ def cs_save_agent_data_RAM(agents, t):
         agents_dict[agent.id][f"orientation"].append(float(agent.orientation))
         agents_dict[agent.id][f"velocity"].append(float(agent.velocity))
         agents_dict[agent.id][f"meter"].append(float(agent.meter))
+        agents_dict[agent.id][f"collectedr"].append(float(agent.collected_r))
         issig = agent.is_signaling
         if issig is None:
             issig = False
@@ -493,6 +495,8 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                                      chunks=(num_ag, t_len), dtype='float')
                 ameterzarr = zarr.open(os.path.join(save_dir, "ag_meter.zarr"), mode='w', shape=(num_ag, t_len),
                                        chunks=(num_ag, t_len), dtype='float')
+                acollrzarr = zarr.open(os.path.join(save_dir, "ag_collr.zarr"), mode='w', shape=(num_ag, t_len),
+                                       chunks=(num_ag, t_len), dtype='float')
 
             for ag_id, ag_ict in agents_dict.items():
                 aposxzarr[ag_id - 1, :] = agents_dict[ag_id]['posx']
@@ -526,6 +530,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                 elif project_version == "CooperativeSignaling":
                     asigzarr[ag_id - 1, :] = agents_dict[ag_id]['signalling']
                     ameterzarr[ag_id - 1, :] = agents_dict[ag_id]['meter']
+                    acollrzarr[ag_id - 1, :] = agents_dict[ag_id]['collectedr']
 
         print("Cleaning global data structure!")
         resources_dict = {}

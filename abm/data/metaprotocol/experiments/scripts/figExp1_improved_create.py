@@ -137,27 +137,97 @@ for ni in range(fig_shape[0]):
             for ticki, tick in enumerate(ax[ni, env_i_p].get_xticklabels()):
                 tick.set_rotation(-45)
 
-
-    # fig.text(0.06, 0.5, 'common ylabel', ha='center', va='center', rotation='vertical')
-    # ax.set_xlabel("Social Excitability ($\epsilon_w$)", fontdict=FS)
-
-    # plt.legend()
-#, top=0.95, bottom=0.2, left=0.2, right=0.8)
-
-### Plotting Intermediate Follow Up
-ni = 0
-N = Ns[0]
+### Plotting Intermediate (Follow Up)
+Ns = [5, 25, 100]
 num_patches = [8]
-# Loading data
-# try:
-collapsed_data_occ = np.mean(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
-collstd_occ = np.std(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
-# Finding appropriate columns where number of patches will match
-num_patches_ind_occ = [0]
-print(f"In oclluded case will use columns {num_patches_ind_occ}")
+for ni in range(len(Ns)):
+    N = Ns[ni]
+    # Loading data
+    # try:
+    collapsed_data_occ = np.mean(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
+    collstd_occ = np.mean(np.std(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
+    # Finding appropriate columns where number of patches will match
+    num_patches_ind_occ = [0]
+    print(f"In oclluded case will use columns {num_patches_ind_occ}")
+
+    collapsed_data_noocc = np.load(os.path.join(data_path, f"coll_eff_N{N}_noocc.npy"))
+    collstd_noocc = np.load(os.path.join(data_path, f"coll_effstd_N{N}_noocc.npy"))
+
+    num_patches_ind_noocc = []
+    labels = np.loadtxt(os.path.join(data_path, f"coll_eff_N{N}_noocc.txt"), dtype=str)
+    for li in range(0, len(labels), 2):
+        filtered_label = labels[li + 1].replace("N_RESOURCES=", "").replace(".0,", " x ") + labels[li].replace(
+            "MIN_RESOURCE_PER_PATCH=", "").replace(".0", "U")
+        nup = int(filtered_label.split(" x ")[0])
+        if nup in num_patches:
+            num_patches_ind_noocc.append(int(li / 2))
+    print(f"In non occluded case will use columns {num_patches_ind_noocc}")
+
+    # Extracting data from collapsed matrices
+    lines_occ = collapsed_data_occ[...]
+    stds_occ = collstd_occ[...]
+    lines_noocc = collapsed_data_noocc[..., num_patches_ind_noocc]
+    stds_noocc = collstd_noocc[..., num_patches_ind_occ]
+
+    print(lines_occ.shape, lines_noocc.shape)
+
+    env_i = 0
+    env_i_p = 1
+    plt.axes(ax[ni, env_i_p])
+    plt.plot(lines_noocc[..., env_i], color=c_ide, linewidth=line_th)
+    plt.fill_between([i for i in range(len(lines_noocc[..., env_i]))], lines_noocc[..., env_i] - stds_noocc[..., env_i],
+                     lines_noocc[..., env_i] + stds_noocc[..., env_i], alpha=0.3, color=c_ide)
+    plt.plot(lines_occ, color=c_occ, linewidth=line_th, ls="--")
+    plt.fill_between([i for i in range(len(lines_occ))], lines_occ - stds_occ,
+                     lines_occ + stds_occ, alpha=0.3, color=c_occ)
+
+    if ni == 0:
+        plt.title(f"Intermediate Environment\n$N_R={num_patches[env_i]}$", fontdict=FS)
+    #     # plt.yticks([i for i in range(len(y_labels))], y_labels, ha='right', rotation_mode='anchor')
+    # elif ni == 1 and env_i == 0:
+    #     plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
+    # elif ni == 0 and env_i == 1:
+    #     plt.title(f"Uniform Environment\n$N_R={num_patches[env_i]}$", fontdict=FS)
+    # elif env_i == 0:
+    #     plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
+    #     # Making sparse ticks
+    #     # curr_yticks = list(ax[ni, env_i].get_yticks())
+    #     # sparse_yticks = [curr_yticks[0], curr_yticks[int(len(curr_yticks)/2)], curr_yticks[-1]]
+    #     # print(sparse_yticks)
+    #     # parse_ytick_rotations = [0 for i in range(len(sparse_yticks))]
+    #     # print(parse_ytick_rotations)
+    #     # parse_ytick_rotations[0] = 45
+    #     # parse_ytick_rotations[0] = -45
+    #     # plt.yticks(sparse_yticks, sparse_yticks, ha='right', rotation_mode='anchor')
+    #     # for ticki, tick in enumerate(ax[ni, env_i].get_yticklabels()):
+    #     #     tick.set_rotation(parse_ytick_rotations[ticki])
+    # if env_i == 1:
+    #     # ax[ni, env_i].yaxis.tick_right()
+    #     ax[ni, env_i_p].yaxis.set_ticks_position('none')
+    #     pass
+    # if ni == len(Ns) - 1 and env_i == 0:
+    #     # creating y-axis labels
+    #     tuned_env_pattern = os.path.join(data_path, "tuned_env*.json")
+    #     print("Patterns: ", tuned_env_pattern)
+    #     json_files = glob.glob(tuned_env_pattern)
+    #     for json_path in json_files:
+    #         with open(json_path, "r") as f:
+    #             envvars = json.load(f)
+    #             x_labels = envvars["DEC_EPSW"]
+    if ni == len(Ns) - 1:
+        plt.xticks([i for i in range(len(x_labels))], x_labels, ha='center', rotation_mode='anchor')
+        plt.xlabel('Social Excitability ($\epsilon_w$)', fontdict=FS)
+
+    # elif ni == len(Ns) - 1 and env_i == 1:
+    #     x_labels_sparse = [x_labels[i] for i in range(0, len(x_labels), 2)]
+    #     # plt.xticks([i for i in range(0, len(x_labels), 2)], x_labels_sparse, ha='left', rotation_mode='anchor')
+    #     plt.xticks([i for i in range(len(x_labels))], x_labels, ha='left', rotation_mode='anchor')
+    #     for ticki, tick in enumerate(ax[ni, env_i_p].get_xticklabels()):
+    #         tick.set_rotation(-45)
 
 
-fig.supxlabel('Social Excitability ($\epsilon_w$)', size=FS["fontsize"], y=0.01)
+
+# fig.supxlabel('Social Excitability ($\epsilon_w$)', size=FS["fontsize"], y=0.01)
 fig.supylabel('Absolute Search Efficiency', size=FS["fontsize"], x=0.025)
 plt.tight_layout()
 plt.subplots_adjust(hspace=0, wspace=0)

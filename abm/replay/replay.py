@@ -72,6 +72,7 @@ class ExperimentReplay:
         elif self.project_version=="CooperativeSignaling":
             self.meter_z = self.experiment.agent_summary['meter']
             self.sig_z = self.experiment.agent_summary['signalling']
+            self.coll_resc_z = self.experiment.agent_summary['collresource']
 
         self.varying_params = self.experiment.varying_params
         self.index_prev = None
@@ -470,6 +471,7 @@ class ExperimentReplay:
         elif self.project_version=="CooperativeSignaling":
             self.meter = self.meter_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             self.sig = self.sig_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
 
     def on_print_reloc_time(self):
         """print mean relative relocation time"""

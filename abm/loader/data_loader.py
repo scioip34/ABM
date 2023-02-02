@@ -240,6 +240,9 @@ class DataLoader:
                         self.agent_data['meter'] = zarr.open(os.path.join(self.data_folder_path, f"ag_meter{self.zarr_extension}"), mode='r')
                         self.agent_data['signalling'] = zarr.open(
                             os.path.join(self.data_folder_path, f"ag_sig{self.zarr_extension}"), mode='r')
+                        self.agent_data['collresource'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
+                            mode='r')
                 else:
                     raise Exception("No json, csv or zarr archive found for agent data!")
             print("agent_data loaded")
@@ -541,6 +544,10 @@ class ExperimentLoader:
                                                     mode='w',
                                                     shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                     chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"),
+                                                  mode='w',
+                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
 
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
@@ -563,6 +570,7 @@ class ExperimentLoader:
                             elif project_version == "CooperativeSignaling":
                                 meter_array[ind] = agent_data[f'meter_agent-{pad_to_n_digits(ai, n=2)}']
                                 sig_array[ind] = agent_data[f'sig_agent-{pad_to_n_digits(ai, n=2)}']
+                                rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
                     else:
                         ind = (i,) + tuple(index)
                         posx_array[ind] = agent_data['posx'][..., self.t_start:self.t_end:self.undersample]
@@ -580,6 +588,7 @@ class ExperimentLoader:
                         elif project_version == "CooperativeSignaling":
                             meter_array[ind] = agent_data['meter'][..., self.t_start:self.t_end:self.undersample]
                             sig_array[ind] = agent_data['signalling'][..., self.t_start:self.t_end:self.undersample]
+                            rew_array[ind] = agent_data['collresource'][..., self.t_start:self.t_end:self.undersample]
 
                     del agent_data
 
@@ -604,7 +613,7 @@ class ExperimentLoader:
             if project_version == "Base":
                 del rew_array, w_array, u_array, Ip_array, expl_patch_array
             elif project_version=="CooperativeSignaling":
-                del meter_array, sig_array
+                del meter_array, sig_array, rew_array
 
             # Saving max patch number for further calc
             env_data['SUMMARY_MAX_PATCHES'] = int(max_r_in_runs)
@@ -896,12 +905,15 @@ class ExperimentLoader:
                                                         mode='r')
                     self.agent_summary['collresource'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", f"agent_rew{extension}"),
-                        mode='r')  # self.experiment.agent_summary['collresource']
+                        mode='r')
                 elif self.project_version=="CooperativeSignaling":
                     self.agent_summary['meter'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_meter{extension}"),
                                                            mode='r')
                     self.agent_summary['signalling'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", f"agent_sig{extension}"),
+                        mode='r')
+                    self.agent_summary['collresource'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", f"agent_rew{extension}"),
                         mode='r')
         if not os.path.isfile(os.path.join(self.experiment_path, "summary", "resource_summary.npz")):
             # no npz summary found for resources

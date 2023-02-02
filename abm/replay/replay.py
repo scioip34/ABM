@@ -122,6 +122,10 @@ class ExperimentReplay:
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.batch_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
                                    self.slider_height, min=0, max=slider_max_val, step=1, initial=0)
+        if slider_max_val == 1:
+            self.batch_slider.disable()
+            self.batch_slider.colour = (250, 250, 250)
+            self.batch_slider.handleColour = (200, 200, 200)
         self.batch_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                      self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
 

@@ -33,11 +33,11 @@ exp_name = "sumfigExp2A_nocoll"
 data_path = f"/home/david/Desktop/database/ABMFigData/{exp_name}"
 
 # set of agent numbers to summarize for
-Ns = [25, 100]
+Ns = [5, 25, 100]
 num_patches = [3, 8, 50]
 batch_dim = 0
 agent_dim = 3
-normalization = "matrixwise"  # matrixwise or columnwise
+normalization = "columnwise"  # matrixwise or columnwise or nonorm
 colors = ["#f7d634", "#b9ad8f", "#0078de", "#0f4f93"]
 lss = ['solid', 'dashed', 'dashdot', 'dotted']
 line_th = 3
@@ -49,7 +49,7 @@ FS = {'fontsize': 12}
 fig_shape = [len(Ns), len(num_patches)]
 fig, ax = plt.subplots(fig_shape[0], fig_shape[1],
                        constrained_layout=True, figsize=(fig_shape[1] * 4, fig_shape[0] * 4),
-                       sharex=True, sharey=False)
+                       sharex=True, sharey="row")
 gs1 = gridspec.GridSpec(fig_shape[0], fig_shape[1])
 gs1.update(wspace=0, hspace=0)
 
@@ -70,14 +70,19 @@ for ni in range(fig_shape[0]):
         fovs_patchy = [float(fov) for fov in json.loads(te.read())['AGENT_FOV']]
 
     #### Non columnwise normalization
-    if normalization == "matrixwise":
+    if normalization == "matrixwise" or "nonorm":
         std_eff_patchy = np.std(np.mean(eff_data_patchy, axis=agent_dim), axis=batch_dim)
         mean_eff_patchy_raw = np.mean(np.mean(eff_data_patchy, axis=agent_dim), axis=batch_dim)
         patchy_std_neg_raw = mean_eff_patchy_raw-std_eff_patchy
         patchy_std_pos_raw = mean_eff_patchy_raw+std_eff_patchy
-        mean_eff_patchy = norm_between_0_and_1(mean_eff_patchy_raw, [mean_eff_patchy_raw, patchy_std_neg_raw, patchy_std_pos_raw], colum_wise=False)
-        patchy_std_neg = norm_between_0_and_1(patchy_std_neg_raw, [mean_eff_patchy_raw, patchy_std_neg_raw, patchy_std_pos_raw], colum_wise=False)
-        patchy_std_pos = norm_between_0_and_1(patchy_std_pos_raw, [mean_eff_patchy_raw, patchy_std_neg_raw, patchy_std_pos_raw], colum_wise=False)
+        if normalization == "matrixwise":
+            mean_eff_patchy = norm_between_0_and_1(mean_eff_patchy_raw, [mean_eff_patchy_raw, patchy_std_neg_raw, patchy_std_pos_raw], colum_wise=False)
+            patchy_std_neg = norm_between_0_and_1(patchy_std_neg_raw, [mean_eff_patchy_raw, patchy_std_neg_raw, patchy_std_pos_raw], colum_wise=False)
+            patchy_std_pos = norm_between_0_and_1(patchy_std_pos_raw, [mean_eff_patchy_raw, patchy_std_neg_raw, patchy_std_pos_raw], colum_wise=False)
+        else:
+            mean_eff_patchy = mean_eff_patchy_raw
+            patchy_std_neg = patchy_std_neg_raw
+            patchy_std_pos = patchy_std_pos_raw
     elif normalization == "columnwise":
         #### Column-wise normalization
         eff_data_patchy_agent_mean = np.mean(eff_data_patchy, axis=agent_dim)
@@ -91,6 +96,9 @@ for ni in range(fig_shape[0]):
         patchy_std_neg = mean_eff_patchy-std_eff_patchy
         patchy_std_pos = mean_eff_patchy+std_eff_patchy
 
+    plot_min_patchy = np.min([patchy_std_neg, patchy_std_pos])
+    plot_max_patchy = np.max([patchy_std_neg, patchy_std_pos])
+
 
     ######
     ###### INTERMEDIATE
@@ -103,14 +111,19 @@ for ni in range(fig_shape[0]):
         fovs_intermed = [float(fov) for fov in json.loads(te.read())['AGENT_FOV']]
 
     #### Non colum-wise normalization
-    if normalization == "matrixwise":
+    if normalization == "matrixwise" or "nonorm":
         mean_eff_intermed_raw = np.mean(np.mean(eff_data_intermed, axis=agent_dim), axis=batch_dim)
         std_eff_intermed = np.std(np.mean(eff_data_intermed, axis=agent_dim), axis=batch_dim)
         intermed_std_neg_raw = mean_eff_intermed_raw-std_eff_intermed
         intermed_std_pos_raw = mean_eff_intermed_raw+std_eff_intermed
-        mean_eff_intermed = norm_between_0_and_1(mean_eff_intermed_raw, [mean_eff_intermed_raw, intermed_std_neg_raw, intermed_std_pos_raw], colum_wise=False)
-        intermed_std_neg = norm_between_0_and_1(intermed_std_neg_raw, [mean_eff_intermed_raw, intermed_std_neg_raw, intermed_std_pos_raw], colum_wise=False)
-        intermed_std_pos = norm_between_0_and_1(intermed_std_pos_raw, [mean_eff_intermed_raw, intermed_std_neg_raw, intermed_std_pos_raw], colum_wise=False)
+        if normalization == "matrixwise":
+            mean_eff_intermed = norm_between_0_and_1(mean_eff_intermed_raw, [mean_eff_intermed_raw, intermed_std_neg_raw, intermed_std_pos_raw], colum_wise=False)
+            intermed_std_neg = norm_between_0_and_1(intermed_std_neg_raw, [mean_eff_intermed_raw, intermed_std_neg_raw, intermed_std_pos_raw], colum_wise=False)
+            intermed_std_pos = norm_between_0_and_1(intermed_std_pos_raw, [mean_eff_intermed_raw, intermed_std_neg_raw, intermed_std_pos_raw], colum_wise=False)
+        else:
+            mean_eff_intermed = mean_eff_intermed_raw
+            intermed_std_neg = intermed_std_neg_raw
+            intermed_std_pos = intermed_std_pos_raw
     elif normalization == "columnwise":
         #### Column-wise normalization
         eff_data_intermed_agent_mean = np.mean(eff_data_intermed, axis=agent_dim)
@@ -124,6 +137,9 @@ for ni in range(fig_shape[0]):
         intermed_std_neg = mean_eff_intermed-std_eff_intermed
         intermed_std_pos = mean_eff_intermed+std_eff_intermed
 
+    plot_min_intermed = np.min([intermed_std_neg, intermed_std_pos])
+    plot_max_intermed = np.max([intermed_std_neg, intermed_std_pos])
+
 
     ######
     ###### DISTRIBUTED
@@ -135,14 +151,20 @@ for ni in range(fig_shape[0]):
         fovs_dist = [float(fov) for fov in json.loads(te.read())['AGENT_FOV']]
 
     #### Non-columnwise normalization
-    if normalization == "matrixwise":
+    if normalization == "matrixwise" or "nonorm":
         mean_eff_dist_raw = np.mean(np.mean(eff_data_dist, axis=agent_dim), axis=batch_dim)
         std_eff_dist = np.std(np.mean(eff_data_dist, axis=agent_dim), axis=batch_dim)
         dist_std_neg_raw = mean_eff_dist_raw-std_eff_dist
         dist_std_pos_raw = mean_eff_dist_raw+std_eff_dist
-        mean_eff_dist = norm_between_0_and_1(mean_eff_dist_raw, [mean_eff_dist_raw, dist_std_neg_raw, dist_std_pos_raw])
-        dist_std_neg = norm_between_0_and_1(dist_std_neg_raw, [mean_eff_dist_raw, dist_std_neg_raw, dist_std_pos_raw])
-        dist_std_pos = norm_between_0_and_1(dist_std_pos_raw, [mean_eff_dist_raw, dist_std_neg_raw, dist_std_pos_raw])
+        if normalization == "matrixwise":
+            mean_eff_dist = norm_between_0_and_1(mean_eff_dist_raw, [mean_eff_dist_raw, dist_std_neg_raw, dist_std_pos_raw])
+            dist_std_neg = norm_between_0_and_1(dist_std_neg_raw, [mean_eff_dist_raw, dist_std_neg_raw, dist_std_pos_raw])
+            dist_std_pos = norm_between_0_and_1(dist_std_pos_raw, [mean_eff_dist_raw, dist_std_neg_raw, dist_std_pos_raw])
+        else:
+            mean_eff_dist = mean_eff_dist_raw
+            dist_std_neg = dist_std_neg_raw
+            dist_std_pos = dist_std_pos_raw
+
     elif normalization == "columnwise":
         #### Column-wise normalization
         eff_data_dist_agent_mean = np.mean(eff_data_dist, axis=agent_dim)
@@ -155,6 +177,9 @@ for ni in range(fig_shape[0]):
         mean_eff_dist = np.mean(eff_data_dist_normed, axis=0)
         dist_std_neg = mean_eff_dist-std_eff_dist
         dist_std_pos = mean_eff_dist+std_eff_dist
+
+    plot_min_dist = np.min([dist_std_neg, dist_std_pos])
+    plot_max_dist = np.max([dist_std_neg, dist_std_pos])
 
     # checking if epsilon was consistently changed across epxeriments
     assert epsilons_dist == epsilons_patchy
@@ -173,16 +198,16 @@ for ni in range(fig_shape[0]):
 
         plt.axes(curax)
         plt.plot(mean_eff_patchy[:, eps_i], color=colors[eps_i], linewidth=line_th, ls=lss[eps_i], label=f"$\epsilon_w$={eps}")
+        plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
         if ni == 0:
-            plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
             plt.title(f"Patchy Environment\n$N_R$={num_patches[0]}", fontdict=FS)
         if ni == len(Ns) - 1:
-            plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
             sparsing_factor = 4
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{2*round(fovs[i], 1)}$\pi$" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
             # for ticki, tick in enumerate(curax.get_xticklabels()):
             #     tick.set_rotation(45)
         plt.fill_between([i for i in range(len(fovs))], patchy_std_neg[:, eps_i], patchy_std_pos[:, eps_i], alpha=0.3, color=colors[eps_i])
+        # plt.ylim(plot_min_patchy, plot_max_patchy)
 
         # intermediate
         if fig_shape[0] > 1:
@@ -191,7 +216,7 @@ for ni in range(fig_shape[0]):
             curax = ax[1]
 
         plt.axes(curax)
-        plt.yticks([])
+        # plt.yticks([])
         plt.plot(mean_eff_intermed[:, eps_i], color=colors[eps_i], linewidth=line_th, ls=lss[eps_i], label=f"$\epsilon_w$={eps}")
         if ni == 0:
             plt.title(f"Intermediate Environment\n$N_R$={num_patches[1]}", fontdict=FS)
@@ -203,6 +228,7 @@ for ni in range(fig_shape[0]):
             # for ticki, tick in enumerate(curax.get_xticklabels()):
             #     tick.set_rotation(-45)
         plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[:, eps_i], intermed_std_pos[:, eps_i], alpha=0.3, color=colors[eps_i])
+        # plt.ylim(plot_min_intermed, plot_max_intermed)
 
         # distributed
         if fig_shape[0] > 1:
@@ -211,7 +237,7 @@ for ni in range(fig_shape[0]):
             curax = ax[2]
 
         plt.axes(curax)
-        plt.yticks([])
+        # plt.yticks([])
         plt.plot(mean_eff_dist[:, eps_i], color=colors[eps_i], linewidth=line_th, ls=lss[eps_i], label=f"$\epsilon_w$={eps}")
         if ni == 0:
             plt.title(f"Uniform Environment\n$N_R$={num_patches[2]}", fontdict=FS)
@@ -222,6 +248,7 @@ for ni in range(fig_shape[0]):
             # for ticki, tick in enumerate(curax.get_xticklabels()):
             #     tick.set_rotation(-45)
         plt.fill_between([i for i in range(len(fovs))], dist_std_neg[:, eps_i], dist_std_pos[:, eps_i], alpha=0.3, color=colors[eps_i])
+        # plt.ylim(plot_min_dist, plot_max_dist)
 
 plt.tight_layout()
 plt.subplots_adjust(hspace=0, wspace=0, bottom=0.08, left=0.08) #, top=0.8, bottom=0.2, left=0.2, right=0.8)

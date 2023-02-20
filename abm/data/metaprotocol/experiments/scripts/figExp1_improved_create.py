@@ -144,8 +144,8 @@ for ni in range(len(Ns)):
     N = Ns[ni]
     # Loading data
     # try:
-    collapsed_data_occ = np.mean(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
-    collstd_occ = np.mean(np.std(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=0), axis=-1)
+    collapsed_data_occ = np.mean(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=-1), axis=0)
+    collstd_occ = np.std(np.mean(np.load(os.path.join(data_path, f"eff_N{N}_occ_intermed.npy")), axis=-1), axis=0)
     # Finding appropriate columns where number of patches will match
     num_patches_ind_occ = [0]
     print(f"In oclluded case will use columns {num_patches_ind_occ}")

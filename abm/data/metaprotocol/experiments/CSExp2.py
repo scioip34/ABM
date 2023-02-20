@@ -100,7 +100,7 @@ criteria_exp = [
     # Memory
     Constant("MEMORY_DEPTH", 1),
     # Vision
-    Constant("AGENT_FOV", 0.5),  # half FOV as in reality
+    Constant("AGENT_FOV", 0.25),  # matched with Unity
     # Resource
     Constant("RES_THETA", 0.2),
     Tunable("RES_VEL", values_override=resource_vels),

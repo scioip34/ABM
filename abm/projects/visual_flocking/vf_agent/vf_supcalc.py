@@ -1,7 +1,6 @@
 import numpy as np
 
 from abm.agent.supcalc import angle_between, find_nearest
-from abm.projects.visual_flocking.vf_contrib import vf_params
 
 from scipy import integrate
 
@@ -64,9 +63,6 @@ def projection_field(fov, v_field_resolution, position, radius,
 
         # in case torus, positions might change
         if boundary_cond == "infinite":
-            if ag_id==0:
-                print(f"ag: {agents_center}")
-                print(f"obbef: {object_center}")
             if np.abs(v2[0]) > arena_width/2:
                 if agents_center[0] < object_center[0]:
                     object_center[0] -= arena_width
@@ -77,8 +73,6 @@ def projection_field(fov, v_field_resolution, position, radius,
                     object_center[1] -= arena_height
                 elif agents_center[1] > object_center[1]:
                     object_center[1] += arena_height
-            if ag_id == 0:
-                print(f"obaft: {object_center}")
 
             # recalculating v2 after teleporting on torus
             v2 = object_center - agents_center
@@ -150,9 +144,8 @@ def calculate_closed_angle(v1, v2):
         closed_angle = 2 * np.pi - closed_angle
     return closed_angle
 
-
 # Functions needed for VSWRM functionality
-def VSWRM_flocking_state_variables(vel_now, Phi, V_now, t_now=None, V_prev=None, t_prev=None):
+def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V_prev=None, t_prev=None):
     """Calculating state variables of a given agent according to the main algorithm as in
     https://advances.sciencemag.org/content/6/6/eaay0792.
         Args:

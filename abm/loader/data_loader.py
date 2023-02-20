@@ -237,27 +237,30 @@ class DataLoader:
             print("agent_data loaded")
 
             if not self.only_agent:
-                if self.resource_csv_path is not None:
-                    self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
-                    print("OLD")
-                elif self.resource_json_path is not None:
-                    with open(self.resource_json_path, "r") as f:
-                        self.resource_data = json.load(f)
-                    self.resource_data = self.resource_json_to_csv_format()
-                else:
-                    if self.zarr_compressed_runs:
-                        self.resource_data = {}
-                        self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
-                                                               mode='r')
-                        self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
-                                                               mode='r')
-                        self.resource_data['resc_left'] = zarr.open(
-                            os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
-                            mode='r')
-                        self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
-                                                                  mode='r')
-                        self.resource_data['radius'] = zarr.open(os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
-                                                                 mode='r')
+                try:
+                    if self.resource_csv_path is not None:
+                        self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
+                        print("OLD")
+                    elif self.resource_json_path is not None:
+                        with open(self.resource_json_path, "r") as f:
+                            self.resource_data = json.load(f)
+                        self.resource_data = self.resource_json_to_csv_format()
+                    else:
+                        if self.zarr_compressed_runs:
+                            self.resource_data = {}
+                            self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
+                                                                   mode='r')
+                            self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
+                                                                   mode='r')
+                            self.resource_data['resc_left'] = zarr.open(
+                                os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
+                                mode='r')
+                            self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
+                                                                      mode='r')
+                            self.resource_data['radius'] = zarr.open(os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
+                                                                     mode='r')
+                except:
+                    pass
 
                 print("resource data loaded")
                 print(sys.getsizeof(self.agent_data))
@@ -744,7 +747,10 @@ class ExperimentLoader:
                         r_rescleft_array[ind] += data
 
                 else:
-                    num_res_in_run = res_data['posx'].shape[0]
+                    try:
+                        num_res_in_run = res_data['posx'].shape[0]
+                    except:
+                        num_res_in_run = 0
                     for pid in range(num_res_in_run):
                         ind = (i,) + tuple(index) + (pid,)
                         r_posx_array[ind] = res_data['posx'][pid, self.t_start:self.t_end:self.undersample]

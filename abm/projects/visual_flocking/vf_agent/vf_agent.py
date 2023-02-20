@@ -3,12 +3,16 @@ import numpy as np
 
 from abm.projects.visual_flocking.vf_agent import vf_supcalc
 from abm.agent.agent import Agent
+from abm.projects.visual_flocking.vf_contrib import vf_params
 from abm.contrib import colors
+import importlib
 
 
 class VFAgent(Agent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        importlib.reload(vf_supcalc)
+        importlib.reload(vf_params)
 
         # creating agent status
         # flocking or emergency
@@ -16,7 +20,7 @@ class VFAgent(Agent):
 
         # boundary conditions
         # infinite or walls
-        self.boundary_cond = "walls"
+        self.boundary_cond = vf_params.BOUNDARY
 
         # preparing phi values for algorithm according to FOV
         self.PHI = np.arange(-np.pi, np.pi, (2*np.pi)/self.v_field_res)
@@ -38,7 +42,6 @@ class VFAgent(Agent):
         """
         # update agent information
         self.update_social_info(agents)
-        print(np.max(self.soc_v_field))
 
         # update agent's state
         self.update_state()
@@ -110,9 +113,8 @@ class VFAgent(Agent):
         if not self.is_moved_with_cursor:
             # perform the agent's action according to the current state
             if self.agent_state == "flocking":
-                dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field))
-                if self.id == 0:
-                    print(dv, dphi)
+                dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
+                                                                     vf_params)
                 self.update_agent_position(dphi, dv)
             elif self.agent_state == "emergency":
                 pass
@@ -120,10 +122,13 @@ class VFAgent(Agent):
     def update_agent_position(self, theta, vel):
         # updating agent's state variables according to calculated vel and
         # theta
+        # maximum turning angle per timestep
+        theta = self.prove_turning(theta)
         self.orientation += theta
         self.prove_orientation()  # bounding orientation into 0 and 2pi
+
         self.velocity += vel
-        # self.prove_velocity()  # possibly bounding velocity of agent
+        self.prove_velocity(velocity_limit=3)  # possibly bounding velocity of agent
 
         # new agent's position
         new_pos = (
@@ -134,13 +139,30 @@ class VFAgent(Agent):
         # walls) or with the new position
         self.position = list(new_pos)
 
+    def prove_turning(self, theta, theta_lim=0.2):
+        t_sign = np.sign(theta)
+        if t_sign == 0:
+            t_sign = +1
+        if np.abs(theta) > theta_lim:
+            theta = theta_lim * t_sign
+        return theta
+
+
+    def prove_velocity(self, velocity_limit=1):
+        """Restricting the absolute velocity of the agent"""
+        vel_sign = np.sign(self.velocity)
+        if vel_sign == 0:
+            vel_sign = +1
+        if np.abs(self.velocity) > velocity_limit:
+            self.velocity = velocity_limit * vel_sign
+
 
     def change_color(self):
         """
         Changing color of agent according to the behavioral mode the agent is
         currently in.
         """
-        cmap = matplotlib.cm.get_cmap('Spectral')
+        cmap = matplotlib.cm.get_cmap('jet')
         rgba = np.array(cmap(self.orientation / (2 * np.pi)))
         # rescaling color for pygame
         rgba[0:3] *= 255

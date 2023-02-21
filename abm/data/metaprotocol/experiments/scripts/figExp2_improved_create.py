@@ -37,7 +37,7 @@ Ns = [5, 25, 100]
 num_patches = [3, 8, 50]
 batch_dim = 0
 agent_dim = 3
-normalization = "columnwise"  # matrixwise or columnwise or nonorm
+normalization = "nonorm"  # matrixwise or columnwise or nonorm
 colors = ["#f7d634", "#b9ad8f", "#0078de", "#0f4f93"]
 lss = ['solid', 'dashed', 'dashdot', 'dotted']
 line_th = 3
@@ -48,7 +48,7 @@ FS = {'fontsize': 12}
 # figure shape
 fig_shape = [len(Ns), len(num_patches)]
 fig, ax = plt.subplots(fig_shape[0], fig_shape[1],
-                       constrained_layout=True, figsize=(fig_shape[1] * 4, fig_shape[0] * 4),
+                       constrained_layout=True, figsize=(fig_shape[1] * 3, fig_shape[0] * 3),
                        sharex=True, sharey="row")
 gs1 = gridspec.GridSpec(fig_shape[0], fig_shape[1])
 gs1.update(wspace=0, hspace=0)
@@ -198,7 +198,10 @@ for ni in range(fig_shape[0]):
 
         plt.axes(curax)
         plt.plot(mean_eff_patchy[:, eps_i], color=colors[eps_i], linewidth=line_th, ls=lss[eps_i], label=f"$\epsilon_w$={eps}")
-        plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
+        if ni == 1:
+            plt.ylabel(f"Absolute Search Efficiency\n$N_A$={Ns[ni]}", fontdict=FS)
+        else:
+            plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
         if ni == 0:
             plt.title(f"Patchy Environment\n$N_R$={num_patches[0]}", fontdict=FS)
         if ni == len(Ns) - 1:
@@ -227,6 +230,7 @@ for ni in range(fig_shape[0]):
                        rotation_mode='anchor')
             # for ticki, tick in enumerate(curax.get_xticklabels()):
             #     tick.set_rotation(-45)
+            plt.xlabel("Field of View", fontdict=FS)
         plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[:, eps_i], intermed_std_pos[:, eps_i], alpha=0.3, color=colors[eps_i])
         # plt.ylim(plot_min_intermed, plot_max_intermed)
 
@@ -251,9 +255,7 @@ for ni in range(fig_shape[0]):
         # plt.ylim(plot_min_dist, plot_max_dist)
 
 plt.tight_layout()
-plt.subplots_adjust(hspace=0, wspace=0, bottom=0.08, left=0.08) #, top=0.8, bottom=0.2, left=0.2, right=0.8)
-fig.supylabel('Relative Search Efficiency', size=FS["fontsize"], x=0.0125)
-fig.supxlabel("Field of View", size=FS["fontsize"], y=0.0125)
+plt.subplots_adjust(hspace=0, wspace=0) #, top=0.8, bottom=0.2, left=0.2, right=0.8)
 plt.show()
 
 #     for env_i in range(len(num_patches)):

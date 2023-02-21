@@ -26,7 +26,7 @@ line_th=3
 # figure shape
 fig_shape = [len(Ns), len(num_patches)+1]
 fig, ax = plt.subplots(fig_shape[0], fig_shape[1],
-                       constrained_layout=True, figsize=(fig_shape[1] * 4, fig_shape[0] * 4),
+                       constrained_layout=True, figsize=(fig_shape[1] * 3, fig_shape[0] * 3),
                        sharex=False, sharey="row")
 gs1 = gridspec.GridSpec(fig_shape[0], fig_shape[1])
 gs1.update(wspace=0, hspace=0)
@@ -98,7 +98,7 @@ for ni in range(fig_shape[0]):
             plt.title(f"Patchy Environment\n$N_R={num_patches[env_i]}$", fontdict=FS)
             #plt.yticks([i for i in range(len(y_labels))], y_labels, ha='right', rotation_mode='anchor')
         elif ni == 1 and env_i == 0:
-            plt.ylabel(f"$N_A$={Ns[ni]}", fontdict=FS)
+            plt.ylabel(f"Absolute Search Efficiency\n$N_A$={Ns[ni]}", fontdict=FS)
         elif ni == 0 and env_i == 1:
             plt.title(f"Uniform Environment\n$N_R={num_patches[env_i]}$", fontdict=FS)
         elif env_i == 0:
@@ -116,7 +116,7 @@ for ni in range(fig_shape[0]):
             #     tick.set_rotation(parse_ytick_rotations[ticki])
         if env_i == 1:
             # ax[ni, env_i].yaxis.tick_right()
-            ax[ni, env_i_p].yaxis.set_ticks_position('none')
+            # ax[ni, env_i_p].yaxis.set_ticks_position('none')
             pass
         if ni == len(Ns)-1 and env_i == 0:
             # creating y-axis labels
@@ -228,7 +228,6 @@ for ni in range(len(Ns)):
 
 
 # fig.supxlabel('Social Excitability ($\epsilon_w$)', size=FS["fontsize"], y=0.01)
-fig.supylabel('Absolute Search Efficiency', size=FS["fontsize"], x=0.025)
 plt.tight_layout()
 plt.subplots_adjust(hspace=0, wspace=0)
 plt.show()

@@ -41,7 +41,6 @@ fixed_criteria = [
     Constant("POOLING_TIME", 0),
     Constant("VISUAL_FIELD_RESOLUTION", 320),
     Constant("AGENT_CONSUMPTION", 1),
-    Constant("RADIUS_AGENT", 10),
     Constant("MAX_RESOURCE_QUALITY", -1),  # so that the minimum value will be used as definite
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
     Constant("MOV_EXP_VEL_MIN", 3),
@@ -82,18 +81,20 @@ fixed_criteria = [
 arena_size = arena_w * arena_h
 criteria_exp = [
     Constant("APP_VERSION", "VisualFlocking"),  # Enabling project specific run in headless mode
+    # Constant("INIT_FRAMERATE", 100),
+    Constant("RADIUS_AGENT", 5.5),
     Constant("VF_GAM", 0.1),
-    Constant("VF_V0", 0.5),
-    Constant("VF_ALP1", 0.003),
+    Constant("VF_V0", 1),
+    Constant("VF_ALP1", 0.0014),
     Constant("VF_ALP2", 0),
-    Constant("VF_BET1", 0.003),
+    Constant("VF_BET1", 0.0014),
     Constant("VF_BET2", 0),
-    Tunable("AGENT_FOV", values_override=[0.475, 1]),  # unlimited FOV
+    Tunable("AGENT_FOV", values_override=[0.25, 0.5, 0.75, 1]),  # unlimited FOV
     Constant("BOUNDARY", "infinite"),
-    Constant("T", 10000),
+    Constant("T", 25000),
     Constant("N", 10),  # Can not be tuned, must be fixed for Replay tool
-    Tunable("VF_ALP0", values_override=[0, 0.01, 0.1, 0.25, 0.5, 0.75, 1, 3]),
-    Tunable("VF_BET0", values_override=[0, 0.01, 0.1, 0.25, 0.5, 0.75, 1, 3])
+    Tunable("VF_ALP0", values_override=[0, 0.01, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 3]),
+    Tunable("VF_BET0", values_override=[0, 0.01, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 3])
 ]
 
 # Creating metaprotocol and add defined criteria

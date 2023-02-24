@@ -305,7 +305,7 @@ class DataLoader:
         self.env_data["SHOW_VISUAL_FIELDS"] = bool(int(self.env_data["SHOW_VISUAL_FIELDS"])),
         self.env_data["POOLING_TIME"] = int(self.env_data["POOLING_TIME"]),
         self.env_data["POOLING_PROBABILITY"] = float(self.env_data["POOLING_PROBABILITY"]),
-        self.env_data["RADIUS_AGENT"] = int(self.env_data["RADIUS_AGENT"]),
+        self.env_data["RADIUS_AGENT"] = int(float(self.env_data["RADIUS_AGENT"])),
         self.env_data["N_RESOURCES"] = int(self.env_data["N_RESOURCES"]),
         self.env_data["MIN_RESOURCE_PER_PATCH"] = int(self.env_data["MIN_RESOURCE_PER_PATCH"]),
         self.env_data["MAX_RESOURCE_PER_PATCH"] = int(self.env_data["MAX_RESOURCE_PER_PATCH"]),
@@ -1121,6 +1121,152 @@ class ExperimentLoader:
         print("Saving I.I.D and mean I.I.D arrays into summary!")
         np.save(iidpath, self.iid_matrix)
         np.save(meaniid_path, self.mean_iid)
+
+    def plot_mean_polarization(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
+        """Method to plot polarization irrespectively of how many parameters have been tuned during the
+        experiments."""
+        cbar = None
+        self.calculate_polarization()
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Polarization")
+            plt.plot(self.mean_pol)
+            plt.plot(self.mean_pol + self.pol_std)
+            plt.plot(self.mean_pol - self.pol_std)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_pol)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_pol.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_pol = np.zeros((self.mean_pol.shape[0:3]))
+                print(self.new_mean_pol.shape)
+                for j in range(self.mean_pol.shape[0]):
+                    for i in range(self.mean_pol.shape[1]):
+                        self.new_mean_pol[j, i, :] = self.mean_pol[j, i, :, i]
+                self.mean_pol = self.new_mean_pol
+            if self.collapse_plot is None:
+                num_plots = self.mean_pol.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_pol[i, :, :], vmin=0, vmax=1)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_pol, save_name="coll_pol.npy")
+                coll_std, _ = self.collapse_mean_data(self.pol_std, save_name="coll_polstd.npy")
+
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
+
+
+    def calculate_polarization(self, undersample=1):
+        """Calculating polarization of agents in the environment used to
+        quantify e.g. flocking models"""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        polpath = os.path.join(summary_path, "polarization.npy")
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if os.path.isfile(polpath):
+            print("Found saved polarization array in summary, reloading it...")
+            pol_matrix = np.load(polpath)
+            self.mean_pol = np.mean(pol_matrix, axis=batch_dim)
+            self.pol_std = np.std(pol_matrix, axis=batch_dim)
+
+        else:
+            num_agents = self.agent_summary["orientation"].shape[agent_dim]
+            num_timesteps = self.agent_summary["orientation"].shape[time_dim]
+            ori_shape = list(self.agent_summary["orientation"].shape)
+            pol_matrix = np.zeros(ori_shape[0:num_var_params+1])
+
+            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, num_timesteps]
+
+            for runi in range(self.num_batches):
+                print(f"Calculating polarization for batch {runi}")
+                unitvecs = np.zeros(unitvec_shape)
+                for robi in range(num_agents):
+                    ori = self.agent_summary["orientation"][runi, ..., robi, :]
+                    unitvecs[..., 0, robi, :] = np.array([np.cos(ang) for ang in ori])
+                    unitvecs[..., 1, robi, :] = np.array([np.sin(ang) for ang in ori])
+
+                unitsum = np.sum(unitvecs, axis=-2)  # summing for all robots
+                unitsum_norm = np.linalg.norm(unitsum, axis=-2) / num_agents  # getting norm in x and y
+                pol_matrix[runi, ...] = np.mean(unitsum_norm, axis=-1)
+            # for runi in range(self.num_batches):
+            #     pol_matrix[runi, ...] = np.mean(np.array(
+            #         [np.linalg.norm([unitsum[runi, 0, t], unitsum[runi, 1, t]]) / num_agents for t in
+            #          range(num_timesteps)]), axis=-1)
+
+            self.mean_pol = np.mean(pol_matrix, axis=batch_dim)
+            self.pol_std = np.std(pol_matrix, axis=batch_dim)
+            print("Saving calculated relocation time matrix!")
+            np.save(polpath, pol_matrix)
+
+        return pol_matrix, self.mean_pol
 
     def calculate_relocation_time(self, undersample=1):
         """Calculating relocation time matrix over the given data"""

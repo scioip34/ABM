@@ -281,6 +281,26 @@ class ExperimentReplay:
             onClick=lambda: self.on_print_efficiency(),  # Function to call when clicked on
             borderThickness=1
         )
+
+        if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+            self.plot_efficiency.disable()
+            self.plot_efficiency.hide()
+            self.plot_polar = Button(
+                # Mandatory Parameters
+                self.screen,  # Surface to place button on
+                self.slider_start_x,  # X-coordinate of top left corner
+                button_start_y,  # Y-coordinate of top left corner
+                int(self.slider_width / 2),  # Width
+                self.button_height,  # Height
+
+                # Optional Parameters
+                text='Plot Polarization',  # Text to display
+                fontSize=20,  # Size of font
+                margin=20,  # Minimum distance between text/image and edge of button
+                inactiveColour=colors.GREY,
+                onClick=lambda: self.on_print_polarization(),  # Function to call when clicked on
+                borderThickness=1
+            )
         self.plot_rel_time = Button(
             # Mandatory Parameters
             self.screen,  # Surface to place button on
@@ -479,6 +499,22 @@ class ExperimentReplay:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_mean_relocation_time()
 
+    def on_print_polarization(self, with_read_collapse_param=True, used_batches=None):
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.t_start is None:
+            t_start = 0
+        else:
+            t_start = self.t_start
+        if self.t_end is None:
+            t_end = self.T - 1
+        else:
+            t_end = self.t_end
+        fig, ax, cbar = self.experiment.plot_mean_polarization(t_start=t_start, t_end=t_end,
+                                                               from_script=self.from_script,
+                                                               used_batches=used_batches)
+        return fig, ax, cbar
     def on_print_efficiency(self, with_read_collapse_param=True, used_batches=None):
         """print mean search efficiency"""
         if with_read_collapse_param:
@@ -943,6 +979,7 @@ class ExperimentReplay:
 
     def draw_agent(self, id, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing a single agent according to position and orientation"""
+        radius = int(radius)
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
         image.set_colorkey(colors.BACKGROUND)

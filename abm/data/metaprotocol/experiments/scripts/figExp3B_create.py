@@ -21,6 +21,17 @@ def norm_between_0_and_1(matrix_to_norm, keep_scale_matrices=None):
         normed_matrix = (matrix_to_norm - min_val) / (max_val - min_val)
     return normed_matrix
 
+colors = ['#15294a', '#0f437e', '#0c5eb0', '#017be5', '#8399d0', '#ceb86d', '#f9d83e', '#fcf9f3']
+## Made with:
+# import matplotlib.pyplot as plt
+# import colorcet as cc
+# from matplotlib.colors import rgb2hex
+# cmap = cc.cm.CET_CBL2
+# colors_np = cmap([(1/8) + i*(1/8) for i in range(8)])
+# colors = [rgb2hex(colors_np[i, 0:3]) for i in range(colors_np.shape[0])]
+
+FS = {'fontsize': 12}
+
 # under this path the individual summary statistics are saved
 # with _N<number of agents> post tag.
 exp_name = "sumfigExp3B"
@@ -36,7 +47,7 @@ agent_dim = 3
 fig_shape = [len(Ns), len(num_patches)]
 fig, ax = plt.subplots(fig_shape[0], fig_shape[1],
                        constrained_layout=True, figsize=(fig_shape[1] * 3, fig_shape[0] * 3),
-                       sharex=False, sharey=False)
+                       sharex=False, sharey=True)
 gs1 = gridspec.GridSpec(fig_shape[0], fig_shape[1])
 gs1.update(wspace=0, hspace=0)
 
@@ -158,7 +169,7 @@ for ni in range(fig_shape[0]):
     assert epsilons_intermed == epsilons_patchy
     assert fovs_patchy == fovs_intermed
     epsilons = epsilons_patchy
-    fovs = fovs_patchy
+    fovs = [fov / 10 for fov in fovs_patchy]
     # except:
     #     break
 
@@ -171,26 +182,27 @@ for ni in range(fig_shape[0]):
 
         plt.axes(curax)
         if ni == 0:
-            plt.plot(mean_eff_patchy[eps_i, :], label=f"$\epsilon$={eps}")
+            plt.plot(mean_eff_patchy[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
             plt.xticks([])
+            plt.legend(loc="upper left")
         elif ni == 1:
-            plt.plot(mean_eff_patchy_nc[eps_i, :], ls="--", label=f"$\epsilon$={eps}, ideal")
+            plt.plot(mean_eff_patchy_nc[eps_i, :], c=colors[eps_i], linewidth=3)
         if ni == 0:
-            plt.ylabel(f"{Ns[ni]}\nRelative Efficiency")
-            plt.title("Patchy Environment")
+            plt.ylabel(f"{Ns[ni]}", fontdict=FS)
+            plt.title("Patchy Environment", fontdict=FS)
         if ni == 1:
-            plt.ylabel(f"$N_A$={Ns[ni]}")
-            sparsing_factor = 1
-            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='right', rotation_mode='anchor')
-            plt.xlabel("Patch Size [px]")
+            plt.ylabel(f"{Ns[ni]}", fontdict=FS)
+            sparsing_factor = 2
+            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
             for ticki, tick in enumerate(curax.get_xticklabels()):
-                tick.set_rotation(45)
+                tick.set_rotation(0)
+
         print("sh", patchy_std_neg.shape)
         if ni == 0:
-            plt.fill_between([i for i in range(len(fovs))], patchy_std_neg[eps_i, :], patchy_std_pos[eps_i, :], alpha=0.3)
+            plt.fill_between([i for i in range(len(fovs))], patchy_std_neg[eps_i, :], patchy_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 1:
             plt.fill_between([i for i in range(len(fovs))], patchy_std_neg_nc[eps_i, :], patchy_std_pos_nc[eps_i, :],
-                             alpha=0.3)
+                             alpha=0.3, color=colors[eps_i])
 
         # intermediate
         if fig_shape[0] > 1:
@@ -199,22 +211,24 @@ for ni in range(fig_shape[0]):
             curax = ax[1]
 
         plt.axes(curax)
-        plt.yticks([])
+        # plt.yticks([])
         if ni == 0:
-            plt.title("Intermediate Environment")
-            plt.plot(mean_eff_intermed[eps_i, :], label=f"$\epsilon$={eps}")
+            plt.title("Intermediate Environment", fontdict=FS)
+            plt.plot(mean_eff_intermed[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
             plt.xticks([])
         elif ni == 1:
-            plt.plot(mean_eff_intermed_nc[eps_i, :], ls="--", label=f"$\epsilon$={eps}, ideal")
+            plt.plot(mean_eff_intermed_nc[eps_i, :], c=colors[eps_i], linewidth=3)
         if ni == 1:
-            sparsing_factor = 2
-            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='left', rotation_mode='anchor')
+            sparsing_factor = 1
+            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='right', rotation_mode='anchor')
+            plt.xlabel("Patch to Agent Size", fontdict=FS)
             for ticki, tick in enumerate(curax.get_xticklabels()):
-                tick.set_rotation(-45)
+                tick.set_rotation(45)
+
         if ni == 0:
-            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[eps_i, :], intermed_std_pos[eps_i, :], alpha=0.3)
+            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[eps_i, :], intermed_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 1:
-            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_nc[eps_i, :], intermed_std_pos_nc[eps_i, :], alpha=0.3)
+            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_nc[eps_i, :], intermed_std_pos_nc[eps_i, :], alpha=0.3, color=colors[eps_i])
 
 
         # distributed
@@ -224,24 +238,22 @@ for ni in range(fig_shape[0]):
             curax = ax[2]
 
         plt.axes(curax)
-        plt.yticks([])
+        # plt.yticks([])
         if ni == 0:
-            plt.title("Distributed Environment")
-            plt.plot(mean_eff_dist[eps_i, :], label=f"$\epsilon$={eps}")
+            plt.title("Uniform Environment", fontdict=FS)
+            plt.plot(mean_eff_dist[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
             plt.xticks([])
         elif ni == 1:
-            plt.plot(mean_eff_dist_nc[eps_i, :], ls="--", label=f"$\epsilon$={eps}, ideal")
+            plt.plot(mean_eff_dist_nc[eps_i, :], c=colors[eps_i], linewidth=3)
         if ni == 1:
             sparsing_factor = 2
-            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='left', rotation_mode='anchor')
+            plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
             for ticki, tick in enumerate(curax.get_xticklabels()):
-                tick.set_rotation(-45)
+                tick.set_rotation(0)
         if ni == 0:
-            plt.fill_between([i for i in range(len(fovs))], dist_std_neg[eps_i, :], dist_std_pos[eps_i, :], alpha=0.3)
+            plt.fill_between([i for i in range(len(fovs))], dist_std_neg[eps_i, :], dist_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 1:
-            plt.fill_between([i for i in range(len(fovs))], dist_std_neg_nc[eps_i, :], dist_std_pos_nc[eps_i, :], alpha=0.3)
-
-
+            plt.fill_between([i for i in range(len(fovs))], dist_std_neg_nc[eps_i, :], dist_std_pos_nc[eps_i, :], alpha=0.3, color=colors[eps_i])
 
         # plt.axes(curax)
         # curax.yaxis.tick_right()
@@ -254,58 +266,7 @@ for ni in range(fig_shape[0]):
         #     for ticki, tick in enumerate(curax.get_xticklabels()):
         #         tick.set_rotation(-45)
         # plt.fill_between([i for i in range(len(fovs))], dist_std_neg[:, eps_i], dist_std_pos[:, eps_i], alpha=0.3)
-
-plt.legend()
+plt.tight_layout()
+plt.subplots_adjust(hspace=0, wspace=0)
 plt.show()
-
-#     for env_i in range(len(num_patches)):
-#         plt.axes(ax[ni, env_i])
-#         plt.plot(lines_occ[..., env_i], label=f"occ")
-#         plt.plot(lines_noocc[..., env_i], label=f"no occ")
-#
-#         # Making axis labels
-#         if ni == 0 and env_i == 0:
-#             plt.ylabel(f"$N_A$={Ns[ni]}\nAbsolute Efficiency")
-#             plt.title("Patchy Environment")
-#             #plt.yticks([i for i in range(len(y_labels))], y_labels, ha='right', rotation_mode='anchor')
-#         elif ni == 0 and env_i == 1:
-#             plt.title("Uniform Environment")
-#         elif env_i == 0:
-#             plt.ylabel(f"$N_A$={Ns[ni]}")
-#             # Making sparse ticks
-#             # curr_yticks = list(ax[ni, env_i].get_yticks())
-#             # sparse_yticks = [curr_yticks[0], curr_yticks[int(len(curr_yticks)/2)], curr_yticks[-1]]
-#             # print(sparse_yticks)
-#             # parse_ytick_rotations = [0 for i in range(len(sparse_yticks))]
-#             # print(parse_ytick_rotations)
-#             # parse_ytick_rotations[0] = 45
-#             # parse_ytick_rotations[0] = -45
-#             # plt.yticks(sparse_yticks, sparse_yticks, ha='right', rotation_mode='anchor')
-#             # for ticki, tick in enumerate(ax[ni, env_i].get_yticklabels()):
-#             #     tick.set_rotation(parse_ytick_rotations[ticki])
-#         if env_i == 1:
-#             ax[ni, env_i].yaxis.tick_right()
-#         if ni == len(Ns)-1 and env_i == 0:
-#             # creating y-axis labels
-#             tuned_env_pattern = os.path.join(data_path, "tuned_env*.json")
-#             print("Patterns: ", tuned_env_pattern)
-#             json_files = glob.glob(tuned_env_pattern)
-#             for json_path in json_files:
-#                 with open(json_path, "r") as f:
-#                     envvars = json.load(f)
-#                     x_labels = envvars["DEC_EPSW"]
-#             plt.xticks([i for i in range(len(x_labels))], x_labels, ha='right', rotation_mode='anchor')
-#             plt.xlabel("Social Excitability ($\epsilon_w$)")
-#             for ticki, tick in enumerate(ax[ni, env_i].get_xticklabels()):
-#                 tick.set_rotation(45)
-#         elif ni == len(Ns)-1 and env_i == 1:
-#             x_labels_sparse = [x_labels[i] for i in range(0, len(x_labels), 2)]
-#             plt.xticks([i for i in range(0, len(x_labels), 2)], x_labels_sparse, ha='left', rotation_mode='anchor')
-#             for ticki, tick in enumerate(ax[ni, env_i].get_xticklabels()):
-#                 tick.set_rotation(-45)
-#
-#
-#     plt.legend()
-# plt.subplots_adjust(hspace=0, wspace=0, top=0.8, bottom=0.2, left=0.2, right=0.8)
-# plt.show()
 

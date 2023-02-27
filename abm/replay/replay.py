@@ -16,6 +16,7 @@ import os
 from abm.contrib import playgroundtool as pgt
 import shutil
 import cv2
+from matplotlib import cm as colmaps
 
 
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -810,10 +811,16 @@ class ExperimentReplay:
 
         self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         if self.show_paths:
-            self.draw_agent_paths(self.posx[:, max(0, t_ind - self.path_length):t_ind],
-                                  self.posy[:, max(0, t_ind - self.path_length):t_ind],
-                                  radius,
-                                  modes=self.agmodes[:, max(0, t_ind - self.path_length):t_ind])
+            if self.experiment.env.get("APP_VERSION", "") == "VisualFlocking":
+                self.draw_agent_paths_vf(self.posx[:, max(0, t_ind - self.path_length):t_ind],
+                                      self.posy[:, max(0, t_ind - self.path_length):t_ind],
+                                      radius,
+                                      self.orientation[:, max(0, t_ind - self.path_length):t_ind])
+            else:
+                self.draw_agent_paths(self.posx[:, max(0, t_ind - self.path_length):t_ind],
+                                      self.posy[:, max(0, t_ind - self.path_length):t_ind],
+                                      radius,
+                                      modes=self.agmodes[:, max(0, t_ind - self.path_length):t_ind])
         self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
 
         num_agents = len(posx)
@@ -831,6 +838,35 @@ class ExperimentReplay:
             end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
                                                    coll_resc, previous_metrics=time_dep_stats)
             self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
+
+    def draw_agent_paths_vf(self, posx, posy, radius, orientations):
+        num_agents = posx.shape[0]
+        path_length = posx.shape[1]
+        cmap = colmaps.get_cmap('jet')
+        transparency = 0.5
+        transparency = int(transparency * 255)
+        big_colors = cmap(orientations/(2 * np.pi))*255
+        # setting alpha
+        surface = pygame.Surface((self.WIDTH+self.window_pad, self.HEIGHT+self.window_pad))
+        surface.fill(colors.BACKGROUND)
+        surface.set_colorkey(colors.WHITE)
+        surface.set_alpha(255)
+        try:
+            for ai in range(num_agents):
+                subsurface = pygame.Surface((self.WIDTH+self.window_pad, self.HEIGHT+self.window_pad))
+                subsurface.fill(colors.BACKGROUND)
+                subsurface.set_colorkey(colors.WHITE)
+                subsurface.set_alpha(transparency)
+                for t in range(1, path_length, 1):
+                    #point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
+                    point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
+                    color = big_colors[ai, t]
+                    # pygame.draw.line(surface1, color, point1, point2, 4)
+                    pygame.draw.circle(subsurface, color, point2, int(self.radius/2))
+                surface.blit(subsurface, (0, 0))
+            self.screen.blit(surface, (0, 0))
+        except IndexError as e:
+            pass
 
     def draw_agent_paths(self, posx, posy, radius, modes=None):
         path_cols = [colors.BLUE, colors.GREEN, colors.PURPLE, colors.RED]
@@ -883,9 +919,18 @@ class ExperimentReplay:
 
     def draw_agents(self, posx, posy, orientation, mode, coll_resc, radius):
         """Drawing agents in arena according to data"""
+        if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+            cmap = colmaps.get_cmap('jet')
+            colors = [np.array(cmap(ori / (2 * np.pi)))[0:-1] for ori in orientation]
+            # rescaling color for pygame
+            for col in colors:
+                col[0:3] *= 255
+        else:
+            colors = [self.mode_to_color(m) for m in mode]
+
         num_agents = len(posx)
         for ai in range(num_agents):
-            self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], mode[ai], coll_resc[ai], radius)
+            self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], colors[ai], coll_resc[ai], radius)
             if self.show_vfield:
                 self.draw_vfield(ai, posx[ai], posy[ai], orientation[ai], radius)
 
@@ -994,13 +1039,12 @@ class ExperimentReplay:
 
             self.screen.blit(image, (0, 0))
 
-    def draw_agent(self, id, posx, posy, orientation, mode, coll_resc, radius):
+    def draw_agent(self, id, posx, posy, orientation, agent_color, coll_resc, radius):
         """Drawing a single agent according to position and orientation"""
         radius = int(radius)
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
         image.set_colorkey(colors.BACKGROUND)
-        agent_color = self.mode_to_color(mode)
         pygame.gfxdraw.filled_circle(image, radius, radius, radius-1, agent_color)
         pygame.gfxdraw.aacircle(image, radius, radius, radius - 1, colors.BLACK)
 

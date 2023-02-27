@@ -1070,6 +1070,7 @@ class ExperimentLoader:
             # for the mean we restrict the iid matrix as upper triangular in the agent dimensions so that we
             # don't calculate IIDs in mean twice (as IID is symmetric, i.e. the distance between agent i and j
             # is the same as between j and i)
+            num_agents = self.agent_summary['posx'].shape[-2]
             restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1], :]
             # Then we take the mean along the flattened dimension in which we defined the previous restriction, and we also
             # take the mean along all the repeated batches (0dim)
@@ -1080,10 +1081,10 @@ class ExperimentLoader:
             else:
                 self.mean_iid = np.mean(np.mean(restr_m, axis=-2), axis=0)
 
-        # Saving calculated arrays for future use
-        print("Saving I.I.D and mean I.I.D arrays into summary!")
-        np.save(iidpath, self.iid_matrix)
-        np.save(meaniid_path, self.mean_iid)
+            # Saving calculated arrays for future use
+            print("Saving I.I.D and mean I.I.D arrays into summary!")
+            np.save(iidpath, self.iid_matrix)
+            np.save(meaniid_path, self.mean_iid)
 
     def plot_mean_polarization(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot polarization irrespectively of how many parameters have been tuned during the
@@ -1183,6 +1184,101 @@ class ExperimentLoader:
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
         return fig, ax, cbar
 
+    def plot_mean_collision_time(self, t_start=0, t_end=-1, from_script=False, used_batches=None, undersample=1):
+        cbar = None
+        self.calculate_collision_time(undersample=undersample)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Collision Time")
+            plt.plot(self.mean_aacoll)
+            plt.plot(self.mean_aacoll + self.aacoll_std)
+            plt.plot(self.mean_aacoll - self.aacoll_std)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_aacoll)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_aacoll.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_pol = np.zeros((self.mean_aacoll.shape[0:3]))
+                print(self.new_mean_pol.shape)
+                for j in range(self.mean_aacoll.shape[0]):
+                    for i in range(self.mean_aacoll.shape[1]):
+                        self.new_mean_pol[j, i, :] = self.mean_aacoll[j, i, :, i]
+                self.mean_aacoll = self.new_mean_pol
+            if self.collapse_plot is None:
+                num_plots = self.mean_aacoll.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_aacoll[i, :, :], vmin=0, vmax=np.max(self.mean_aacoll[i, :, :]))
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_aacoll, save_name="coll_aacoll.npy")
+                coll_std, _ = self.collapse_mean_data(self.aacoll_std, save_name="coll_polstd.npy")
+
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
 
     def calculate_polarization(self, undersample=1):
         """Calculating polarization of agents in the environment used to
@@ -1230,6 +1326,35 @@ class ExperimentLoader:
             np.save(polpath, pol_matrix)
 
         return pol_matrix, self.mean_pol
+
+    def calculate_collision_time(self, undersample=1):
+        self.calculate_interindividual_distance(undersample=undersample)
+        summary_path = os.path.join(self.experiment_path, "summary")
+        aacollpath = os.path.join(summary_path, "aacoll.npy")
+        batch_dim = 0
+
+        if os.path.isfile(aacollpath):
+            print("Found saved collision time array in summary, reloading it...")
+            self.aacoll_matrix = np.load(aacollpath)
+        else:
+            aacoll = np.zeros(list(self.agent_summary['orientation'].shape)[0:-2])
+            num_timesteps = self.iid_matrix.shape[-1]
+            if self.iid_matrix.shape[-1] < 1000:
+                raise Exception(f"The IID matrix has been collapsed on the time axis to len {self.iid_matrix.shape[-1]} when was calculated, can not"
+                                " calculate collision matrix. Please delete iid.npy from the summary folder and"
+                                "try again!")
+            else:
+                iid_individual_coll = np.any(self.iid_matrix < (2*self.env["RADIUS_AGENT"]), axis=-2)  # containing info about which agent has been collided
+                iid_sum_coll = np.any(np.logical_and(self.iid_matrix > 0, self.iid_matrix < (2*self.env["RADIUS_AGENT"])), axis=-2)  # is there collision or not in every timestep
+                aacoll = np.count_nonzero(iid_sum_coll, axis=-1) / num_timesteps
+                self.aacoll_matrix = aacoll
+
+        self.mean_aacoll = np.mean(self.aacoll_matrix, axis=batch_dim)
+        self.aacoll_std = np.std(self.aacoll_matrix, axis=batch_dim)
+        print("Saving calculated mean aacoll time matrix!")
+        np.save(aacollpath, self.aacoll_matrix)
+
+        return self.aacoll_matrix, self.mean_aacoll
 
     def calculate_relocation_time(self, undersample=1):
         """Calculating relocation time matrix over the given data"""
@@ -1310,7 +1435,7 @@ class ExperimentLoader:
         experiments."""
         cbar = None
         if self.iid_matrix is None:
-            self.calculate_interindividual_distance(avg_over_time=True, undersample=undersample)
+            self.calculate_interindividual_distance(undersample=undersample)
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))

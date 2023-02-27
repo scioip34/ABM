@@ -301,6 +301,7 @@ class ExperimentReplay:
                 onClick=lambda: self.on_print_polarization(),  # Function to call when clicked on
                 borderThickness=1
             )
+
         self.plot_rel_time = Button(
             # Mandatory Parameters
             self.screen,  # Surface to place button on
@@ -317,6 +318,26 @@ class ExperimentReplay:
             onClick=lambda: self.on_print_reloc_time(),  # Function to call when clicked on
             borderThickness=1
         )
+        if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+            self.plot_rel_time.disable()
+            self.plot_rel_time.hide()
+            self.plot_coll = Button(
+                # Mandatory Parameters
+                self.screen,  # Surface to place button on
+                self.button_start_x_2,  # X-coordinate of top left corner
+                button_start_y,  # Y-coordinate of top left corner
+                int(self.slider_width / 2),  # Width
+                self.button_height,  # Height
+
+                # Optional Parameters
+                text='Plot Collisions',  # Text to display
+                fontSize=20,  # Size of font
+                margin=20,  # Minimum distance between text/image and edge of button
+                inactiveColour=colors.GREY,
+                onClick=lambda: self.on_print_collision_times(),  # Function to call when clicked on
+                borderThickness=1
+            )
+
         if len(list(self.experiment.varying_params.keys())) in [3, 4]:
             self.collapse_dropdown = Dropdown(
                 self.screen,
@@ -499,6 +520,29 @@ class ExperimentReplay:
             self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         self.experiment.plot_mean_relocation_time()
 
+    def on_print_collision_times(self, with_read_collapse_param=True, used_batches=None):
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.t_start is None:
+            t_start = 0
+        else:
+            t_start = self.t_start
+        if self.t_end is None:
+            t_end = self.T - 1
+        else:
+            t_end = self.t_end
+        if self.T > 1000:
+            undersample = int(self.T / 1000)
+            print(f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
+        else:
+            undersample = 1
+        fig, ax, cbar = self.experiment.plot_mean_collision_time(t_start=t_start, t_end=t_end,
+                                                                 from_script=self.from_script,
+                                                                 used_batches=used_batches,
+                                                                 undersample=undersample)
+        return fig, ax, cbar
+
     def on_print_polarization(self, with_read_collapse_param=True, used_batches=None):
         if with_read_collapse_param:
             if len(list(self.experiment.varying_params.keys())) in [3, 4]:
@@ -515,6 +559,7 @@ class ExperimentReplay:
                                                                from_script=self.from_script,
                                                                used_batches=used_batches)
         return fig, ax, cbar
+
     def on_print_efficiency(self, with_read_collapse_param=True, used_batches=None):
         """print mean search efficiency"""
         if with_read_collapse_param:

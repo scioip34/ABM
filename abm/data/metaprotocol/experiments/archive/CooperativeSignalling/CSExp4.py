@@ -18,7 +18,7 @@ Parameters:
         - signaling condition (SIGNALLING_PROB): 0 (no signaling), 0.5 (to mimic the free choice condition) and 
           1 (all agents signaling)
         - number of agents (N): 1 (individual condition) and 5 (group condition)
-        - the total time of the experiment (TOTAL_TIME):  15 minutes = 15 * 60 * 2 (sample frequency) = 1800 time steps
+        - the number of time steps in the experiment (T): 1800 = 15 (minutes) * 60 (seconds) * 2 (sample frequency)
                 
 Project Maintainers (CoopSignalling): mezdahun & vagechrikov  
 """

@@ -33,7 +33,7 @@ fixed_criteria = [
     Constant("USE_RAM_LOGGING", 1),  # as we have plenty of resources we don't have to deal with IFDB on HPC
     Constant("USE_ZARR_FORMAT", 1),
     Constant("SAVE_CSV_FILES", 1),
-    Constant("WITH_VISUALIZATION", 1),
+    Constant("WITH_VISUALIZATION", 0),
     Constant("SHOW_VISUAL_FIELDS", 0),
     Constant("SHOW_VISUAL_FIELDS_RETURN", 0),
     Constant("SHOW_VISION_RANGE", 0),
@@ -116,7 +116,7 @@ criteria_exp = [
 
 # Creating metaprotocol and add defined criteria
 mp = MetaProtocol(experiment_name=EXP_NAME, num_batches=1, parallel=True,
-                  description=description_text, headless=False)
+                  description=description_text, headless=True)
 for crit in fixed_criteria:
     mp.add_criterion(crit)
 for crit in criteria_exp:

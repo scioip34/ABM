@@ -18,6 +18,7 @@ Parameters:
         - signaling condition (SIGNALLING_PROB): 0 (no signaling), 0.5 (to mimic the free choice condition) and 
           1 (all agents signaling)
         - number of agents (N): 1 (individual condition) and 5 (group condition)
+        - the total time of the experiment (TOTAL_TIME):  15 minutes = 15 * 60 * 2 (sample frequency) = 1800 time steps
                 
 Project Maintainers (CoopSignalling): mezdahun & vagechrikov  
 """
@@ -104,13 +105,13 @@ criteria_exp = [
     # Memory
     Constant("MEMORY_DEPTH", 1),
     # Vision
-    Constant("AGENT_FOV", 0.25),  # unlimited FOV
+    Constant("AGENT_FOV", 0.25),
     # Resource
     Constant("RES_THETA", 0.2),
     Tunable("RES_VEL", values_override=resource_vels),
     Constant("METER_TO_RES_MULTI", 1),
     Constant("DETECTION_RANGE", detection_range),
-    Constant("T", 250),
+    Constant("T", 1800),
 ]
 
 # Creating metaprotocol and add defined criteria

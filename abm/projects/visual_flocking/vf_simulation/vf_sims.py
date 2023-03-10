@@ -31,6 +31,13 @@ class VFSimulation(Simulation):
         super().__init__(**kwargs)
         self.show_all_stats = False
 
+        # making only the used part of retina to the given resolution
+        print(f"Original retina resolution: {self.v_field_res}")
+        self.v_field_res *= (1/self.fov_ratio)
+        self.v_field_res = int(self.v_field_res)
+        print(f"Due to limited FOV: {self.fov_ratio} increasing overall resolution to {self.v_field_res}")
+
+
     def draw_agent_stats(self, font_size=15, spacing=0):
         """Showing agent information when paused"""
         if self.show_all_stats:

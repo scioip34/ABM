@@ -93,17 +93,22 @@ def projection_field(fov, v_field_resolution, position, radius,
         # finding where in the retina the projection belongs to
         phi_target = find_nearest(phis, closed_angle)
 
-        # if target is visible we save its projection into the VPF
-        # source data
-        if fov[0] <= closed_angle <= fov[1]:
-            # the projection size is proportional to the visual angle.
-            # If the projection is maximal (i.e. taking each pixel of the
-            # retina) the angle is 2pi from this we just calculate the
-            # projection size using a single proportion
-            proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
+        # transforming fov boundaries to pixel boundaries
+        fov_px = [find_nearest(phis, fov[0]), find_nearest(phis, fov[1])]
 
-            proj_start = int(phi_target - np.floor(proj_size / 2))
-            proj_end = int(phi_target + np.floor(proj_size / 2))
+        # # if target is visible we save its projection into the VPF
+        # # source data
+        # if fov[0] <= closed_angle <= fov[1]:
+        # the projection size is proportional to the visual angle.
+        # If the projection is maximal (i.e. taking each pixel of the
+        # retina) the angle is 2pi from this we just calculate the
+        # projection size using a single proportion
+        proj_size = (vis_angle / (2 * np.pi)) * v_field_resolution
+
+        proj_start = int(phi_target - np.floor(proj_size / 2))
+        proj_end = int(phi_target + np.floor(proj_size / 2))
+
+        if fov_px[0] < proj_start < fov_px[1] or fov_px[0] < proj_end < fov_px[1]:
 
             # circular boundaries to the VPF as there is 360 degree vision
             if proj_start < 0:
@@ -120,8 +125,8 @@ def projection_field(fov, v_field_resolution, position, radius,
     # flip field data along second dimension
     v_field_post = np.flip(v_field, axis=1)
 
-    v_field_post[:, phis < fov[0]] = 0
-    v_field_post[:, phis > fov[1]] = 0
+    # v_field_post[:, phis < fov[0]] = 0
+    # v_field_post[:, phis > fov[1]] = 0
     return v_field_post
 
 

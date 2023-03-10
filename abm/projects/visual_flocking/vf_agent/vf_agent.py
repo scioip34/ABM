@@ -113,8 +113,12 @@ class VFAgent(Agent):
         if not self.is_moved_with_cursor:
             # perform the agent's action according to the current state
             if self.agent_state == "flocking":
-                dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
-                                                                     vf_params)
+                if len(self.PHI) == len(self.soc_v_field):
+                    dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
+                                                                         vf_params)
+                else:
+                    dv, dphi = 0, 0
+                    print("Warning: temporary skip calculation due to mismatch in phi and vfield resolutions!")
                 self.update_agent_position(dphi, dv)
             elif self.agent_state == "emergency":
                 pass

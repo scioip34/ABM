@@ -44,9 +44,7 @@ class VFSimulation(Simulation):
             font = pygame.font.Font(None, font_size)
             for agent in self.agents:
                 status = [
-                    f"ID: {agent.id}",
-                    f"meterval: {agent.meter:.2f}",
-                    f"coll.res.: {agent.collected_r:.2f}",
+                    f"ID: {agent.id}"
                 ]
                 for i, stat_i in enumerate(status):
                     text = font.render(stat_i, True, colors.BLACK)

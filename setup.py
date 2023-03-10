@@ -40,7 +40,8 @@ setup(
             'abm-start-visflock=abm.app_visual_flocking:start',
             'headless-abm-start=abm.app:start_headless',
             'playground-start=abm.app:start_playground',
-            'playground-start-coopsig=abm.app_collective_signaling:start_playground'
+            'playground-start-coopsig=abm.app_collective_signaling:start_playground',
+            'playground-start-visflock=abm.app_visual_flocking:start_playground'
         ]
     },
     classifiers=[

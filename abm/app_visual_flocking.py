@@ -6,10 +6,8 @@ from contextlib import ExitStack
 from dotenv import dotenv_values
 
 from abm.app import save_isims_env
-from abm.projects.cooperative_signaling.cs_simulation.cs_isims import \
-    CSPlaygroundSimulation, CSSimulation
-from abm.projects.cooperative_signaling.cs_contrib.cs_playgroundtool import \
-    setup_coop_sign_playground
+from abm.projects.visual_flocking.vf_simulation.vf_isims import VFPlaygroundSimulation
+from abm.projects.visual_flocking.vf_contrib.vf_playgroundtool import setup_visflock_playground
 from abm.projects.visual_flocking.vf_simulation.vf_sims import VFSimulation
 
 
@@ -27,16 +25,16 @@ def setup_environment():
     return env_file_dir, EXP_NAME_COPY, envconf
 
 
-# def start_playground():
-#     """starting simulation with interactive interface"""
-#     env_file_dir, EXP_NAME_COPY, envconf = setup_environment()
-#     # changing env file according to playground default parameters before
-#     # running any component of the SW
-#     pgt = setup_coop_sign_playground()
-#     save_isims_env(env_file_dir, EXP_NAME_COPY, pgt, envconf)
-#     # Start interactive simulation
-#     sim = CSPlaygroundSimulation()
-#     sim.start()
+def start_playground():
+    """starting simulation with interactive interface"""
+    env_file_dir, EXP_NAME_COPY, envconf = setup_environment()
+    # changing env file according to playground default parameters before
+    # running any component of the SW
+    pgt = setup_visflock_playground()
+    save_isims_env(env_file_dir, EXP_NAME_COPY, pgt, envconf)
+    # Start interactive simulation
+    sim = VFPlaygroundSimulation()
+    sim.start()
 
 
 def start(parallel=False, headless=False, agent_behave_param_list=None):

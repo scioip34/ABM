@@ -273,7 +273,7 @@ class Simulation:
         """Visualizing the range of vision for agents as opaque circles around the agents"""
         for agent in self.agents:
             # Show visual range
-            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
+            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, np.array(agent.position) + agent.radius, agent.vision_range,
                                width=1)
 
             # Show limits of FOV

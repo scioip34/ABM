@@ -193,11 +193,19 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
     # print(f"alp0 : {vswrm.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi)}", )
     # print(f'alp1 : {vswrm.ALP0 * vswrm.ALP1 * np.sum(np.cos(Phi) * G_vel_spike) * dPhi}')
 
+    # dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
+    #        vf_params.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi) + \
+    #        vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike) * dPhi
+    # dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
+    #        vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(FOV_rescaling_sin * Phi) * G_psi_spike) * dPhi
+
+    # without reacling edge information
     dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
-           vf_params.ALP0 * integrate.trapz(np.cos(FOV_rescaling_cos * Phi) * G_vel, Phi) + \
-           vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike) * dPhi
+           vf_params.ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
+           vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+
     dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
-           vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(FOV_rescaling_sin * Phi) * G_psi_spike) * dPhi
+           vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
 
     return dvel, dpsi
 
@@ -221,5 +229,5 @@ def dPhi_V_of(Phi, V):
     else:
         dPhi_V_raw = dPhi_V_raw[1:, ...]
 
-    dPhi_V = dPhi_V_raw / (Phi[-1] - Phi[-2])
+    dPhi_V = dPhi_V_raw #/ (Phi[-1] - Phi[-2])
     return dPhi_V

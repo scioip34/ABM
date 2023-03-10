@@ -123,12 +123,12 @@ class VFAgent(Agent):
         # updating agent's state variables according to calculated vel and
         # theta
         # maximum turning angle per timestep
-        theta = self.prove_turning(theta)
+        # theta = self.prove_turning(theta)
         self.orientation += theta
         self.prove_orientation()  # bounding orientation into 0 and 2pi
 
         self.velocity += vel
-        self.prove_velocity(velocity_limit=3)  # possibly bounding velocity of agent
+        # self.prove_velocity(velocity_limit=3)  # possibly bounding velocity of agent
 
         # new agent's position
         new_pos = (

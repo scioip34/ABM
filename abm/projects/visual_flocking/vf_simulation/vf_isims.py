@@ -12,7 +12,7 @@ from abm.monitoring.ifdb import pad_to_n_digits
 from abm.projects.visual_flocking.vf_simulation.vf_sims import VFSimulation
 from abm.simulation.isims import PlaygroundSimulation
 from abm.projects.visual_flocking.vf_contrib import vf_params
-from matplotlib import cm as colmaps
+
 
 
 class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
@@ -192,6 +192,35 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
         self.sliders.append(self.V0_slider)
         self.slider_texts.append(self.V0_textbox)
 
+        # Replacing SUMR slider with Path Length
+        self.SUMR_slider.hide()
+        self.SUMR_textbox.hide()
+        self.SUMR_help.hide()
+        x = self.SUMR_slider.getX()
+        y = self.SUMR_slider.getY()
+        w = self.SUMR_slider.getWidth()
+        h = self.SUMR_slider.getHeight()
+        self.memory_length = 0
+        self.show_path_history = False
+        self.PLEN_slider = Slider(self.screen, x, y, w, h, min=0, max=100, step=1, initial=self.memory_length)
+        x = self.SUMR_textbox.getX()
+        y = self.SUMR_textbox.getY()
+        w = self.SUMR_textbox.getWidth()
+        h = self.SUMR_textbox.getHeight()
+        self.PLEN_textbox = TextBox(self.screen, x, y, w, h, fontSize=self.textbox_height - 2, borderThickness=1)
+        x = self.SUMR_help.getX()
+        y = self.SUMR_help.getY()
+        w = self.SUMR_help.getWidth()
+        h = self.SUMR_help.getHeight()
+        self.PLEN_help = Button(self.screen, x, y, w, h, text='?', fontSize=self.help_height - 2,
+                              inactiveColour=colors.GREY, borderThickness=1, )
+        self.PLEN_help.onClick = lambda: self.show_help('PLEN', self.PLEN_help)
+        self.PLEN_help.onRelease = lambda: self.unshow_help(self.PLEN_help)
+
+        self.help_buttons.append(self.PLEN_help)
+        self.sliders.append(self.PLEN_slider)
+        self.slider_texts.append(self.PLEN_textbox)
+
 
     def draw_frame(self, stats, stats_pos):
         """
@@ -208,7 +237,7 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
         self.BET0_textbox.setText(f"B0: {vf_params.BET0:.2f}")
         self.ALP1BET1_textbox.setText(f"A1B1: {vf_params.ALP1:.2f}")
         self.V0_textbox.setText(f"V0: {vf_params.V0:.2f}")
-        self.Epsu_textbox.setText(f"E_u: {self.Eps_u:.2f}")
+        self.PLEN_textbox.setText(f"path len.: {self.memory_length:.2f}")
         if self.SUM_res == 0:
             self.update_SUMR()
         self.SUMR_textbox.setText(f"SUM R: {self.SUM_res:.2f}")
@@ -220,10 +249,6 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
             hb.draw()
         for fb in self.function_buttons:
             fb.draw()
-        if self.show_path_history:
-            self.draw_agent_paths_vf()
-            for ag in self.agents:
-                ag.draw_update()
         if self.is_help_shown:
             self.draw_help_message()
         self.draw_global_stats()
@@ -238,33 +263,6 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
             self.saved_images_to_video()
             self.save_video = False
 
-    def draw_agent_paths_vf(self):
-        if self.ori_memory is not None:
-            path_length = self.memory_length
-            cmap = colmaps.get_cmap('jet')
-            transparency = 0.5
-            transparency = int(transparency * 255)
-            big_colors = cmap(self.ori_memory / (2 * np.pi)) * 255
-            # setting alpha
-            surface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
-            surface.fill(colors.BACKGROUND)
-            surface.set_colorkey(colors.WHITE)
-            surface.set_alpha(255)
-            try:
-                for ai, agent in enumerate(self.agents):
-                    subsurface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
-                    subsurface.fill(colors.BACKGROUND)
-                    subsurface.set_colorkey(colors.WHITE)
-                    subsurface.set_alpha(transparency)
-                    for t in range(2, path_length, 1):
-                        point2 = self.pos_memory[ai, :, t]
-                        color = big_colors[ai, t]
-                        # pygame.draw.line(surface1, color, point1, point2, 4)
-                        pygame.draw.circle(subsurface, color, point2, max(2, int(self.agent_radii / 2)))
-                    surface.blit(subsurface, (0, 0))
-                self.screen.blit(surface, (0, 0))
-            except IndexError as e:
-                pass
 
     def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
@@ -293,6 +291,14 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
             vf_params.BET1 = self.ALP1BET1_slider.getValue()
         if vf_params.V0 != self.V0_slider.getValue():
             vf_params.V0 = self.V0_slider.getValue()
+        if self.memory_length != self.PLEN_slider.getValue():
+            self.memory_length = self.PLEN_slider.getValue()
+            if self.memory_length == 0:
+                self.show_path_history = False
+            else:
+                self.show_path_history = True
+            self.ori_memory = None
+            self.pos_memory = None
 
         if self.is_recording:
             filename = f"{pad_to_n_digits(self.t, n=6)}.jpeg"

@@ -79,5 +79,10 @@ def setup_visflock_playground():
         Preferred/self-propelled speed of the agents in pixels/timestep
         '''
 
+    playground_tool.help_messages["V0"] = '''
+        Path length [ts]:
+
+        Path length to save and visualize
+        '''
 
     return playground_tool

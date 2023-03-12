@@ -37,6 +37,11 @@ class VFSimulation(Simulation):
         self.v_field_res = int(self.v_field_res)
         print(f"Due to limited FOV: {self.fov_ratio} increasing overall resolution to {self.v_field_res}")
 
+        self.show_path_history = False
+        self.memory_length = 30
+        self.ori_memory = None
+        self.pos_memory = None
+
 
     def draw_agent_stats(self, font_size=15, spacing=0):
         """Showing agent information when paused"""
@@ -100,6 +105,22 @@ class VFSimulation(Simulation):
                     i, x, y, orient,
                     behave_params=self.agent_behave_param_list[i])
 
+    def save_ori_pos_history(self):
+        """Saving orientation and position history of agents to visualize paths"""
+        if self.ori_memory is None:
+            self.ori_memory = np.zeros((len(self.agents), self.memory_length))
+            self.pos_memory = np.zeros((len(self.agents), 2, self.memory_length))
+        try:
+            self.ori_memory = np.roll(self.ori_memory, 1, axis=-1)
+            self.pos_memory = np.roll(self.pos_memory, 1, axis=-1)
+            self.ori_memory[:, 0] = np.array([ag.orientation for ag in self.agents])
+            self.pos_memory[:, 0, 0] = np.array([ag.position[0]+ag.radius for ag in self.agents])
+            self.pos_memory[:, 1, 0] = np.array([ag.position[1]+ag.radius for ag in self.agents])
+        except:
+            self.ori_memory = None
+            self.pos_memory = None
+
+
     def start(self):
         start_time = datetime.now()
         print(f"Running simulation start method!")
@@ -132,6 +153,9 @@ class VFSimulation(Simulation):
                 for ag in self.agents:
                     # DEBUG: updating visual projections also when paused
                     ag.update_social_info(self.agents)
+
+            if self.show_path_history:
+                self.save_ori_pos_history()
 
             # Draw environment and agents
             if self.with_visualization:

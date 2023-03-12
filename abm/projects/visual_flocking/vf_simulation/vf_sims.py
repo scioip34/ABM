@@ -8,6 +8,7 @@ from abm.contrib import colors
 from abm.monitoring import ifdb, env_saver
 from abm.projects.visual_flocking.vf_agent.vf_agent import VFAgent
 from abm.simulation.sims import Simulation
+from matplotlib import cm as colmaps
 
 
 class VFSimulation(Simulation):
@@ -120,6 +121,51 @@ class VFSimulation(Simulation):
             self.ori_memory = None
             self.pos_memory = None
 
+    def draw_agent_paths_vf(self):
+        if self.ori_memory is not None:
+            path_length = self.memory_length
+            cmap = colmaps.get_cmap('jet')
+            transparency = 0.5
+            transparency = int(transparency * 255)
+            big_colors = cmap(self.ori_memory / (2 * np.pi)) * 255
+            # setting alpha
+            surface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
+            surface.fill(colors.BACKGROUND)
+            surface.set_colorkey(colors.WHITE)
+            surface.set_alpha(255)
+            try:
+                for ai, agent in enumerate(self.agents):
+                    subsurface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
+                    subsurface.fill(colors.BACKGROUND)
+                    subsurface.set_colorkey(colors.WHITE)
+                    subsurface.set_alpha(transparency)
+                    for t in range(2, path_length, 1):
+                        point2 = self.pos_memory[ai, :, t]
+                        color = big_colors[ai, t]
+                        # pygame.draw.line(surface1, color, point1, point2, 4)
+                        pygame.draw.circle(subsurface, color, point2, max(2, int(self.agent_radii / 2)))
+                    surface.blit(subsurface, (0, 0))
+                self.screen.blit(surface, (0, 0))
+            except IndexError as e:
+                pass
+
+
+    def draw_frame(self, stats, stats_pos):
+        """Drawing environment, agents and every other visualization in each timestep"""
+        self.screen.fill(colors.BACKGROUND)
+        self.rescources.draw(self.screen)
+        self.draw_walls()
+        if self.show_path_history:
+            self.draw_agent_paths_vf()
+        self.agents.draw(self.screen)
+        if self.show_vision_range:
+            self.draw_visual_fields()
+        self.draw_framerate()
+        self.draw_agent_stats()
+
+        if self.show_vis_field:
+            # showing visual fields of the agents
+            self.show_visual_fields(stats, stats_pos)
 
     def start(self):
         start_time = datetime.now()

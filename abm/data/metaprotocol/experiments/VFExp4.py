@@ -90,7 +90,7 @@ criteria_exp = [
     Constant("VF_ALP2", 0),
     Constant("VF_BET1", 0.036),  # 1/(2.5BL)
     Constant("VF_BET2", 0),
-    Tunable("AGENT_FOV", [0.25, 0.5, 0.75, 1]),  # unlimited FOV
+    Tunable("AGENT_FOV", values_override=[0.25, 0.5, 0.75, 1]),  # unlimited FOV
     Constant("BOUNDARY", "infinite"),
     Constant("T", 25000),
     Constant("N", 10),  # Can not be tuned, must be fixed for Replay tool

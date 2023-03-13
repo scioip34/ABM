@@ -146,7 +146,7 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
         y = self.SWU_slider.getY()
         w = self.SWU_slider.getWidth()
         h = self.SWU_slider.getHeight()
-        self.ALP1BET1_slider = Slider(self.screen, x, y, w, h, min=0, max=0.25, step=0.01, initial=vf_params.ALP1)
+        self.ALP1BET1_slider = Slider(self.screen, x, y, w, h, min=0, max=0.1, step=0.001, initial=vf_params.ALP1)
         x = self.SWU_textbox.getX()
         y = self.SWU_textbox.getY()
         w = self.SWU_textbox.getWidth()

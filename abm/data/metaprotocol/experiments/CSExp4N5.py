@@ -82,11 +82,10 @@ agent_radius = 8  # shall be 3 but won't make a qualitative difference
 # 10% of the arena similar to 40 resource radius, which is 10% of the arena diameter of 400 meters
 detection_range = arena_w * 0.1
 signaling_probs = [0, 0.5, 1]
-n_agents = [1, 5]
-resource_vels = [i*agent_vel for i in [0.5, 1]]
+resource_vels = [i*agent_vel for i in [0.4, 0.8]]
 criteria_exp = [
     Constant("APP_VERSION", "CooperativeSignaling"),  # Enabling project specific run in headless mode
-    Tunable("N", values_override=n_agents),
+    Constant("N", 5),
     Constant("RADIUS_AGENT", agent_radius),
     Constant("MAX_SPEED", agent_vel),
     # Turning off crowding

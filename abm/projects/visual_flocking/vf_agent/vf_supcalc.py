@@ -157,6 +157,7 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
             vel_now: current speed of the agent
             V_now: current binary visual projection field array
             Phi: linspace numpy array of visual field axis
+            vf_params: parameters of the flocking algorithm as in main article, e.g.: V0, GAM, ALP0, etc.
             t_now: current time
             V_prev: previous binary visual projection field array
             t_prev: previous time
@@ -165,7 +166,7 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
             dpsi: temporal change in agent heading angle
 
     """
-    # # Deriving over t
+    # # Deriving over t is omitted in simplest case
     # if V_prev is not None and t_prev is not None and t_now is not None:
     #     dt = t_now - t_prev
     #     logger.debug('Movement calculation called with NONE as time-related parameters.')
@@ -174,6 +175,7 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
     # else:
     #     dt_V = np.zeros(len(Phi))
 
+    # Using only zeros for temporal derivative in simplest case to keep formulation general
     dt_V = np.zeros(len(Phi))
 
     # Deriving over Phi

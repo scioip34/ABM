@@ -27,8 +27,6 @@ def setup_visflock_playground():
 
     # # update def_params_to_env_vars
     # playground_tool.def_params_to_env_vars[
-    #     "collide_agents"] = "AGENT_AGENT_COLLISION"
-    # playground_tool.def_params_to_env_vars[
     #     "phototaxis_theta_step"] = "PHOTOTAX_THETA_FAC"
     # playground_tool.def_params_to_env_vars[
     #     "detection_range"] = "DETECTION_RANGE"

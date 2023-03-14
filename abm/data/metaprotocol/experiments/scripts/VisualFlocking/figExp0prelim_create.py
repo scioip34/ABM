@@ -7,7 +7,7 @@ import glob
 
 # under this path the individual summary statistics are saved
 # with _N<number of agents> post tag.
-exp_name = "VFprelimsummary"
+exp_name = "VFprelimsummaryBugfix"
 data_path = f"/media/david/DMezeySCIoI/ABMData/{exp_name}"
 
 titles = ["Polarization", "Inter-individual Distance", "Agent Collisions"]
@@ -15,8 +15,8 @@ file_names = ["polarization", "meaniid", "aacoll"]
 conditions = ["infinite", "walls"]
 
 FOVs = [0.25, 0.5, 0.75, 1]
-alphas = [0.0, 0.01, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0]
-betas = [0.0, 0.01, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0]
+alphas = [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.75, 1, 2, 5]  #[0.0, 0.01, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0]
+betas = [0, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 0.75, 1, 2, 5]  #[0.0, 0.01, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 3.0]
 fov_dim = 1
 batch_dim = 0
 
@@ -33,17 +33,42 @@ for fovi, fov in enumerate(FOVs):
     gs1 = gridspec.GridSpec(fig_shape[0], fig_shape[1])
     gs1.update(wspace=0, hspace=0)
     for wi in range(fig_shape[0]):  # metrics
+        metric_min = None
+        metric_max = None
+
+        for hi in range(fig_shape[1]):  # conditions (wall vs infinite)
+            raw_data = np.load(os.path.join(data_path, file_names[wi] + f"_{conditions[hi]}.npy"))
+            print(raw_data.shape)
+            if file_names[wi] == "polarization":
+                # mean  over all agents and runs which is first and last dimesnions
+                mean_data = np.mean(raw_data[:, fovi, ...], axis=0)
+            elif file_names[wi] == "meaniid":
+                mean_data = np.mean(raw_data[fovi, ...], axis=-1)
+
+            if metric_max is None:
+                metric_max = np.max(mean_data)
+            else:
+                metric_max = max(np.max(mean_data), metric_max)
+
+            if metric_min is None:
+                metric_min = np.min(mean_data)
+            else:
+                metric_min = min(np.min(mean_data), metric_min)
+
+
+        hi = 0
         for hi in range(fig_shape[1]):  # conditions (wall vs infinite)
 
             plt.axes(ax[hi, wi])
             if hi == 0:
                 plt.title(titles[wi])
             elif hi == fig_shape[1]-1 and wi == 0:
-                plt.xticks([i for i in range(len(alphas))], alphas)
-                plt.xlabel(f"Alpha0")
+                plt.xticks([i for i in range(len(betas))], betas)
+                plt.xlabel(f"Beta0")
             if wi == 0:
-                plt.yticks([i for i in range(len(betas))], betas)
-                plt.ylabel(f"{conditions[hi]}\nBeta0")
+                plt.yticks([i for i in range(len(alphas))], alphas)
+                plt.ylabel(f"{conditions[hi]}\nAlpha0")
+
 
             print(os.path.join(data_path, file_names[wi]+f"_{conditions[hi]}.npy"))
             raw_data = np.load(os.path.join(data_path, file_names[wi]+f"_{conditions[hi]}.npy"))
@@ -54,7 +79,8 @@ for fovi, fov in enumerate(FOVs):
             elif file_names[wi] == "meaniid":
                 mean_data = np.mean(raw_data[fovi, ...], axis=-1)
             if mean_data.ndim == 2:
-                plt.imshow(mean_data.T, origin="lower")
+                im = plt.imshow(mean_data, vmin=metric_min, vmax=metric_max)
+                fig.colorbar(im)
             else:
                 pass
 

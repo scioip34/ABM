@@ -1317,11 +1317,16 @@ class ExperimentLoader:
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
         return fig, ax, cbar
 
-    def calculate_polarization(self, undersample=1):
+    def calculate_polarization(self, undersample=1, filtered_by_wallcoll=0, filtering_window=50):
         """Calculating polarization of agents in the environment used to
         quantify e.g. flocking models"""
         summary_path = os.path.join(self.experiment_path, "summary")
-        polpath = os.path.join(summary_path, "polarization.npy")
+        if filtered_by_wallcoll:
+            self.find_wall_collisions()
+            polpath = os.path.join(summary_path, "polarization_wallcoll.npy")
+        else:
+            polpath = os.path.join(summary_path, "polarization.npy")
+
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
@@ -1330,8 +1335,8 @@ class ExperimentLoader:
         if os.path.isfile(polpath):
             print("Found saved polarization array in summary, reloading it...")
             pol_matrix = np.load(polpath)
-            self.mean_pol = np.mean(pol_matrix, axis=batch_dim)
-            self.pol_std = np.std(pol_matrix, axis=batch_dim)
+            self.mean_pol = np.nanmean(pol_matrix, axis=batch_dim)
+            self.pol_std = np.nanstd(pol_matrix, axis=batch_dim)
 
         else:
             num_agents = self.agent_summary["orientation"].shape[agent_dim]
@@ -1343,23 +1348,47 @@ class ExperimentLoader:
 
             for runi in range(self.num_batches):
                 print(f"Calculating polarization for batch {runi}")
+                if filtered_by_wallcoll:
+
+                    # wrefs = list(tuple(self.wrefs[runi][:]))
+                    # for ti, t in enumerate(wrefs_old[-1]):
+                    #     print(ti)
+                    #     wrefs[-1] = np.append(wrefs[1], np.array([tk for tk in range(t, t+100)]))
+                    #     for wi in range(len(wrefs)-1):
+                    #         wrefs[wi] = np.append(wrefs[wi], np.array([wrefs[wi][t] for tk in range(100)]))
+
+                    orif = self.agent_summary["orientation"][runi, ...]
+                    print(f"Extending collision filtering with time window {filtering_window}")
+                    wrefs = self.wrefs[runi][:]
+                    for wi in range(filtering_window):
+                        print(wi)
+                        new_times = wrefs[-1] + 1
+                        new_times[new_times>self.env["T"]-1]=self.env["T"]-1
+                        wrefs[-1] = new_times
+                        new_wrefs = tuple(wrefs)
+                        orif[new_wrefs] = np.nan
+
                 unitvecs = np.zeros(unitvec_shape)
                 for robi in range(num_agents):
-                    ori = self.agent_summary["orientation"][runi, ..., robi, :]
+                    if filtered_by_wallcoll:
+                        ori = orif[..., robi, :]
+                    else:
+                        ori = self.agent_summary["orientation"][runi, ..., robi, :]
                     unitvecs[..., 0, robi, :] = np.array([np.cos(ang) for ang in ori])
                     unitvecs[..., 1, robi, :] = np.array([np.sin(ang) for ang in ori])
 
-                unitsum = np.sum(unitvecs, axis=-2)  # summing for all robots
+                unitsum = np.nansum(unitvecs, axis=-2)  # summing for all robots
                 unitsum_norm = np.linalg.norm(unitsum, axis=-2) / num_agents  # getting norm in x and y
-                pol_matrix[runi, ...] = np.mean(unitsum_norm, axis=-1)
+                pol_matrix[runi, ...] = np.nanmean(unitsum_norm, axis=-1)
+
             # for runi in range(self.num_batches):
             #     pol_matrix[runi, ...] = np.mean(np.array(
             #         [np.linalg.norm([unitsum[runi, 0, t], unitsum[runi, 1, t]]) / num_agents for t in
             #          range(num_timesteps)]), axis=-1)
 
-            self.mean_pol = np.mean(pol_matrix, axis=batch_dim)
-            self.pol_std = np.std(pol_matrix, axis=batch_dim)
-            print("Saving calculated relocation time matrix!")
+            self.mean_pol = np.nanmean(pol_matrix, axis=batch_dim)
+            self.pol_std = np.nanstd(pol_matrix, axis=batch_dim)
+            print("Saving calculated polarization time matrix!")
             np.save(polpath, pol_matrix)
 
         return pol_matrix, self.mean_pol
@@ -1386,12 +1415,44 @@ class ExperimentLoader:
                 aacoll = np.count_nonzero(iid_sum_coll, axis=-1) / num_timesteps
                 self.aacoll_matrix = aacoll
 
-        self.mean_aacoll = np.mean(self.aacoll_matrix, axis=batch_dim)
-        self.aacoll_std = np.std(self.aacoll_matrix, axis=batch_dim)
+        self.mean_aacoll = np.mean(np.mean(self.aacoll_matrix, axis=batch_dim), axis=-1)
+        self.aacoll_std = np.std(np.mean(self.aacoll_matrix, axis=batch_dim), axis=-1)
         print("Saving calculated mean aacoll time matrix!")
         np.save(aacollpath, self.aacoll_matrix)
 
         return self.aacoll_matrix, self.mean_aacoll
+
+    def find_wall_collisions(self, undersample=1):
+        """Finding the timepoints of the data where ANY of the agents have been reflected from ANY of the walls"""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        wrefpaths = [os.path.join(summary_path, f"wallref_b{bi}.zarr") for bi in range(self.num_batches)]
+        self.wrefs = {}
+        if os.path.isdir(wrefpaths[0]):
+            print("Found saved wall reflection array in summary, reloading it...")
+            for bi in range(self.num_batches):
+                self.wrefs[bi] = zarr.open(wrefpaths[bi], mode='r', dtype='int')
+        else:
+            boundaries_x = [0, int(float(self.env.get("ENV_WIDTH")))]
+            boundaries_y = [0, int(float(self.env.get("ENV_HEIGHT")))]
+            for bi in range(self.num_batches):
+                print(f"Calculating wall reflection times to batch {bi}")
+                agposx = self.agent_summary['posx'][bi, ...]
+                agposy = self.agent_summary['posy'][bi, ...]
+
+                wrefs = np.array(np.where(np.logical_or(np.logical_or(
+                                 agposx < boundaries_x[0] - self.env.get("RADIUS_AGENT"),
+                                 agposx > boundaries_x[1] - self.env.get("RADIUS_AGENT")),
+                                                    np.logical_or(
+                                 agposy < boundaries_y[0] - self.env.get("RADIUS_AGENT"),
+                                 agposy > boundaries_y[1] - self.env.get("RADIUS_AGENT")))))
+
+                wrefszarr = zarr.open(wrefpaths[bi], mode='w',
+                            shape=wrefs.shape, dtype='int')
+                wrefszarr[...] = wrefs[...]
+                self.wrefs[bi] = wrefszarr
+
+
+
 
     def calculate_relocation_time(self, undersample=1):
         """Calculating relocation time matrix over the given data"""

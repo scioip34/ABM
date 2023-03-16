@@ -38,7 +38,7 @@ exp_name = "sumfigExp3B"
 data_path = f"/home/david/Desktop/database/{exp_name}"
 
 # set of agent numbers to summarize for
-Ns = ["With Collisions", "Idealized"]
+Ns = ["Realistic", "With Collisions", "Idealized"]
 num_patches = [3, 8, 30]
 batch_dim = 0
 agent_dim = 3
@@ -91,6 +91,24 @@ for ni in range(fig_shape[0]):
     patchy_std_neg = mean_eff_patchy-std_eff_patchy
     patchy_std_pos = mean_eff_patchy+std_eff_patchy
 
+    eff_data_patchy_cocc = np.load(os.path.join(data_path, f"eff_N{N}_Patchy_CollOcc.npy"))
+    eff_data_patchy_cocc_agent_mean = np.mean(eff_data_patchy_cocc, axis=agent_dim)
+    eff_data_patchy_cocc_normed = np.zeros_like(eff_data_patchy_cocc_agent_mean)
+    for batch_id in range(eff_data_patchy_cocc_agent_mean.shape[0]):
+        for eps_i in range(eff_data_patchy_cocc_agent_mean.shape[1]):
+            print("data to be normed: ", eff_data_patchy_cocc_agent_mean[batch_id, eps_i, :].shape)
+            # eff_data_patchy_cocc_normed[batch_id, eps_i, :] = norm_between_0_and_1(eff_data_patchy_cocc_agent_mean[batch_id, eps_i, :])
+            eff_data_patchy_cocc_normed[batch_id, eps_i, :] = eff_data_patchy_cocc_agent_mean[batch_id, eps_i, :]
+    print("shape:", eff_data_patchy_cocc.shape)
+    with open(os.path.join(data_path, f"tuned_env_N{N}_Patchy_Coll.json"), "r") as te:
+        epsilons_patchy = [float(eps) for eps in json.loads(te.read())['DEC_EPSW']]
+    with open(os.path.join(data_path, f"tuned_env_N{N}_Patchy_Coll.json"), "r") as te:
+        fovs_patchy = [float(fov) for fov in json.loads(te.read())['RADIUS_RESOURCE']]
+    std_eff_patchy_cocc = np.std(eff_data_patchy_cocc_normed, axis=0)
+    mean_eff_patchy_cocc = np.mean(eff_data_patchy_cocc_normed, axis=0)
+    patchy_std_neg_cocc = mean_eff_patchy_cocc - std_eff_patchy_cocc
+    patchy_std_pos_cocc = mean_eff_patchy_cocc + std_eff_patchy_cocc
+
     eff_data_intermed_nc = np.load(os.path.join(data_path, f"eff_N{N}_Intermed_NoColl.npy"))
     eff_data_intermed_agent_mean_nc = np.mean(eff_data_intermed_nc, axis=agent_dim)
     eff_data_intermed_normed_nc = np.zeros_like(eff_data_intermed_agent_mean_nc)
@@ -126,6 +144,24 @@ for ni in range(fig_shape[0]):
     mean_eff_intermed = np.mean(eff_data_intermed_normed, axis=0)
     intermed_std_neg = mean_eff_intermed-std_eff_intermed
     intermed_std_pos = mean_eff_intermed+std_eff_intermed
+
+    eff_data_intermed_cocc = np.load(os.path.join(data_path, f"eff_N{N}_Intermed_CollOcc.npy"))
+    eff_data_intermed_cocc_agent_mean = np.mean(eff_data_intermed_cocc, axis=agent_dim)
+    eff_data_intermed_cocc_normed = np.zeros_like(eff_data_intermed_cocc_agent_mean)
+    for batch_id in range(eff_data_intermed_cocc_agent_mean.shape[0]):
+        for eps_i in range(eff_data_intermed_cocc_agent_mean.shape[1]):
+            print("data to be normed: ", eff_data_intermed_cocc_agent_mean[batch_id, eps_i, :].shape)
+            #eff_data_intermed_cocc_normed[batch_id, eps_i, :] = norm_between_0_and_1(eff_data_intermed_cocc_agent_mean[batch_id, eps_i, :])
+            eff_data_intermed_cocc_normed[batch_id, eps_i, :] = eff_data_intermed_cocc_agent_mean[batch_id, eps_i, :]
+    print(eff_data_intermed_cocc.shape)
+    with open(os.path.join(data_path, f"tuned_env_N{N}_Intermed_Coll.json"), "r") as te:
+        epsilons_intermed = [float(eps) for eps in json.loads(te.read())['DEC_EPSW']]
+    with open(os.path.join(data_path, f"tuned_env_N{N}_Intermed_Coll.json"), "r") as te:
+        fovs_intermed = [float(fov) for fov in json.loads(te.read())['RADIUS_RESOURCE']]
+    std_eff_intermed_cocc = np.std(eff_data_intermed_cocc_normed, axis=0)
+    mean_eff_intermed_cocc = np.mean(eff_data_intermed_cocc_normed, axis=0)
+    intermed_std_neg_cocc = mean_eff_intermed_cocc - std_eff_intermed_cocc
+    intermed_std_pos_cocc = mean_eff_intermed_cocc + std_eff_intermed_cocc
 
 
     eff_data_dist_nc = np.load(os.path.join(data_path, f"eff_N{N}_Dist_NoColl.npy"))
@@ -164,11 +200,29 @@ for ni in range(fig_shape[0]):
     dist_std_neg = mean_eff_dist-std_eff_dist
     dist_std_pos = mean_eff_dist+std_eff_dist
 
+    eff_data_dist_cocc = np.load(os.path.join(data_path, f"eff_N{N}_Dist_CollOcc.npy"))
+    eff_data_dist_cocc_agent_mean = np.mean(eff_data_dist_cocc, axis=agent_dim)
+    eff_data_dist_cocc_normed = np.zeros_like(eff_data_dist_cocc_agent_mean)
+    for batch_id in range(eff_data_dist_cocc_agent_mean.shape[0]):
+        for eps_i in range(eff_data_dist_cocc_agent_mean.shape[1]):
+            print("data to be normed: ", eff_data_dist_cocc_agent_mean[batch_id, eps_i, :].shape)
+            # eff_data_dist_cocc_normed[batch_id, eps_i, :] = norm_between_0_and_1(eff_data_dist_cocc_agent_mean[batch_id, eps_i, :])
+            eff_data_dist_cocc_normed[batch_id, eps_i, :] = eff_data_dist_cocc_agent_mean[batch_id, eps_i, :]
+    print("shape:", eff_data_dist_cocc.shape)
+    with open(os.path.join(data_path, f"tuned_env_N{N}_Dist_Coll.json"), "r") as te:
+        epsilons_dist = [float(eps) for eps in json.loads(te.read())['DEC_EPSW']]
+    with open(os.path.join(data_path, f"tuned_env_N{N}_Dist_Coll.json"), "r") as te:
+        fovs_dist = [float(fov) for fov in json.loads(te.read())['RADIUS_RESOURCE']]
+    std_eff_dist_cocc = np.std(eff_data_dist_cocc_normed, axis=0)
+    mean_eff_dist_cocc = np.mean(eff_data_dist_cocc_normed, axis=0)
+    dist_std_neg_cocc = mean_eff_dist_cocc-std_eff_dist_cocc
+    dist_std_pos_cocc = mean_eff_dist_cocc+std_eff_dist_cocc
+
 
     # checking if epsilon was consistently changed across epxeriments
     assert epsilons_intermed == epsilons_patchy
     assert fovs_patchy == fovs_intermed
-    epsilons = epsilons_patchy
+    epsilons = [0.5, 1, 2, 5] #epsilons_patchy
     fovs = [fov / 10 for fov in fovs_patchy]
     # except:
     #     break
@@ -187,6 +241,8 @@ for ni in range(fig_shape[0]):
             plt.legend(loc="upper left")
         elif ni == 1:
             plt.plot(mean_eff_patchy_nc[eps_i, :], c=colors[eps_i], linewidth=3)
+        elif ni == 2:
+            plt.plot(mean_eff_patchy_cocc[eps_i, :], c=colors[eps_i], linewidth=3)
         if ni == 0:
             plt.ylabel(f"{Ns[ni]}", fontdict=FS)
             plt.title("Patchy Environment", fontdict=FS)
@@ -203,6 +259,9 @@ for ni in range(fig_shape[0]):
         elif ni == 1:
             plt.fill_between([i for i in range(len(fovs))], patchy_std_neg_nc[eps_i, :], patchy_std_pos_nc[eps_i, :],
                              alpha=0.3, color=colors[eps_i])
+        elif ni == 2:
+            plt.fill_between([i for i in range(len(fovs))], patchy_std_neg_cocc[eps_i, :], patchy_std_pos_cocc[eps_i, :],
+                             alpha=0.3, color=colors[eps_i])
 
         # intermediate
         if fig_shape[0] > 1:
@@ -218,6 +277,8 @@ for ni in range(fig_shape[0]):
             plt.xticks([])
         elif ni == 1:
             plt.plot(mean_eff_intermed_nc[eps_i, :], c=colors[eps_i], linewidth=3)
+        elif ni == 2:
+            plt.plot(mean_eff_intermed_cocc[eps_i, :], c=colors[eps_i], linewidth=3)
         if ni == 1:
             sparsing_factor = 1
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='right', rotation_mode='anchor')
@@ -229,6 +290,8 @@ for ni in range(fig_shape[0]):
             plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[eps_i, :], intermed_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 1:
             plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_nc[eps_i, :], intermed_std_pos_nc[eps_i, :], alpha=0.3, color=colors[eps_i])
+        elif ni == 2:
+            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_cocc[eps_i, :], intermed_std_pos_cocc[eps_i, :], alpha=0.3, color=colors[eps_i])
 
 
         # distributed
@@ -245,6 +308,9 @@ for ni in range(fig_shape[0]):
             plt.xticks([])
         elif ni == 1:
             plt.plot(mean_eff_dist_nc[eps_i, :], c=colors[eps_i], linewidth=3)
+        elif ni == 1:
+            plt.plot(mean_eff_dist_cocc[eps_i, :], c=colors[eps_i], linewidth=3)
+
         if ni == 1:
             sparsing_factor = 2
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
@@ -254,6 +320,9 @@ for ni in range(fig_shape[0]):
             plt.fill_between([i for i in range(len(fovs))], dist_std_neg[eps_i, :], dist_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 1:
             plt.fill_between([i for i in range(len(fovs))], dist_std_neg_nc[eps_i, :], dist_std_pos_nc[eps_i, :], alpha=0.3, color=colors[eps_i])
+        elif ni == 2:
+            plt.fill_between([i for i in range(len(fovs))], dist_std_neg_cocc[eps_i, :], dist_std_pos_cocc[eps_i, :], alpha=0.3, color=colors[eps_i])
+
 
         # plt.axes(curax)
         # curax.yaxis.tick_right()

@@ -9,7 +9,7 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Date:       13.03.2023
+Date:       16.03.2023
 Parameters: figExp3BN50IntermedCollOcc:
                 Studying the effect of collisions with different patch sizes on different search difficulties
                 N = 50 agents case.
@@ -80,7 +80,7 @@ criteria_exp = [
     Constant("VISUAL_EXCLUSION", 1),  # no visual occlusion
     Constant("VISION_RANGE", 2000),  # unlimited visual range
     Constant("AGENT_FOV", 1),  # unlimited FOV
-    Tunable("DEC_EPSW", values_override=[0.5, 1, 2, 5]),
+    Tunable("DEC_EPSW", values_override=[0, 0.25, 0.5, 0.75, 1, 2, 5]),
     Constant("DEC_EPSU", 1),
     Constant("MIN_RESOURCE_QUALITY", 0.25),  # we fixed the max quality to negative so can control the value with MIN
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources/nup) for nup in num_patches]),  # same here

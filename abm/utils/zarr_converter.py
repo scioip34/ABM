@@ -8,7 +8,7 @@ from abm.loader.data_loader import ExperimentLoader
 import pandas as pd
 
 
-def zarr_to_csv_coop_signaling_results(data_folder):
+def zarr_to_csv_coop_signaling_results(data_folder, folders_prefix=""):
     """Converts a zarr file to a csv file.
 
     """
@@ -31,7 +31,7 @@ def zarr_to_csv_coop_signaling_results(data_folder):
 
     for i, s in enumerate(experiment.varying_params['RES_VEL']):
         for j, v in enumerate(experiment.varying_params['SIGNALLING_PROB']):
-            folder_name = f"signalling_{s}_vel_{v}"
+            folder_name = f"{folders_prefix}_vel_{s}_signalling_{v}"
             # create a folder with the condition name (parameter values) using pathlib
             condition_folder = Path(data_folder) / folder_name
             condition_folder.mkdir(parents=True, exist_ok=True)
@@ -56,7 +56,6 @@ def zarr_to_csv_coop_signaling_results(data_folder):
                         'id': [a + 1] * len(time),
                         'positions_x': pos_x[batch, i, j, a, :],
                         'positions_z': pos_y[batch, i, j, a, :],
-                        'orientation': orientation[batch, i, j, a, :],
                         'is_signaling': sig[batch, i, j, a, :],
                         'score': score[batch, i, j, a, :]
                     }))
@@ -69,5 +68,5 @@ def zarr_to_csv_coop_signaling_results(data_folder):
 
 if __name__ == "__main__":
     # NOTE: change this to the path to the simulation data
-    path_to_simulation_data = ""
-    zarr_to_csv_coop_signaling_results(path_to_simulation_data)
+    path_to_simulation_data = ".../CSExp4N1"
+    zarr_to_csv_coop_signaling_results(path_to_simulation_data, "N1")

@@ -56,6 +56,7 @@ def zarr_to_csv_coop_signaling_results(data_folder, folders_prefix=""):
                         'id': [a + 1] * len(time),
                         'positions_x': pos_x[batch, i, j, a, :],
                         'positions_z': pos_y[batch, i, j, a, :],
+                        'rotation_y': orientation[batch, i, j, a, :],
                         'is_signaling': sig[batch, i, j, a, :],
                         'score': score[batch, i, j, a, :]
                     }))

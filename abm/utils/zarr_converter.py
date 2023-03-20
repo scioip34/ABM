@@ -63,10 +63,11 @@ def zarr_to_csv_coop_signaling_results(data_folder):
                     ids.append(agent_id)
                 data = pd.concat(data)
                 # sort by time and agent ID
-                data = data.sort_values(by=['time', 'agent ID'], ignore_index=True)
+                data = data.sort_values(by=['Time_ms', 'id'], ignore_index=True)
                 data.to_csv(os.path.join(condition_folder, f"{'_'.join(ids)}.csv"), index=False)
 
 
 if __name__ == "__main__":
+    # NOTE: change this to the path to the simulation data
     path_to_simulation_data = ""
     zarr_to_csv_coop_signaling_results(path_to_simulation_data)

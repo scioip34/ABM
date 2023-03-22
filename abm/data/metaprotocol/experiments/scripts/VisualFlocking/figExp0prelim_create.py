@@ -8,7 +8,7 @@ import glob
 # under this path the individual summary statistics are saved
 # with _N<number of agents> post tag.
 exp_name = "VFprelimsummaryBugfix"
-data_path = f"/media/david/DMezeySCIoI/ABMData/{exp_name}"
+data_path = f"/media/david/DMezeySCIoI/ABMData/VisFlock/{exp_name}"
 
 titles = ["Polarization", "Inter-individual Distance", "Agent Collisions"]
 file_names = ["polarization", "meaniid", "aacoll"]
@@ -44,6 +44,9 @@ for fovi, fov in enumerate(FOVs):
                 mean_data = np.mean(raw_data[:, fovi, ...], axis=0)
             elif file_names[wi] == "meaniid":
                 mean_data = np.mean(raw_data[fovi, ...], axis=-1)
+            else:
+                mean_data = np.mean(np.mean(raw_data[fovi, ...], axis=-1), axis=0)
+            print(f"mean shape: ", mean_data.shape)
 
             if metric_max is None:
                 metric_max = np.max(mean_data)
@@ -78,11 +81,13 @@ for fovi, fov in enumerate(FOVs):
                 mean_data = np.mean(raw_data[:, fovi, ...], axis=0)
             elif file_names[wi] == "meaniid":
                 mean_data = np.mean(raw_data[fovi, ...], axis=-1)
+            else:
+                mean_data = np.mean(np.mean(raw_data[fovi, ...], axis=-1), axis=0)
             if mean_data.ndim == 2:
                 im = plt.imshow(mean_data, vmin=metric_min, vmax=metric_max)
                 fig.colorbar(im)
             else:
-                pass
+                print("resulting data is of non image shape")
 
 
 

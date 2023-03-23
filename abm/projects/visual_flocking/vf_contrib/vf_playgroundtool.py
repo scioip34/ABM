@@ -8,8 +8,8 @@ def setup_visflock_playground():
     playground_tool.default_params["framerate"] = 60
     playground_tool.default_params["N_resc"] = 0
     playground_tool.default_params["patch_radius"] = 0
-    playground_tool.default_params["width"] = 900
-    playground_tool.default_params["height"] = 700
+    playground_tool.default_params["width"] = 500
+    playground_tool.default_params["height"] = 500
     # # new default parameters
     playground_tool.default_params["collide_agents"] = False
     playground_tool.default_params["agent_radius"] = 5

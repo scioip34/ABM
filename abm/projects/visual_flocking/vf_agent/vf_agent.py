@@ -21,6 +21,9 @@ class VFAgent(Agent):
         # boundary conditions
         # infinite or walls
         self.boundary_cond = vf_params.BOUNDARY
+        self.limit_movement = vf_params.LIMIT_MOVEMENT
+        self.max_vel = vf_params.MAX_VEL
+        self.max_th = vf_params.MAX_TH
 
         # preparing phi values for algorithm according to FOV
         self.PHI = np.arange(-np.pi, np.pi, (2*np.pi)/self.v_field_res)
@@ -127,12 +130,14 @@ class VFAgent(Agent):
         # updating agent's state variables according to calculated vel and
         # theta
         # maximum turning angle per timestep
-        # theta = self.prove_turning(theta)
+        if self.limit_movement:
+            theta = self.prove_turning(theta, theta_lim=self.max_th)
         self.orientation += theta
         self.prove_orientation()  # bounding orientation into 0 and 2pi
 
         self.velocity += vel
-        # self.prove_velocity(velocity_limit=3)  # possibly bounding velocity of agent
+        if self.limit_movement:
+            self.prove_velocity(velocity_limit=self.max_vel)  # possibly bounding velocity of agent
 
         # new agent's position
         new_pos = (

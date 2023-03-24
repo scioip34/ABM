@@ -38,7 +38,7 @@ exp_name = "sumfigExp3B"
 data_path = f"/home/david/Desktop/database/{exp_name}"
 
 # set of agent numbers to summarize for
-Ns = ["Realistic", "With Collisions", "Idealized"]
+Ns = ["Idealized", "Collision", "Collision + Occlusion"]
 num_patches = [3, 8, 30]
 batch_dim = 0
 agent_dim = 3
@@ -222,7 +222,7 @@ for ni in range(fig_shape[0]):
     # checking if epsilon was consistently changed across epxeriments
     assert epsilons_intermed == epsilons_patchy
     assert fovs_patchy == fovs_intermed
-    epsilons = [0.5, 1, 2, 5] #epsilons_patchy
+    epsilons = epsilons_patchy
     fovs = [fov / 10 for fov in fovs_patchy]
     # except:
     #     break
@@ -236,18 +236,17 @@ for ni in range(fig_shape[0]):
 
         plt.axes(curax)
         if ni == 0:
-            plt.plot(mean_eff_patchy[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
-            plt.xticks([])
-            plt.legend(loc="upper left")
-        elif ni == 1:
             plt.plot(mean_eff_patchy_nc[eps_i, :], c=colors[eps_i], linewidth=3)
+            plt.xticks([])
+        elif ni == 1:
+            plt.plot(mean_eff_patchy[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
+            plt.legend(loc="upper left")
         elif ni == 2:
             plt.plot(mean_eff_patchy_cocc[eps_i, :], c=colors[eps_i], linewidth=3)
         if ni == 0:
-            plt.ylabel(f"{Ns[ni]}", fontdict=FS)
             plt.title("Patchy Environment", fontdict=FS)
-        if ni == 1:
-            plt.ylabel(f"{Ns[ni]}", fontdict=FS)
+        plt.ylabel(f"{Ns[ni]}", fontdict=FS)
+        if ni == 2:
             sparsing_factor = 2
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
             for ticki, tick in enumerate(curax.get_xticklabels()):
@@ -255,10 +254,10 @@ for ni in range(fig_shape[0]):
 
         print("sh", patchy_std_neg.shape)
         if ni == 0:
-            plt.fill_between([i for i in range(len(fovs))], patchy_std_neg[eps_i, :], patchy_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
-        elif ni == 1:
             plt.fill_between([i for i in range(len(fovs))], patchy_std_neg_nc[eps_i, :], patchy_std_pos_nc[eps_i, :],
                              alpha=0.3, color=colors[eps_i])
+        elif ni == 1:
+            plt.fill_between([i for i in range(len(fovs))], patchy_std_neg[eps_i, :], patchy_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 2:
             plt.fill_between([i for i in range(len(fovs))], patchy_std_neg_cocc[eps_i, :], patchy_std_pos_cocc[eps_i, :],
                              alpha=0.3, color=colors[eps_i])
@@ -273,13 +272,12 @@ for ni in range(fig_shape[0]):
         # plt.yticks([])
         if ni == 0:
             plt.title("Intermediate Environment", fontdict=FS)
-            plt.plot(mean_eff_intermed[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
+            plt.plot(mean_eff_intermed_nc[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
             plt.xticks([])
         elif ni == 1:
-            plt.plot(mean_eff_intermed_nc[eps_i, :], c=colors[eps_i], linewidth=3)
+            plt.plot(mean_eff_intermed[eps_i, :], c=colors[eps_i], linewidth=3)
         elif ni == 2:
             plt.plot(mean_eff_intermed_cocc[eps_i, :], c=colors[eps_i], linewidth=3)
-        if ni == 1:
             sparsing_factor = 1
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='right', rotation_mode='anchor')
             plt.xlabel("Patch to Agent Size", fontdict=FS)
@@ -287,9 +285,10 @@ for ni in range(fig_shape[0]):
                 tick.set_rotation(45)
 
         if ni == 0:
-            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[eps_i, :], intermed_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
+            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_nc[eps_i, :], intermed_std_pos_nc[eps_i, :],
+                             alpha=0.3, color=colors[eps_i])
         elif ni == 1:
-            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_nc[eps_i, :], intermed_std_pos_nc[eps_i, :], alpha=0.3, color=colors[eps_i])
+            plt.fill_between([i for i in range(len(fovs))], intermed_std_neg[eps_i, :], intermed_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 2:
             plt.fill_between([i for i in range(len(fovs))], intermed_std_neg_cocc[eps_i, :], intermed_std_pos_cocc[eps_i, :], alpha=0.3, color=colors[eps_i])
 
@@ -304,22 +303,23 @@ for ni in range(fig_shape[0]):
         # plt.yticks([])
         if ni == 0:
             plt.title("Uniform Environment", fontdict=FS)
-            plt.plot(mean_eff_dist[eps_i, :], label=f"$\epsilon$={eps}", c=colors[eps_i], linewidth=3)
+            plt.plot(mean_eff_dist_nc[eps_i, :], label=f"$\epsilon$={eps}",  c=colors[eps_i], linewidth=3)
             plt.xticks([])
         elif ni == 1:
-            plt.plot(mean_eff_dist_nc[eps_i, :], c=colors[eps_i], linewidth=3)
-        elif ni == 1:
+            plt.plot(mean_eff_dist[eps_i, :],c=colors[eps_i], linewidth=3)
+        elif ni == 2:
             plt.plot(mean_eff_dist_cocc[eps_i, :], c=colors[eps_i], linewidth=3)
-
-        if ni == 1:
+        if ni == 2:
             sparsing_factor = 2
             plt.xticks([i for i in range(0, len(fovs), sparsing_factor)], [f"{fovs[i]}" for i in range(0, len(fovs), sparsing_factor)], ha='center', rotation_mode='anchor')
             for ticki, tick in enumerate(curax.get_xticklabels()):
                 tick.set_rotation(0)
+
         if ni == 0:
-            plt.fill_between([i for i in range(len(fovs))], dist_std_neg[eps_i, :], dist_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
+            plt.fill_between([i for i in range(len(fovs))], dist_std_neg_nc[eps_i, :], dist_std_pos_nc[eps_i, :], alpha=0.3,
+                             color=colors[eps_i])
         elif ni == 1:
-            plt.fill_between([i for i in range(len(fovs))], dist_std_neg_nc[eps_i, :], dist_std_pos_nc[eps_i, :], alpha=0.3, color=colors[eps_i])
+            plt.fill_between([i for i in range(len(fovs))], dist_std_neg[eps_i, :], dist_std_pos[eps_i, :], alpha=0.3, color=colors[eps_i])
         elif ni == 2:
             plt.fill_between([i for i in range(len(fovs))], dist_std_neg_cocc[eps_i, :], dist_std_pos_cocc[eps_i, :], alpha=0.3, color=colors[eps_i])
 

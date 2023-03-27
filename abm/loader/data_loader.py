@@ -116,6 +116,7 @@ class DataLoader:
         self.load_files()
         self.preprocess_data()
 
+
     def agent_json_to_csv_format(self):
         """transforming a read in json format dictionary to the standard data structure we use when read in a csv file"""
         new_dict = {}
@@ -367,6 +368,7 @@ class ExperimentLoader:
         self.project_version = None
         self.zarr_extension = ".zarr"
         self.mean_iid = None
+        self.mean_nn_dist = None
         self.iid_matrix = None
         self.undersample = int(undersample)
         self.chunksize = None  # chunk size in zarr array
@@ -1123,6 +1125,35 @@ class ExperimentLoader:
             np.save(iidpath, self.iid_matrix)
             np.save(meaniid_path, self.mean_iid)
 
+    def calculate_mean_NN_dist(self, undersample=1, avg_over_time=False):
+        """Calculating the mean nearest neighbor metric over time. We take the average over
+        agents of the min neighbor distance per agent."""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        iidpath = os.path.join(summary_path, "iid.npy")
+        meanNNd_path = os.path.join(summary_path, "meanNNd.npy")
+        if os.path.isfile(meanNNd_path):
+            print("Found saved mean NND array in summary, reloading it...")
+
+            self.mean_nn_dist = np.load(meanNNd_path)
+        if self.iid_matrix is None:
+            if os.path.isfile(iidpath):
+                print("Found saved IID array in summary, reloading it...")
+                self.iid_matrix = np.load(iidpath)
+            else:
+                print("Didn't find saved IID array in summary, calculating them...")
+                self.calculate_interindividual_distance(undersample=undersample, avg_over_time=False)
+        iid = self.iid_matrix.copy()
+        num_agents = iid.shape[-2]
+        for i in range(num_agents):
+            iid[..., i, i, :] = np.nan
+        nearest_per_agents = np.nanmin(iid, axis=-2)
+        mean_nearest = np.mean(nearest_per_agents, axis=-2)
+        self.mean_nn_dist = np.mean(mean_nearest, axis=0)
+        print("Saving mean NNd array under ", meanNNd_path)
+        np.save(meanNNd_path, self.mean_nn_dist)
+
+
+
     def plot_mean_polarization(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot polarization irrespectively of how many parameters have been tuned during the
         experiments."""
@@ -1394,8 +1425,8 @@ class ExperimentLoader:
         return pol_matrix, self.mean_pol
 
     def calculate_collision_time(self, undersample=1):
-        self.calculate_interindividual_distance(undersample=undersample)
         summary_path = os.path.join(self.experiment_path, "summary")
+        iidpath = os.path.join(summary_path, "iid.npy")
         aacollpath = os.path.join(summary_path, "aacoll.npy")
         batch_dim = 0
 
@@ -1403,6 +1434,10 @@ class ExperimentLoader:
             print("Found saved collision time array in summary, reloading it...")
             self.aacoll_matrix = np.load(aacollpath)
         else:
+            if self.iid is None and not os.path.isfile(iidpath):
+                self.calculate_interindividual_distance(undersample=undersample)
+            elif os.path.isfile(iidpath):
+                self.iid_matrix = np.load(iidpath)
             aacoll = np.zeros(list(self.agent_summary['orientation'].shape)[0:-2])
             num_timesteps = self.iid_matrix.shape[-1]
             if self.iid_matrix.shape[-1] < 1000:
@@ -1526,6 +1561,102 @@ class ExperimentLoader:
                 raise Exception("Given filename is not npy file")
 
         return collapsed_data, labels
+
+    def plot_mean_NN_dist(self, from_script=False, undersample=1):
+        """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the
+        experiments."""
+        cbar = None
+        if self.mean_nn_dist is None:
+            # self.calculate_interindividual_distance(undersample=undersample)
+            self.calculate_mean_NN_dist(undersample=undersample)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Inter-individual distance (mean)")
+            plt.plot(self.mean_nn_dist)
+            num_agents = self.iid_matrix.shape[-2]
+            restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1]]
+            for run_i in range(self.iid_matrix.shape[0]):
+                plt.plot(restr_m[run_i, :, :], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Inter-individual distance (mean)")
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_nn_dist)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_nn_dist.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_nn_dist = np.zeros((self.mean_nn_dist.shape[0:3]))
+                print(self.new_mean_nn_dist.shape)
+                for j in range(self.mean_nn_dist.shape[0]):
+                    for i in range(self.mean_nn_dist.shape[1]):
+                        self.new_mean_nn_dist[j, i, :] = self.mean_nn_dist[j, i, :, i]
+                self.mean_nn_dist = self.new_mean_nn_dist
+
+            if self.collapse_plot is None:
+                num_plots = self.mean_nn_dist.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_nn_dist[i, :, :])
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_nn_dist, save_name="coll_iid.npy")
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
+                           f"of inter-individual distance between agents.\n"
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
 
 
     def plot_mean_iid(self, from_script=False, undersample=1):

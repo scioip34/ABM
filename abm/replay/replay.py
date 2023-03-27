@@ -263,6 +263,23 @@ class ExperimentReplay:
             onClick=lambda: self.take_snapshot(),  # Function to call when clicked on
             borderThickness=1
         )
+        self.NNdist_b = Button(
+            # Mandatory Parameters
+            self.screen,  # Surface to place button on
+            self.button_start_x_2 + int(self.slider_width / 2),  # X-coordinate of top left corner
+            button_start_y,  # Y-coordinate of top left corner
+            int(self.slider_width / 2),  # Width
+            self.button_height,  # Height
+
+            # Optional Parameters
+            text='Avg. NN Dist.',  # Text to display
+            fontSize=20,  # Size of font
+            margin=20,  # Minimum distance between text/image and edge of button
+            inactiveColour=colors.GREY,
+            onClick=lambda: self.on_print_NNdist(),  # Function to call when clicked on
+            borderThickness=1
+        )
+
 
         # Plotting Button Line
         button_start_y += self.button_height
@@ -590,6 +607,20 @@ class ExperimentReplay:
         else:
             undersample = 1
         fig, ax, cbar = self.experiment.plot_mean_iid(from_script=self.from_script, undersample=undersample)
+        return fig, ax, cbar
+
+    def on_print_NNdist(self, with_read_collapse_param=True, used_batches=None):
+        """print mean inter-individual distance"""
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.T > 1000:
+            undersample = int(self.T / 1000)
+            print(
+                f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
+        else:
+            undersample = 1
+        fig, ax, cbar = self.experiment.plot_mean_NN_dist(from_script=self.from_script, undersample=undersample)
         return fig, ax, cbar
 
     def on_set_t_start(self):

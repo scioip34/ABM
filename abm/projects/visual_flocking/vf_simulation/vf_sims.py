@@ -167,8 +167,59 @@ class VFSimulation(Simulation):
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
 
-    def start(self):
-        start_time = datetime.now()
+    def step_sim(self):
+        """Stepping a single time step in the simulation loop"""
+        events = pygame.event.get()
+        # Carry out interaction according to user activity
+        self.interact_with_event(events)
+        # deciding if vis field needs to be shown in this timestep
+        self.turned_on_vfield = self.decide_on_vis_field_visibility(
+            self.turned_on_vfield)
+
+        if not self.is_paused:
+            # Update agents according to current visible obstacles
+            self.agents.update(self.agents)
+            # move to next simulation timestep (only when not paused)
+            self.t += 1
+        # Simulation is paused
+        else:
+            # Still calculating visual fields
+            for ag in self.agents:
+                # DEBUG: updating visual projections also when paused
+                ag.update_social_info(self.agents)
+
+        if self.show_path_history:
+            self.save_ori_pos_history()
+
+        # Draw environment and agents
+        if self.with_visualization:
+            self.draw_frame(self.stats, self.stats_pos)
+            pygame.display.flip()
+        # Monitoring with IFDB (also when paused)
+        if self.save_in_ifd:
+            ifdb.save_agent_data(
+                self.ifdb_client, self.agents, self.t,
+                exp_hash=self.ifdb_hash,
+                batch_size=self.write_batch_size)
+            ifdb.save_resource_data(
+                self.ifdb_client, self.rescources, self.t,
+                exp_hash=self.ifdb_hash,
+                batch_size=self.write_batch_size)
+        elif self.save_in_ram:
+            # saving data in ram for data processing, only when not paused
+            if not self.is_paused:
+                ifdb.save_agent_data_RAM(self.agents, self.t)
+                ifdb.save_resource_data_RAM(self.rescources, self.t)
+        # Moving time forward
+        if self.t % 500 == 0 or self.t == 1:
+            print(
+                f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')}"
+                f" t={self.t}")
+            print(f"Simulation FPS: {self.clock.get_fps()}")
+        self.clock.tick(self.framerate)
+
+    def prepare_start(self):
+        """Preparing start method"""
         print(f"Running simulation start method!")
         # Creating N agents in the environment
         print("Creating agents!")
@@ -177,58 +228,16 @@ class VFSimulation(Simulation):
         print("Creating visual field graph!")
         self.stats, self.stats_pos = self.create_vis_field_graph()
         # local var to decide when to show visual fields
-        turned_on_vfield = 0
-        print("Starting main simulation loop!")
+        self.turned_on_vfield = 0
+
+
+    def start(self):
+        start_time = datetime.now()
+        self.prepare_start()
         # Main Simulation loop until dedicated simulation time
+        print("Starting main simulation loop!")
         while self.t < self.T:
-            events = pygame.event.get()
-            # Carry out interaction according to user activity
-            self.interact_with_event(events)
-            # deciding if vis field needs to be shown in this timestep
-            turned_on_vfield = self.decide_on_vis_field_visibility(
-                turned_on_vfield)
-
-            if not self.is_paused:
-                # Update agents according to current visible obstacles
-                self.agents.update(self.agents)
-                # move to next simulation timestep (only when not paused)
-                self.t += 1
-            # Simulation is paused
-            else:
-                # Still calculating visual fields
-                for ag in self.agents:
-                    # DEBUG: updating visual projections also when paused
-                    ag.update_social_info(self.agents)
-
-            if self.show_path_history:
-                self.save_ori_pos_history()
-
-            # Draw environment and agents
-            if self.with_visualization:
-                self.draw_frame(self.stats, self.stats_pos)
-                pygame.display.flip()
-            # Monitoring with IFDB (also when paused)
-            if self.save_in_ifd:
-                ifdb.save_agent_data(
-                    self.ifdb_client, self.agents, self.t,
-                    exp_hash=self.ifdb_hash,
-                    batch_size=self.write_batch_size)
-                ifdb.save_resource_data(
-                    self.ifdb_client, self.rescources, self.t,
-                    exp_hash=self.ifdb_hash,
-                    batch_size=self.write_batch_size)
-            elif self.save_in_ram:
-                # saving data in ram for data processing, only when not paused
-                if not self.is_paused:
-                    ifdb.save_agent_data_RAM(self.agents, self.t)
-                    ifdb.save_resource_data_RAM(self.rescources, self.t)
-            # Moving time forward
-            if self.t % 500 == 0 or self.t == 1:
-                print(
-                    f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')}"
-                    f" t={self.t}")
-                print(f"Simulation FPS: {self.clock.get_fps()}")
-            self.clock.tick(self.framerate)
+            self.step_sim()
         end_time = datetime.now()
         print(
             f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')}"

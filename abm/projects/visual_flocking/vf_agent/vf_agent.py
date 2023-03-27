@@ -18,6 +18,8 @@ class VFAgent(Agent):
         # flocking or emergency
         self.agent_state = "flocking"
 
+        # getting additional information from supplementary calculation functions
+        self.verbose_supcalc = False
         # boundary conditions
         # infinite or walls
         self.boundary_cond = vf_params.BOUNDARY
@@ -117,8 +119,13 @@ class VFAgent(Agent):
             # perform the agent's action according to the current state
             if self.agent_state == "flocking":
                 if len(self.PHI) == len(self.soc_v_field):
-                    dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
-                                                                         vf_params)
+                    if not self.verbose_supcalc:
+                        dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
+                                                                             vf_params, verbose=self.verbose_supcalc)
+                    else:
+                        self.dv, self.dphi, self.ablob, self.aedge, self.bblob, self.bedge = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
+                                                                             vf_params, verbose=self.verbose_supcalc)
+                        dv, dphi = self.dv, self.dphi
                 else:
                     dv, dphi = 0, 0
                     print("Warning: temporary skip calculation due to mismatch in phi and vfield resolutions!")

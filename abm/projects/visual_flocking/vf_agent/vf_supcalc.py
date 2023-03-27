@@ -150,7 +150,7 @@ def calculate_closed_angle(v1, v2):
     return closed_angle
 
 # Functions needed for VSWRM functionality
-def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V_prev=None, t_prev=None):
+def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V_prev=None, t_prev=None, verbose=False):
     """Calculating state variables of a given agent according to the main algorithm as in
     https://advances.sciencemag.org/content/6/6/eaay0792.
         Args:
@@ -206,15 +206,32 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
     # dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
     #        vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(FOV_rescaling_sin * Phi) * G_psi_spike) * dPhi
 
-    # without reacling edge information
-    dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
-           vf_params.ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
-           vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
 
-    dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
-           vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
 
-    return dvel, dpsi
+    if not verbose:
+        # without reacling edge information
+        dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
+               vf_params.ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
+               vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+
+        dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
+               vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+
+        return dvel, dpsi
+    else:
+        alpha_blob = vf_params.ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
+        alpha_edge = vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+
+        beta_blob = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
+        beta_edge = vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        # without reacling edge information
+        dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
+               alpha_blob + \
+               alpha_edge
+
+        dpsi = beta_blob + \
+               beta_edge
+        return dvel, dpsi, alpha_blob, alpha_edge, beta_blob, beta_edge
 
 
 def dPhi_V_of(Phi, V):

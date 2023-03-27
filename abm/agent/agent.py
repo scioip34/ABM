@@ -312,13 +312,31 @@ class Agent(pygame.sprite.Sprite):
         self.image.fill(colors.BACKGROUND)
         self.image.set_colorkey(colors.BACKGROUND)
         if self.is_moved_with_cursor:
-            pygame.draw.circle(
-                self.image, self.selected_color, (self.radius, self.radius), self.radius
+            pygame.gfxdraw.filled_circle(
+                self.image,
+                self.radius,
+                self.radius,
+                self.radius,
+                self.selected_color
             )
+            pygame.gfxdraw.aacircle(self.image,
+                                    self.radius,
+                                    self.radius,
+                                    self.radius,
+                                    colors.BLACK)
         else:
-            pygame.draw.circle(
-                self.image, self.color, (self.radius, self.radius), self.radius
+            pygame.gfxdraw.filled_circle(
+                self.image,
+                self.radius,
+                self.radius,
+                self.radius-1,
+                self.color
             )
+            pygame.gfxdraw.aacircle(self.image,
+                                    self.radius,
+                                    self.radius,
+                                    self.radius-1,
+                                    colors.BLACK)
 
         # showing agent orientation with a line towards agent orientation
         pygame.draw.line(self.image, colors.BACKGROUND, (self.radius, self.radius),

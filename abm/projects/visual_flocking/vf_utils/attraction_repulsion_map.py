@@ -2,9 +2,18 @@ import numpy as np
 
 from abm.projects.visual_flocking.vf_simulation.vf_sims import VFSimulation
 
-width = 1600
-height = 1600
-undersample = 16
+# VF_GAM=0.1
+# VF_V0=0
+# VF_ALP0=1
+# VF_ALP1=0.09
+# VF_ALP2=0
+# VF_BET0=1
+# VF_BET1=0.09
+# VF_BET2=0
+
+width = 800
+height = 800
+undersample = 2
 radius = 5
 
 foc_ag_pos = (int(width/2)-radius, int(height/2)-radius)
@@ -14,8 +23,6 @@ ablob_matrix = np.zeros((int(width/undersample), int(height/undersample)))
 aedge_matrix = np.zeros((int(width/undersample), int(height/undersample)))
 bblob_matrix = np.zeros((int(width/undersample), int(height/undersample)))
 bedge_matrix = np.zeros((int(width/undersample), int(height/undersample)))
-
-
 
 sim = VFSimulation(N=2,
                    T=width*height+1,
@@ -41,6 +48,7 @@ sim = VFSimulation(N=2,
 
 sim.prepare_start()
 for w in range(0, width, undersample):
+    print(f"progress: {w}/{width}")
     for h in range(0, height, undersample):
         agent0 = list(sim.agents)[0]
         agent1 = list(sim.agents)[1]
@@ -50,7 +58,6 @@ for w in range(0, width, undersample):
         agent0.verbose_supcalc = True
         agent1.position = np.array((w, h), dtype=np.float64)
         sim.step_sim()
-        print(agent0.ablob, agent0.aedge)
         dv_matrix[int(w/undersample), int(h/undersample)] = agent0.dv
         dpsi_matrix[int(w/undersample), int(h/undersample)] = agent0.dphi
         ablob_matrix[int(w/undersample), int(h/undersample)] = agent0.ablob
@@ -60,26 +67,36 @@ for w in range(0, width, undersample):
 
 dv_matrix[dv_matrix>0.2] = 0.2
 dv_matrix[dv_matrix<-0.2] = -0.2
+ablob_matrix[ablob_matrix>0.2] = 0.2
+ablob_matrix[ablob_matrix<-0.2] = -0.2
+aedge_matrix[aedge_matrix>0.2] = 0.2
+aedge_matrix[aedge_matrix<-0.2] = -0.2
 
 dpsi_matrix[dpsi_matrix>0.2] = 0.2
 dpsi_matrix[dpsi_matrix<-0.2] = -0.2
+bblob_matrix[bblob_matrix>0.2] = 0.2
+bblob_matrix[bblob_matrix<-0.2] = -0.2
+bedge_matrix[bedge_matrix>0.2] = 0.2
+bedge_matrix[bedge_matrix<-0.2] = -0.2
 
 import matplotlib.pyplot as plt
 import matplotlib
-colorsList = [(1, 0, 0), (0, 0, 0), (0, 0, 1)]
-cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    'mycmap', [(0, 'red'), (0.5, 'white'), (1, 'green')])
+
+cmap_vel = matplotlib.colors.LinearSegmentedColormap.from_list(
+    'mycmap', ["red", "white", "green"])
+cmap_ori = matplotlib.colors.LinearSegmentedColormap.from_list(
+    'mycmap', ["orange", "white", "blue"])
 plt.figure()
-plt.imshow(dv_matrix.T, cmap="PiYG")
+plt.imshow(dv_matrix.T, cmap=cmap_vel)
 plt.show()
 plt.figure()
-plt.imshow(dpsi_matrix.T, cmap="PiYG")
+plt.imshow(dpsi_matrix.T, cmap=cmap_ori)
 plt.show()
-plt.imshow(ablob_matrix.T, cmap="PiYG")
+plt.imshow(ablob_matrix.T, cmap=cmap_vel)
 plt.show()
-plt.imshow(aedge_matrix.T, cmap="PiYG")
+plt.imshow(aedge_matrix.T, cmap=cmap_vel)
 plt.show()
-plt.imshow(bblob_matrix.T, cmap="PiYG")
+plt.imshow(bblob_matrix.T, cmap=cmap_ori)
 plt.show()
-plt.imshow(bedge_matrix.T, cmap="PiYG")
+plt.imshow(bedge_matrix.T, cmap=cmap_ori)
 plt.show()

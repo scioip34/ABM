@@ -1434,7 +1434,7 @@ class ExperimentLoader:
             print("Found saved collision time array in summary, reloading it...")
             self.aacoll_matrix = np.load(aacollpath)
         else:
-            if self.iid is None and not os.path.isfile(iidpath):
+            if self.iid_matrix is None and not os.path.isfile(iidpath):
                 self.calculate_interindividual_distance(undersample=undersample)
             elif os.path.isfile(iidpath):
                 self.iid_matrix = np.load(iidpath)

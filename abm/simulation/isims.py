@@ -147,6 +147,14 @@ class PlaygroundSimulation(Simulation):
                                   inactiveColour=colors.GREY, borderThickness=1,
                                   onClick=lambda: self.start_stop_IFDB_logging())
         self.function_buttons.append(self.IFDB_button)
+        function_button_start_x += self.function_button_width + self.function_button_pad
+        self.Snapshot_button = Button(self.screen, function_button_start_x, function_button_start_y,
+                                  self.function_button_width,
+                                  self.function_button_height, text='Take Snapshot',
+                                  fontSize=self.function_button_height - 2,
+                                  inactiveColour=colors.GREY, borderThickness=1,
+                                  onClick=lambda: self.take_snapshot())
+        self.function_buttons.append(self.Snapshot_button)
 
         self.global_stats_start += 2 * self.function_button_height + self.function_button_pad + self.window_pad
 
@@ -304,6 +312,33 @@ class PlaygroundSimulation(Simulation):
         self.help_buttons.append(self.SUMR_help)
         self.sliders.append(self.SUMR_slider)
         self.slider_texts.append(self.SUMR_textbox)
+
+    def take_snapshot(self):
+        """Taking a single picture of the current status of the replay into an image"""
+        filename = f"{pad_to_n_digits(self.t, n=6)}.png"
+        path = os.path.join(self.image_save_path, filename)
+        pygame.image.save(self.screen, path)
+        # cropping image
+        img = cv2.imread(path)
+        src = img[0:self.vis_area_end_height, 0:self.vis_area_end_width]
+        # Convert image to image gray
+        tmp = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
+
+        # Applying thresholding technique
+        _, alpha = cv2.threshold(tmp, 254, 255, cv2.THRESH_BINARY_INV)
+
+        # Using cv2.split() to split channels
+        # of coloured image
+        b, g, r = cv2.split(src)
+
+        # Making list of Red, Green, Blue
+        # Channels and alpha
+        rgba = [b, g, r, alpha]
+
+        # Using cv2.merge() to merge rgba
+        # into a coloured/multi-channeled image
+        dst = cv2.merge(rgba, 4)
+        cv2.imwrite(path, dst)
 
     def start_stop_IFDB_logging(self):
         """Start or stop IFDB logging in case of grafana interface is used"""
@@ -506,6 +541,10 @@ class PlaygroundSimulation(Simulation):
         """Carry out functionality according to user's interaction"""
         super().interact_with_event(events)
         pygame_widgets.update(events)
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                print("Snapshot!")
+                self.take_snapshot()
         self.framerate = self.framerate_slider.getValue()
         self.N = self.N_slider.getValue()
         self.N_resc = self.NRES_slider.getValue()

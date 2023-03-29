@@ -1,5 +1,6 @@
 import matplotlib
 import numpy as np
+import pygame
 
 from abm.projects.visual_flocking.vf_agent import vf_supcalc
 from abm.agent.agent import Agent
@@ -62,6 +63,62 @@ class VFAgent(Agent):
 
         # updating agent visualization
         self.draw_update()
+
+
+    def draw_update(self):
+        """
+        updating the outlook of the agent according to position and orientation
+        """
+        # update position
+        self.rect.x = self.position[0]
+        self.rect.y = self.position[1]
+
+        # change agent color according to mode
+        self.change_color()
+
+        # update surface according to new orientation
+        # creating visualization surface for agent as a filled circle
+        self.image = pygame.Surface([self.radius * 2, self.radius * 2])
+        self.image.fill(colors.BACKGROUND)
+        self.image.set_colorkey(colors.BACKGROUND)
+        if self.is_moved_with_cursor:
+            pygame.gfxdraw.filled_circle(
+                self.image,
+                self.radius,
+                self.radius,
+                self.radius,
+                self.selected_color
+            )
+            pygame.gfxdraw.aacircle(self.image,
+                                    self.radius,
+                                    self.radius,
+                                    self.radius,
+                                    colors.BACKGROUND)
+        else:
+            pygame.gfxdraw.filled_circle(
+                self.image,
+                self.radius,
+                self.radius,
+                self.radius-1,
+                self.color[0:-1]
+            )
+            pygame.gfxdraw.aacircle(self.image,
+                                    self.radius,
+                                    self.radius,
+                                    self.radius-1,
+                                    colors.BLACK)
+
+            # pygame.draw.circle(
+            #     self.image, self.color, (self.radius, self.radius), self.radius
+            # )
+
+        # showing agent orientation with a line towards agent orientation
+        new_white = (255, 255, 254)
+        pygame.draw.line(self.image, new_white, (self.radius, self.radius),
+                         ((1 + np.cos(self.orientation)) * self.radius, (1 - np.sin(self.orientation)) * self.radius),
+                         3)
+        self.image = pygame.transform.smoothscale(self.image, [self.radius * 2, self.radius * 2])
+        self.mask = pygame.mask.from_surface(self.image)
 
 
     def teleport_infinite_arena(self):

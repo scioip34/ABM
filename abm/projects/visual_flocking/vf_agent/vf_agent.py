@@ -215,14 +215,16 @@ class VFAgent(Agent):
                 if len(self.PHI) == len(self.soc_v_field):
                     if not self.verbose_supcalc:
                         dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
-                                                                             vf_params, verbose=self.verbose_supcalc)
+                                                                             vf_params, verbose=self.verbose_supcalc,
+                                                                             ALP0=self.ALP0, BET0=self.BET0, V0=self.V0)
                         if len(self.lines) != 0:
                             dphi2 = vf_supcalc.follow_lines_local(self.position, self.radius, self.orientation, self.line_map, self.velocity,
                                                             sensor_radius=self.sensor_size, sensor_distance=self.sensor_distance)
                             dphi = dphi2
                     else:
                         self.dv, self.dphi, self.ablob, self.aedge, self.bblob, self.bedge = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
-                                                                             vf_params, verbose=self.verbose_supcalc)
+                                                                             vf_params, verbose=self.verbose_supcalc,
+                                                                             ALP0=self.ALP0, BET0=self.BET0, V0=self.V0)
                         dv, dphi = self.dv, self.dphi
                 else:
                     dv, dphi = 0, 0

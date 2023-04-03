@@ -152,7 +152,8 @@ def calculate_closed_angle(v1, v2):
     return closed_angle
 
 # Functions needed for VSWRM functionality
-def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V_prev=None, t_prev=None, verbose=False):
+def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V_prev=None, t_prev=None, verbose=False,
+                                   ALP0=None, BET0=None, V0=None):
     """Calculating state variables of a given agent according to the main algorithm as in
     https://advances.sciencemag.org/content/6/6/eaay0792.
         Args:
@@ -163,6 +164,9 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
             t_now: current time
             V_prev: previous binary visual projection field array
             t_prev: previous time
+            ALP0: overwriting alpha0 parameter for heterogenity
+            BET: overwriting bet0 for heterogeneity
+            V0: overwriting self-propelled speed for heterogenity
         Returns:
             dvel: temporal change in agent velocity
             dpsi: temporal change in agent heading angle
@@ -176,6 +180,14 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
     #     dt_V = dt_V_of(dt, joined_V)
     # else:
     #     dt_V = np.zeros(len(Phi))
+
+    # Overwriting default homogeneous variables if ALP0, BET0 or V0 is provided
+    if ALP0 is None:
+        ALP0 = vf_params.ALP0
+    if BET0 is None:
+        BET0 = vf_params.BET0
+    if V0 is None:
+        V0 = vf_params.V0
 
     # Using only zeros for temporal derivative in simplest case to keep formulation general
     dt_V = np.zeros(len(Phi))
@@ -212,22 +224,22 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
 
     if not verbose:
         # without reacling edge information
-        dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
-               vf_params.ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
-               vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        dvel = vf_params.GAM * (V0 - vel_now) + \
+               ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
+               ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
 
-        dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
-               vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        dpsi = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
+               BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
 
         return dvel, dpsi
     else:
-        alpha_blob = vf_params.ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
-        alpha_edge = vf_params.ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        alpha_blob = ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
+        alpha_edge = ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
 
-        beta_blob = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
-        beta_edge = vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        beta_blob = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
+        beta_edge = BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
         # without reacling edge information
-        dvel = vf_params.GAM * (vf_params.V0 - vel_now) + \
+        dvel = vf_params.GAM * (V0 - vel_now) + \
                alpha_blob + \
                alpha_edge
 

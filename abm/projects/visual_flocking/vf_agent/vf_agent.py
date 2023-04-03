@@ -19,6 +19,12 @@ class VFAgent(Agent):
         # flocking or emergency
         self.agent_state = "flocking"
 
+        # introducing agent-specific movement params
+        # if they are None, they will be read from vf_contrib.vf_params
+        self.ALP0 = None
+        self.BET0 = None
+        self.V0 = None
+
         # lines to follow
         self.lines = []
         self.sensor_distance = 20  # sensor distance to follow lines

@@ -31,6 +31,10 @@ class VFSimulation(Simulation):
         """
         super().__init__(**kwargs)
         self.show_all_stats = False
+        # line following prototype
+        self.agent_for_line_id = []
+        self.lines = [[]]  # a list of guide lines that agents will follow where each line is a list of (x, y) points
+        self.line_map = np.zeros((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
 
         # making only the used part of retina to the given resolution
         print(f"Original retina resolution: {self.v_field_res}")
@@ -42,6 +46,78 @@ class VFSimulation(Simulation):
         self.memory_length = 30
         self.ori_memory = None
         self.pos_memory = None
+
+    def update_lines_to_follow(self):
+        """Updating background line map to follow"""
+        subsurface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
+        subsurface.fill(colors.BACKGROUND)
+        subsurface.set_colorkey(colors.WHITE)
+        subsurface.set_alpha(255)
+        for line in self.lines:
+            for pi in range(1, len(line)):
+                point1 = line[pi-1]
+                point2 = line[pi]
+                color = colors.BLACK
+                pygame.draw.line(subsurface, color, point1, point2, 4)
+
+        for ag in self.agents:
+            if len(ag.lines)!=0:
+                sensor1_pos = [ag.position[1] + ag.radius - ag.sensor_distance + (1 + np.sin(ag.orientation + (3*np.pi / 4))) * ag.sensor_distance,
+                               ag.position[0] + ag.radius - ag.sensor_distance + (1 - np.cos(ag.orientation + (3*np.pi / 4))) * ag.sensor_distance]
+                sensor2_pos = [ag.position[1] + ag.radius - ag.sensor_distance + (1 + np.sin(ag.orientation - (3*np.pi / 4))) * ag.sensor_distance,
+                               ag.position[0] + ag.radius - ag.sensor_distance + (1 - np.cos(ag.orientation - (3*np.pi / 4))) * ag.sensor_distance]
+
+                pygame.draw.circle(
+                    subsurface, colors.GREEN, sensor2_pos, ag.sensor_size
+                )
+                pygame.draw.circle(
+                    subsurface, colors.GREEN, sensor1_pos, ag.sensor_size
+                )
+        line_map = pygame.surfarray.array3d(subsurface)
+        self.line_map = line_map.swapaxes(0, 1)[:, :, 0]/255
+
+    def handle_cursor_event(self, event):
+        """Handling event if cursor buttons are clicked overwriting base to add line functionalities"""
+        if pygame.mouse.get_pressed()[0]:
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_l]:
+                for agid, ag in enumerate(list(self.agents)):
+                    if ag.rect.collidepoint(pygame.mouse.get_pos()):
+                        self.agent_for_line_id.append(agid)
+                        print(f"Assigned agent {agid} for current line, will finalize when release l button!")
+                        # assigning the last line to the given agent
+                        ag.color = colors.RED
+                        # ag.lines.append(self.lines[-1])
+                        # print(ag.lines)
+
+                # tart adding points to it
+                if (pygame.mouse.get_pos()[1], pygame.mouse.get_pos()[0]) not in self.lines[-1]:
+                    self.lines[-1].append((pygame.mouse.get_pos()[1], pygame.mouse.get_pos()[0]))
+                    print(len(self.lines), len(self.lines[-1]))
+            else:
+                try:
+                    for ag in self.agents:
+                        ag.move_with_mouse(event.pos, 0, 0)
+                    for res in self.rescources:
+                        res.update_clicked_status(event.pos)
+                except AttributeError:
+                    for ag in self.agents:
+                        ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
+        else:
+            for ag in self.agents:
+                ag.is_moved_with_cursor = False
+                ag.draw_update()
+            for res in self.rescources:
+                res.is_clicked = False
+                res.draw_update()
+
+    def draw_lines_to_follow(self):
+        """Draw lines that agents follow"""
+        self.update_lines_to_follow()
+        subsurface = pygame.surfarray.make_surface(self.line_map*255)
+        subsurface.set_colorkey(colors.WHITE)
+        subsurface.set_alpha(255)
+        self.screen.blit(subsurface, (0, 0))
 
 
     def draw_agent_stats(self, font_size=15, spacing=0):
@@ -153,7 +229,7 @@ class VFSimulation(Simulation):
     def draw_frame(self, stats, stats_pos):
         """Drawing environment, agents and every other visualization in each timestep"""
         self.screen.fill(colors.BACKGROUND)
-        self.rescources.draw(self.screen)
+        self.draw_lines_to_follow()
         self.draw_walls()
         if self.show_path_history:
             self.draw_agent_paths_vf()

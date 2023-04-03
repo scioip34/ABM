@@ -1,3 +1,5 @@
+from math import atan2
+
 import numpy as np
 
 from abm.agent.supcalc import angle_between, find_nearest
@@ -255,3 +257,55 @@ def dPhi_V_of(Phi, V):
 
     dPhi_V = dPhi_V_raw #/ (Phi[-1] - Phi[-2])
     return dPhi_V
+
+def distance_coords(x1, y1, x2, y2, vectorized=False):
+    """Distance between 2 points in 2D space calculated from point coordinates.
+    if vectorized is True, we use multidimensional (i.e. vectorized) form of distance
+    calculation that preserved original dimensions of coordinate arrays in the dimensions of the output and the output
+    will contain pairwise distance measures according to coordinate matrices."""
+    c1 = np.array([x1, y1])
+    c2 = np.array([x2, y2])
+    if not vectorized:
+        distance = np.linalg.norm(c2 - c1)
+    else:
+        distance = np.linalg.norm(c2 - c1, axis=0)
+    return distance
+
+
+def follow_lines_local(agposition, agradius, agorientation, linemap, agvel, sensor_radius=10, sensor_distance=5):
+    """Following line with 2 sensors"""
+    sensor1_pos = [agposition[1] + agradius - sensor_distance + (
+                1 + np.sin(agorientation + (3*np.pi / 4))) * sensor_distance,
+                   agposition[0] + agradius - sensor_distance + (
+                               1 - np.cos(agorientation + (3*np.pi / 4))) * sensor_distance]
+    sensor2_pos = [agposition[1] + agradius - sensor_distance + (
+                1 + np.sin(agorientation - (3*np.pi / 4))) * sensor_distance,
+                   agposition[0] + agradius - sensor_distance + (
+                               1 - np.cos(agorientation - (3*np.pi / 4))) * sensor_distance]
+    # superline = []
+    # for line in lines:
+    #     superline.extend(line)
+
+    # line = superline
+    # points_s1_range = np.array([point for point in line if distance_coords(sensor1_pos[1], sensor1_pos[0], point[1], point[0])<sensor_radius])
+    # points_s2_range = np.array([point for point in line if distance_coords(sensor2_pos[1], sensor2_pos[0], point[1], point[0])<sensor_radius])
+    s1 = np.nanmean(linemap[int(sensor1_pos[1]-sensor_radius):int(sensor1_pos[1]+sensor_radius),int(sensor1_pos[0]-sensor_radius):int(sensor1_pos[0]+sensor_radius)])
+    s2 = np.nanmean(linemap[int(sensor2_pos[1] - sensor_radius):int(sensor2_pos[1] + sensor_radius),
+                 int(sensor2_pos[0] - sensor_radius):int(sensor2_pos[0] + sensor_radius)])
+
+    if np.isnan(s1) or np.isnan(s2):
+        return 0
+    else:
+        if np.sign(agvel):
+            ori_change = 0.5 * (s2-s1)
+        else:
+            ori_change = 0
+        if s1 > s2:
+            return ori_change
+        elif s1 < s2:
+            return ori_change
+        else:
+            if s1 != 0:
+                return 0.01
+            else:
+                return 0

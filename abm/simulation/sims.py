@@ -590,22 +590,26 @@ class Simulation:
                 self.framerate = self.framerate_orig
 
             # Continuous mouse events (move with cursor)
-            if pygame.mouse.get_pressed()[0]:
-                try:
-                    for ag in self.agents:
-                        ag.move_with_mouse(event.pos, 0, 0)
-                    for res in self.rescources:
-                        res.update_clicked_status(event.pos)
-                except AttributeError:
-                    for ag in self.agents:
-                        ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
-            else:
+            self.handle_cursor_event(event)
+
+    def handle_cursor_event(self, event):
+        """Handling event if cursor buttons are clicked"""
+        if pygame.mouse.get_pressed()[0]:
+            try:
                 for ag in self.agents:
-                    ag.is_moved_with_cursor = False
-                    ag.draw_update()
+                    ag.move_with_mouse(event.pos, 0, 0)
                 for res in self.rescources:
-                    res.is_clicked = False
-                    res.draw_update()
+                    res.update_clicked_status(event.pos)
+            except AttributeError:
+                for ag in self.agents:
+                    ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
+        else:
+            for ag in self.agents:
+                ag.is_moved_with_cursor = False
+                ag.draw_update()
+            for res in self.rescources:
+                res.is_clicked = False
+                res.draw_update()
 
     def decide_on_vis_field_visibility(self, turned_on_vfield):
         """Deciding f the visual field needs to be shown or not"""

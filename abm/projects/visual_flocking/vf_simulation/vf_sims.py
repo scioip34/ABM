@@ -7,6 +7,7 @@ from abm.agent import supcalc
 from abm.contrib import colors
 from abm.monitoring import ifdb, env_saver
 from abm.projects.visual_flocking.vf_agent.vf_agent import VFAgent
+from abm.projects.visual_flocking.vf_contrib import vf_params
 from abm.simulation.sims import Simulation
 from matplotlib import cm as colmaps
 
@@ -125,8 +126,14 @@ class VFSimulation(Simulation):
         if self.show_all_stats:
             font = pygame.font.Font(None, font_size)
             for agent in self.agents:
+                a0 = agent.ALP0 if agent.ALP0 is not None else vf_params.ALP0
+                b0 = agent.BET0 if agent.BET0 is not None else vf_params.BET0
+                v0 = agent.V0 if agent.V0 is not None else vf_params.V0
                 status = [
-                    f"ID: {agent.id}"
+                    f"ID: {agent.id}",
+                    f"A0: {a0}",
+                    f"B0: {b0}",
+                    f"V0: {v0}",
                 ]
                 for i, stat_i in enumerate(status):
                     text = font.render(stat_i, True, colors.BLACK)

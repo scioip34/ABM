@@ -19,6 +19,12 @@ class VFAgent(Agent):
         # flocking or emergency
         self.agent_state = "flocking"
 
+        # lines to follow
+        self.lines = []
+        self.sensor_distance = 20  # sensor distance to follow lines
+        self.sensor_size = 9
+        self.line_map = np.zeros((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
+
         # getting additional information from supplementary calculation functions
         self.verbose_supcalc = False
         # boundary conditions
@@ -143,6 +149,11 @@ class VFAgent(Agent):
         # calculate socially relevant projection field (e.g. according to
         # signalling agents)
         self.soc_v_field = self.calc_soc_v_proj(agents)
+        try:
+            dphi2 = vf_supcalc.follow_lines_local(self.position, self.radius, self.orientation, self.line_map, self.velocity,
+                                                  sensor_radius=self.sensor_size, sensor_distance=self.sensor_distance)
+        except:
+            print("Error during line following!")
 
     def calc_soc_v_proj(self, agents):
         """
@@ -170,6 +181,26 @@ class VFAgent(Agent):
         # update agent state based on the decision-making process
         self.agent_state = "flocking"
 
+    def update_linemap(self):
+        """Updating background line map to follow"""
+        subsurface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
+        subsurface.fill(colors.BACKGROUND)
+        subsurface.set_colorkey(colors.WHITE)
+        subsurface.set_alpha(255)
+        for line in self.lines:
+            for pi in range(1, len(line)):
+                point1 = line[pi-1]
+                point2 = line[pi]
+                color = colors.BLACK
+                pygame.draw.line(subsurface, color, point1, point2, 1)
+        from scipy.ndimage.filters import gaussian_filter
+        line_map = pygame.surfarray.array3d(subsurface)
+        line_map = gaussian_filter(line_map, sigma=1)
+        line_map[line_map<253] = 0
+        line_map = gaussian_filter(line_map, sigma=1)
+        self.line_map = 1 - line_map.swapaxes(0, 1)[:, :, 0]/255
+
+
     def perform_action(self):
         # we freeze agents when we move them
         if not self.is_moved_with_cursor:
@@ -179,6 +210,10 @@ class VFAgent(Agent):
                     if not self.verbose_supcalc:
                         dv, dphi = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
                                                                              vf_params, verbose=self.verbose_supcalc)
+                        if len(self.lines) != 0:
+                            dphi2 = vf_supcalc.follow_lines_local(self.position, self.radius, self.orientation, self.line_map, self.velocity,
+                                                            sensor_radius=self.sensor_size, sensor_distance=self.sensor_distance)
+                            dphi = dphi2
                     else:
                         self.dv, self.dphi, self.ablob, self.aedge, self.bblob, self.bedge = vf_supcalc.VSWRM_flocking_state_variables(self.velocity, self.PHI, np.flip(self.soc_v_field),
                                                                              vf_params, verbose=self.verbose_supcalc)

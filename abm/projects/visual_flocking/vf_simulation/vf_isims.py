@@ -262,12 +262,44 @@ class VFPlaygroundSimulation(PlaygroundSimulation, VFSimulation):
             # Save video (freezes update process for a while)
             self.saved_images_to_video()
             self.save_video = False
+        # self.keep_agents_in_center()
+        #self.screen = pygame.transform.smoothscale(self.screen, (self.screen.get_width(), self.screen.get_height()))
+
+    # def keep_agents_in_center(self):
+    #     """Translating all agents with the center of mass, so they keep in the center of the arena"""
+    #     posx_coords = np.array([agent.position[0] for agent in self.agents])
+    #     posy_coords = np.array([agent.position[1] for agent in self.agents])
+    #     COM = (np.mean(posx_coords), np.mean(posy_coords))
+    #     arena_center_x = int(self.vis_area_end_width/2)
+    #     arena_center_y = int(self.vis_area_end_height / 2)
+    #     dx = COM[0] - arena_center_x
+    #     dy = COM[1] - arena_center_y
+    #     for ai, agent in enumerate(list(self.agents)):
+    #         agent.position[0] = agent.position[0] - dx
+    #         agent.position[1] = agent.position[1] - dy
+    #         if self.pos_memory is not None:
+    #             self.pos_memory[ai, 0, -1] += dx
+    #             self.pos_memory[ai, 1, -1] += dy
+
 
 
     def interact_with_event(self, events):
         """Carry out functionality according to user's interaction"""
         super().interact_with_event(events)
         pygame_widgets.update(events)
+
+        for event in events:
+            if event.type == pygame.KEYUP and event.key == pygame.K_l:
+                print("L UP, breaking line")
+                self.agent_for_line_id = list(set(self.agent_for_line_id))
+                for agid, ag in enumerate(list(self.agents)):
+                    if agid in self.agent_for_line_id:
+                        print(f"Updating linemap for agent {agid}")
+                        ag.lines.append(self.lines[-1])
+                        ag.update_linemap()
+                        self.agent_for_line_id.remove(agid)
+                self.lines.append([])
+
         self.framerate = self.framerate_slider.getValue()
         self.N = self.N_slider.getValue()
         self.N_resc = self.NRES_slider.getValue()

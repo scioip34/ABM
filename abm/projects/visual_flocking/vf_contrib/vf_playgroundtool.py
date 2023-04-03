@@ -12,9 +12,9 @@ def setup_visflock_playground():
     playground_tool.default_params["height"] = 500
     # # new default parameters
     playground_tool.default_params["collide_agents"] = False
-    playground_tool.default_params["agent_radius"] = 5
+    playground_tool.default_params["agent_radius"] = 8
     playground_tool.default_params["N"] = 10
-    playground_tool.default_params["v_field_res"] = 400
+    playground_tool.default_params["v_field_res"] = 800
     #playground_tool.default_params["alpha_0"] = 4
     # playground_tool.default_params["phototaxis_theta_step"] = 0.2
     # playground_tool.default_params["detection_range"] = 120

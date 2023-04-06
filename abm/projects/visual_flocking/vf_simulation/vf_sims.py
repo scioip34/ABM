@@ -77,6 +77,44 @@ class VFSimulation(Simulation):
         line_map = pygame.surfarray.array3d(subsurface)
         self.line_map = line_map.swapaxes(0, 1)[:, :, 0]/255
 
+
+    def handle_mouse_wheel_event(self, event):
+        """Handling event if mouse wheel is moved"""
+        if event.type == pygame.MOUSEWHEEL:
+            print(event.y)
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_a]:
+                for agid, ag in enumerate(list(self.agents)):
+                    if ag.rect.collidepoint(pygame.mouse.get_pos()):
+                        if ag.ALP0 is None:
+                            ag.ALP0 = vf_params.ALP0
+                        else:
+                            ag.ALP0 += event.y * 0.05
+            elif keys[pygame.K_b]:
+                for agid, ag in enumerate(list(self.agents)):
+                    if ag.rect.collidepoint(pygame.mouse.get_pos()):
+                        if ag.BET0 is None:
+                            ag.BET0 = vf_params.BET0
+                        else:
+                            ag.BET0 += event.y * 0.05
+            elif keys[pygame.K_r]:
+                for agid, ag in enumerate(list(self.agents)):
+                    if ag.rect.collidepoint(pygame.mouse.get_pos()):
+                        ag.radius += int(event.y)
+            elif keys[pygame.K_v]:
+                for agid, ag in enumerate(list(self.agents)):
+                    if ag.rect.collidepoint(pygame.mouse.get_pos()):
+                        if ag.V0 is None:
+                            ag.V0 = vf_params.V0
+                        else:
+                            ag.V0 += event.y * 0.05
+            else:
+                if event.y == -1:
+                    event.y = 0
+                for ag in self.agents:
+                    ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
+
+
     def handle_cursor_event(self, event):
         """Handling event if cursor buttons are clicked overwriting base to add line functionalities"""
         if pygame.mouse.get_pressed()[0]:

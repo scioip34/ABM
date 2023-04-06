@@ -567,11 +567,7 @@ class Simulation:
                 sys.exit()
 
             # Change orientation with mouse wheel
-            if event.type == pygame.MOUSEWHEEL:
-                if event.y == -1:
-                    event.y = 0
-                for ag in self.agents:
-                    ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
+            self.handle_mouse_wheel_event(event)
 
             # Pause on Space
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -591,6 +587,14 @@ class Simulation:
 
             # Continuous mouse events (move with cursor)
             self.handle_cursor_event(event)
+
+    def handle_mouse_wheel_event(self, event):
+        """Handling event if mouse wheel is moved"""
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y == -1:
+                event.y = 0
+            for ag in self.agents:
+                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
 
     def handle_cursor_event(self, event):
         """Handling event if cursor buttons are clicked"""

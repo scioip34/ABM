@@ -1279,7 +1279,7 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
                 for i in range(num_plots):
-                    img = ax[i].imshow(self.mean_aacoll[i, :, :], vmin=0, vmax=np.max(self.mean_aacoll[i, :, :]))
+                    img = ax[i].imshow(self.mean_aacoll[i, :, :], vmin=0, vmax=np.max(self.mean_aacoll))
                     ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
                     if i == 0:
@@ -1691,7 +1691,7 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
                 for i in range(num_plots):
-                    img = ax[i].imshow(self.mean_iid[i, :, :])
+                    img = ax[i].imshow(self.mean_iid[i, :, :], vmin=np.min(self.mean_iid), vmax=np.max(self.mean_iid))
                     ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
                     if i == 0:

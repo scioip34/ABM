@@ -18,7 +18,7 @@ def distance_infinite(p1, p2, L=500, dim=2):
     return distvec_periodic
 
 def projection_field(fov, v_field_resolution, position, radius,
-                     orientation, object_positions,
+                     orientation, object_positions, object_sizes=None,
                      boundary_cond="walls", arena_width=None, arena_height=None, vision_range=None, ag_id=0):
     """
     Calculating visual projection field for the agent given the visible
@@ -58,7 +58,10 @@ def projection_field(fov, v_field_resolution, position, radius,
             continue
 
         # center of obstacle (as it must be another agent)
-        object_center = obj_position + radius
+        if object_sizes is None:
+            object_center = obj_position + radius
+        else:
+            object_center = obj_position + object_sizes[i]
 
         # vector between agent center and object center
         v2 = object_center - agents_center
@@ -90,7 +93,10 @@ def projection_field(fov, v_field_resolution, position, radius,
                 continue
 
         # calculating the visual angle from focal agent to target
-        vis_angle = 2 * np.arctan(radius / (1 * distance))
+        if object_sizes is None:
+            vis_angle = 2 * np.arctan(radius / (1 * distance))
+        else:
+            vis_angle = 2 * np.arctan(object_sizes[i] / (1 * distance))
 
         # finding where in the retina the projection belongs to
         phi_target = find_nearest(phis, closed_angle)

@@ -77,6 +77,58 @@ class VFAgent(Agent):
         self.draw_update()
 
 
+    def reflect_from_walls(self):
+        """reflecting agent from environment boundaries according to a desired x, y coordinate. If this is over any
+        boundaries of the environment, the agents position and orientation will be changed such that the agent is
+         reflected from these boundaries."""
+        if len(self.lines) == 0:
+            super().reflect_from_walls()
+        else:
+            # Boundary conditions according to center of agent (simple)
+            x = self.position[0] + self.radius
+            y = self.position[1] + self.radius
+
+            # Reflection from left wall
+            if x < self.boundaries_x[0]:
+                self.position[0] = self.boundaries_x[0] - self.radius
+
+                if np.pi / 2 <= self.orientation < np.pi:
+                    self.orientation -= np.pi
+                elif np.pi <= self.orientation <= 3 * np.pi / 2:
+                    self.orientation += np.pi
+                self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+            # Reflection from right wall
+            if x > self.boundaries_x[1]:
+
+                self.position[0] = self.boundaries_x[1] - self.radius - 1
+
+                if 3 * np.pi / 2 <= self.orientation < 2 * np.pi:
+                    self.orientation -= np.pi
+                elif 0 <= self.orientation <= np.pi / 2:
+                    self.orientation += np.pi
+                self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+            # Reflection from upper wall
+            if y < self.boundaries_y[0]:
+                self.position[1] = self.boundaries_y[0] - self.radius
+
+                if np.pi / 2 <= self.orientation <= np.pi:
+                    self.orientation += np.pi
+                elif 0 <= self.orientation < np.pi / 2:
+                    self.orientation -= np.pi
+                self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+            # Reflection from lower wall
+            if y > self.boundaries_y[1]:
+                self.position[1] = self.boundaries_y[1] - self.radius - 1
+                if 3 * np.pi / 2 <= self.orientation <= 2 * np.pi:
+                    self.orientation += np.pi
+                elif np.pi <= self.orientation < 3 * np.pi / 2:
+                    self.orientation -= np.pi
+                self.prove_orientation()  # bounding orientation into 0 and 2pi
+
+
     def draw_update(self):
         """
         updating the outlook of the agent according to position and orientation
@@ -173,6 +225,7 @@ class VFAgent(Agent):
             radius=self.radius,
             orientation=self.orientation,
             object_positions=[np.array(ag.position) for ag in agents_of_interest],
+            object_sizes=[ag.radius for ag in agents_of_interest],
             boundary_cond=self.boundary_cond,
             arena_width=self.WIDTH,
             arena_height=self.HEIGHT,

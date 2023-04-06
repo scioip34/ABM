@@ -46,6 +46,15 @@ def random_walk(desired_vel=None):
                                movement_params.exp_theta_max)
     return dvel, dtheta
 
+def distance_torus(p0, p1, dimensions):
+    """Calculating distance between 2 2D points p0 and p1 as nparrays in an arena
+    with dimensions as in dimensions with infinite boundary conditions.
+    po and p1 can be a set of 2D coordinates e.g. np.array([[x0, y0],[x1, y1],[x2, y2]])
+    """
+    delta = np.abs(p0 - p1)
+    delta = np.where(delta > 0.5 * dimensions, delta - dimensions, delta)
+    return np.sqrt((delta ** 2).sum(axis=1))
+
 
 def distance_coords(x1, y1, x2, y2, vectorized=False):
     """Distance between 2 points in 2D space calculated from point coordinates.

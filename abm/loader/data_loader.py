@@ -1010,11 +1010,12 @@ class ExperimentLoader:
                 iid[i, j] = distance[i]
         return iid
 
-    def calculate_interindividual_distance(self, undersample=1, avg_over_time=False):
+    def calculate_interindividual_distance(self, undersample=1, avg_over_time=False, periodic_boundary=False):
         """Method to calculate inter-individual distance array from posx and posy arrays of agents. The final
         array has the same dimension as any of the input arrays, i.e.:
         (num_batches, *[dims of varying params], num_agents, time)
         and defines the mean (across group members) inter-individual distance for a given agent i in timestep t.
+        If periodic boundary is true, we calculate distances on a torus.
         """
         summary_path = os.path.join(self.experiment_path, "summary")
         iidpath = os.path.join(summary_path, "iid.npy")
@@ -1023,6 +1024,12 @@ class ExperimentLoader:
             print("Found saved I.I.D array in summary, reloading it...")
             self.iid_matrix = np.load(iidpath)
         else:
+            if self.env.get("BOUNDARY") == "infinite":
+                print(
+                    "Dataset was generated with periodic boundary conditions. Do you want to calculate I.I.D. according"
+                    "to torus environment? (Y/N)")
+                periodic_boundary = input().lower() == "y"
+
             agposx = self.agent_summary['posx']
             agposy = self.agent_summary['posy']
 
@@ -1049,7 +1056,7 @@ class ExperimentLoader:
             iid = np.zeros(new_shape)
 
             for batchi in range(num_batches):
-                print(f"Calculating iid for batch {batchi}")
+                print(f"Calculating iid for batch {batchi}, torus={periodic_boundary}")
                 for agi in range(num_agents):
                     for agj in range(num_agents):
                         if agj > agi:
@@ -1057,7 +1064,16 @@ class ExperimentLoader:
                             y1s = agposy[batchi, ..., agi, ::undersample]
                             x2s = agposx[batchi, ..., agj, ::undersample]
                             y2s = agposy[batchi, ..., agj, ::undersample]
-                            distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
+                            if not periodic_boundary:
+                                distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
+                            else:
+                                p1 = np.array([[x1s[ii], y1s[ii]] for ii in range(len(x1s))])
+                                p2 = np.array([[x2s[ii], y2s[ii]] for ii in range(len(x2s))])
+                                dim = np.array([int(self.env["ENV_WIDTH"]), int(self.env["ENV_HEIGHT"])])
+                                dima = np.zeros_like(p1)
+                                dima[:, 0, ...] = dim[0]
+                                dima[:, 1, ...] = dim[1]
+                                distance_matrix = supcalc.distance_torus(p1, p2, dima)
                             if not avg_over_time:
                                 iid[batchi, ..., agi, agj, :] = distance_matrix
                             else:

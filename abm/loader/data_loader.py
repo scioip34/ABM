@@ -351,6 +351,8 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.clustering_data = None
+        self.clustering_ids = None
         self.zarr_extension = ".zarr"
         self.mean_iid = None
         self.mean_nn_dist = None
@@ -937,6 +939,213 @@ class ExperimentLoader:
             print("___END_README___\n")
         print("Experiment loaded")
 
+    def calculate_pairwise_pol_matrix_supervect(self, t, undersample=1, batchi=0):
+        """
+        Calculating NxN matrix of pairwise polarizations between agents in a given condition.
+        The condition idx is a tuple of the varying parameter indices.
+        t is the time index.
+        """
+        # Defining dimesnions in the orientation array
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+
+        # reshape the orientation array to have the first dimensions batch_dim and num_var_params
+        print("Loading Orientation data!")
+        ori_data = self.agent_summary["orientation"][batchi, ..., ::undersample]
+        ori_shape = ori_data.shape
+        num_timesteps = ori_shape[-1]
+        new_shape = ori_shape[0:agent_dim] + (num_agents, num_timesteps)
+        print(ori_shape, new_shape)
+        ori_reshaped = np.reshape(ori_data, new_shape)
+
+        # calculate pairwise polarizations
+        ag_uni = np.stack((np.cos(ori_reshaped), np.sin(ori_reshaped)), axis=-1)
+        ag_uni = ag_uni.reshape((-1, num_agents, num_timesteps, 2))
+        normed_sum = np.linalg.norm(ag_uni[:, :, None, :] + ag_uni[:, None, :, :], axis=-1) / 2
+        pol_matrix = normed_sum.reshape((new_shape[:-1] + (num_agents, num_agents, num_timesteps)))
+
+        # reshape pol_matrix back to the desired shape
+        pol_matrix = np.moveaxis(pol_matrix, -1, agent_dim)
+        return pol_matrix
+
+    def calculate_clustering(self):
+        """Using hierarhical clustering according to inter-individual distance and order scores to get number of
+        subgroups"""
+        # Checking if in the previous run a cluster_dict has already been saved and reloading it if exists
+        clustering_data_path = os.path.join(self.experiment_path, "summary", "clustering_data.npy")
+        clustering_id_path = os.path.join(self.experiment_path, "summary", "clustering_id.npy")
+        if self.iid_matrix is None:
+            self.calculate_interindividual_distance()
+
+        if os.path.isfile(clustering_data_path):
+            print("Cluster dict reloaded!")
+            # loading cluster data numpy array
+            self.clustering_data = np.load(clustering_data_path, mmap_mode="r+")
+            self.clustering_ids = np.load(clustering_id_path, mmap_mode="r+")
+            return
+
+        from fastcluster import linkage
+        from scipy.cluster.hierarchy import dendrogram
+        clustering_dict = {}
+        num_agents = int(self.env.get("N"))
+        # calculating the maximum distance on the torus as the half diameter of the arena
+        max_dist = (self.env.get("ENV_WIDTH") ** 2 + self.env.get("ENV_HEIGHT") ** 2) ** 0.5 / 2
+        # The shape will depend on the IID matrix which is costly.
+        # If we use undersample there, we also use undersample here
+        num_timesteps_orig = self.env.get("T")
+        num_timesteps = self.iid_matrix.shape[-1]
+        undersample = int(num_timesteps_orig // num_timesteps)
+        clustering_dict['num_subgroups'] = []
+        print(f"Num varying params: {len(self.varying_params)}")
+        num_varying_params = len(self.varying_params)
+        clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
+        clustering_ids = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_agents, num_timesteps]))
+        # calculating the number of parameter combinations along iidm.shape[:num_varying_params+1]
+        num_combinations = np.prod(self.iid_matrix.shape[:num_varying_params+1])
+        curr_param_comb = 0
+        print("Calculating polarizations first")
+        t_slice = slice(0, num_timesteps_orig, undersample)
+
+        niidm = self.iid_matrix / max_dist
+        niidm = (niidm - np.mean(niidm)) / np.std(niidm)
+
+        for batchi in range(self.agent_summary["orientation"].shape[0]):
+            print("Batchi: ", batchi)
+            if batchi < 5:
+                pass
+            else:
+                break
+            condition_idx = (batchi, slice(None), slice(None), slice(None))
+            pol_m_large = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, t_slice)
+            for idx_base_ in np.ndindex(*self.iid_matrix.shape[1:num_varying_params+1]):
+                print("Progress: ", curr_param_comb, "/", num_combinations)
+                idx_base = tuple([batchi] + list(idx_base_))
+                for t in range(num_timesteps):
+                    idx = tuple(list(idx_base) + [slice(None), slice(None), t])
+                    idx_ = tuple(list(idx_base_) + [slice(None), slice(None), t])
+                    normiidm = niidm[idx]  # self.iid_matrix[idx] / max_dist # / (np.max(self.iid_matrix[idx]) - np.min(self.iid_matrix[idx]))
+                    pm = pol_m_large[idx_]
+
+                    # standardizing pm and normiidm so that their mean is 0 and their std is 1
+                    pm = (pm - np.mean(pm)) / np.std(pm)
+                    # normiidm = (normiidm - np.mean(normiidm)) / np.std(normiidm)
+
+                    # calculating the distance matrix
+                    dist = (1 - pm.astype('float') + normiidm) / 2
+
+                    if idx_base == (0, 1, 5, 2) and 320 < t < 310:
+                        with_plotting = True
+                    else:
+                        with_plotting = False
+
+                    # clustering
+                    linkage_matrix = linkage(dist, "complete")
+                    ret = dendrogram(linkage_matrix, color_threshold=4.3, labels=[i for i in range(num_agents)],
+                                     show_leaf_counts=True, no_plot=not with_plotting)
+                    colors = [color for _, color in sorted(zip(ret['leaves'], ret['leaves_color_list']))]
+                    group_ids = np.array([int(a.split("C")[1]) for a in colors])
+                    for i, gid in enumerate(group_ids):
+                        # when gid is zero we make it the maximum element
+                        # because it means it is an independent leaf
+                        if gid == 0:
+                            group_ids[i] = np.max(group_ids) + 1
+
+                    group_ids -= 1
+                    clustering_data[tuple(list(idx_base) + [t])] = len(list(set(colors)))
+                    clustering_ids[tuple(list(idx_base) + [slice(None), t])] = group_ids
+                    if with_plotting:
+                        plt.show()
+                        input(group_ids)
+                curr_param_comb += 1
+
+        self.clustering_data = clustering_data
+        self.clustering_ids = clustering_ids
+        print(f"Saving clustering data...")
+        # save clustering_data as numpy array
+        np.save(clustering_data_path, clustering_data)
+        np.save(clustering_id_path, clustering_ids)
+
+        return clustering_dict
+
+
+    def plot_clustering(self):
+        """Method to plot clustering irrespectively of how many parameters have been tuned during the
+                experiments."""
+        cbar = None
+        self.calculate_clustering()
+        self.mean_clusters = np.mean(self.clustering_data, axis=0)
+        min_data = np.min(self.mean_clusters)
+        max_data = np.max(self.mean_clusters)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            # fig, ax = plt.subplots(1, 1)
+            # plt.title("Number of Subclusters")
+            # plt.plot(self.mean_clusters)
+            # for run_i in range(self.efficiency.shape[0]):
+            #     plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            # ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            # ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            # plt.xlabel(list(self.varying_params.keys())[0])
+            pass
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_clusters)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_clusters.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_clusters = np.zeros((self.mean_clusters.shape[0:3]))
+                print(self.new_mean_clusters.shape)
+                for j in range(self.mean_clusters.shape[0]):
+                    for i in range(self.mean_clusters.shape[1]):
+                        self.new_mean_clusters[j, i, :] = self.mean_clusters[j, i, :, i]
+                self.mean_clusters = self.new_mean_clusters
+            if self.collapse_plot is None:
+                num_plots = self.mean_clusters.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_clusters[i, :, :], vmin=min_data, vmax=max_data)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True)
+        return fig, ax, cbar
+
+
     def calculate_search_efficiency(self, t_start_plot=0, t_end_plot=-1, used_batches=None):
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
         with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
@@ -1327,15 +1536,92 @@ class ExperimentLoader:
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
         return fig, ax, cbar
 
+    def calculate_pairwise_pol_matrix_vectorized(self, condition_idx, t):
+        """t is also slice"""
+        # Defining dimesnions in the orientation array
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+
+        # Get the orientations of all agents at time t
+        agent_ori = self.agent_summary["orientation"][condition_idx + (slice(None), t)]
+        # print(agent_ori.shape)
+        # input()
+
+        # Calculate the univectors of all agent pairs
+        agent_uni = np.stack([np.cos(agent_ori), np.sin(agent_ori)], axis=-1)
+        # print(agent_uni.shape)
+        # input()
+        if isinstance(t, slice):
+            # print("t is slice")
+            agi_uni = np.expand_dims(agent_uni, axis=-3)
+            # print(agi_uni.shape)
+            agj_uni = np.expand_dims(agent_uni, axis=-4)
+            # print(agj_uni.shape)
+            # input()
+        else:
+            # print("t is not slice")
+            agi_uni = np.expand_dims(agent_uni, axis=-2)
+            # print(agi_uni.shape)
+            agj_uni = np.expand_dims(agent_uni, axis=-3)
+            # print(agj_uni.shape)
+            # input()
+
+        # Calculate the pairwise polarizations using matrix multiplication
+        pol_matrix = np.linalg.norm(agi_uni + agj_uni, axis=-1) / 2
+
+        # print(pol_matrix.shape)
+        # input()
+        # print(pol_matrix[..., 0])
+
+        return pol_matrix
+
+    def calculate_pairwise_pol_matrix(self, condition_idx, t):
+        """
+        Calculating NxN matrix of pairwise polarizations between agents in a given condition.
+        The condition idx is a tuple of the varying parameter indices.
+        t is the time index.
+        """
+        # Defining dimesnions in the orientation array
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+
+        # calculate pairwise polarizations
+        pol_matrix = np.zeros((num_agents, num_agents))
+        for i in range(num_agents):
+            for j in range(num_agents):
+                # getting orientation of 2 agents i and j
+                agi_ori = self.agent_summary["orientation"][condition_idx + (i, t)]
+                agj_ori = self.agent_summary["orientation"][condition_idx + (j, t)]
+
+                # calculating univectors with orientations of agent i and j
+                agi_uni = np.array([np.cos(agi_ori), np.sin(agi_ori)])
+                agj_uni = np.array([np.cos(agj_ori), np.sin(agj_ori)])
+
+                # calculating the absolute sum of the univectors normed by the number of agents
+                # contributing to the sum (=2, pairwise)
+                normed_sum = np.linalg.norm(agi_uni + agj_uni) / 2
+
+                pol_matrix[i, j] = normed_sum
+
+        return pol_matrix
+
     def calculate_polarization(self, undersample=1, filtered_by_wallcoll=0, filtering_window=50):
         """Calculating polarization of agents in the environment used to
         quantify e.g. flocking models"""
         summary_path = os.path.join(self.experiment_path, "summary")
         if filtered_by_wallcoll:
             self.find_wall_collisions()
-            polpath = os.path.join(summary_path, "polarization_wallcoll.npy")
+            polpath = os.path.join(summary_path, f"polarization_wallcoll.npy")
         else:
-            polpath = os.path.join(summary_path, "polarization.npy")
+            polpath = os.path.join(summary_path, f"polarization_us{undersample}.npy")
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
@@ -1344,17 +1630,18 @@ class ExperimentLoader:
 
         if os.path.isfile(polpath):
             print("Found saved polarization array in summary, reloading it...")
-            pol_matrix = np.load(polpath)
-            self.mean_pol = np.nanmean(pol_matrix, axis=batch_dim)
-            self.pol_std = np.nanstd(pol_matrix, axis=batch_dim)
+            self.pol_matrix = np.load(polpath)
+            self.mean_pol = np.nanmean(np.nanmean(self.pol_matrix, axis=batch_dim), axis=-1)
+            self.pol_std = np.nanmean(np.nanstd(self.pol_matrix, axis=batch_dim), axis=-1)
 
         else:
             num_agents = self.agent_summary["orientation"].shape[agent_dim]
-            num_timesteps = self.agent_summary["orientation"].shape[time_dim]
+            num_timesteps = self.agent_summary["orientation"].shape[time_dim]/undersample
             ori_shape = list(self.agent_summary["orientation"].shape)
-            pol_matrix = np.zeros(ori_shape[0:num_var_params+1])
+            new_shape = ori_shape[0:num_var_params+1] + [int(num_timesteps/undersample)]
 
-            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, num_timesteps]
+            self.pol_matrix = np.zeros(new_shape)
+            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, int(num_timesteps/undersample)]
 
             for runi in range(self.num_batches):
                 print(f"Calculating polarization for batch {runi}")
@@ -1383,25 +1670,25 @@ class ExperimentLoader:
                     if filtered_by_wallcoll:
                         ori = orif[..., robi, :]
                     else:
-                        ori = self.agent_summary["orientation"][runi, ..., robi, :]
+                        ori = self.agent_summary["orientation"][runi, ..., robi, ::undersample]
                     unitvecs[..., 0, robi, :] = np.array([np.cos(ang) for ang in ori])
                     unitvecs[..., 1, robi, :] = np.array([np.sin(ang) for ang in ori])
 
                 unitsum = np.nansum(unitvecs, axis=-2)  # summing for all robots
                 unitsum_norm = np.linalg.norm(unitsum, axis=-2) / num_agents  # getting norm in x and y
-                pol_matrix[runi, ...] = np.nanmean(unitsum_norm, axis=-1)
+                self.pol_matrix[runi, ...] = unitsum_norm  # np.nanmean(unitsum_norm, axis=-1)
 
             # for runi in range(self.num_batches):
             #     pol_matrix[runi, ...] = np.mean(np.array(
             #         [np.linalg.norm([unitsum[runi, 0, t], unitsum[runi, 1, t]]) / num_agents for t in
             #          range(num_timesteps)]), axis=-1)
 
-            self.mean_pol = np.nanmean(pol_matrix, axis=batch_dim)
-            self.pol_std = np.nanstd(pol_matrix, axis=batch_dim)
+            self.mean_pol = np.nanmean(np.nanmean(self.pol_matrix, axis=batch_dim), axis=-1)
+            self.pol_std = np.nanmean(np.nanstd(self.pol_matrix, axis=batch_dim), axis=-1)
             print("Saving calculated polarization time matrix!")
-            np.save(polpath, pol_matrix)
+            np.save(polpath, self.pol_matrix)
 
-        return pol_matrix, self.mean_pol
+        return self.pol_matrix, self.mean_pol
 
     def calculate_collision_time(self, undersample=1):
         summary_path = os.path.join(self.experiment_path, "summary")

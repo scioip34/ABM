@@ -23,7 +23,8 @@ setup(
         'influxdb<5.3.0',
         'opencv-python',
         'xvfbwrapper',
-        'zarr'
+        'zarr',
+        'fastcluster'
     ],
     extras_require={
         'test': [

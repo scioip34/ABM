@@ -1047,15 +1047,19 @@ class ExperimentLoader:
         print("Calculating polarizations first")
         t_slice = slice(0, num_timesteps_orig, undersample)
 
-        niidm = self.iid_matrix / max_dist
+        # calculating the normalized iid distance matrix with punishing large distances more
+        niidm = self.iid_matrix.copy()
+        niidm /= max_dist
         niidm = (niidm - np.mean(niidm)) / np.std(niidm)
+        # punishing large distances more
+        niidm = niidm ** 2
 
         for batchi in range(self.agent_summary["orientation"].shape[0]):
             print("Batchi: ", batchi)
-            if batchi < 5:
-                pass
-            else:
-                break
+            # if batchi < 5:
+            #     pass
+            # else:
+            #     break
             condition_idx = (batchi, slice(None), slice(None), slice(None))
             pol_m_large = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, t_slice)
             for idx_base_ in np.ndindex(*self.iid_matrix.shape[1:num_varying_params+1]):
@@ -1064,24 +1068,31 @@ class ExperimentLoader:
                 for t in range(num_timesteps):
                     idx = tuple(list(idx_base) + [slice(None), slice(None), t])
                     idx_ = tuple(list(idx_base_) + [slice(None), slice(None), t])
-                    normiidm = niidm[idx]  # self.iid_matrix[idx] / max_dist # / (np.max(self.iid_matrix[idx]) - np.min(self.iid_matrix[idx]))
-                    pm = pol_m_large[idx_]
 
+                    # getting the distance matrix for current condition and timestep
+                    normiidm = niidm[idx]
+
+                    # calculating the distance matrix for polarization
+                    pm = pol_m_large[idx_]
                     # standardizing pm and normiidm so that their mean is 0 and their std is 1
                     pm = (pm - np.mean(pm)) / np.std(pm)
-                    # normiidm = (normiidm - np.mean(normiidm)) / np.std(normiidm)
+                    dist_pm = 1 - pm.astype('float')
+                    # squaring distances to punish large distances more
+                    dist_pm = dist_pm ** 2
 
-                    # calculating the distance matrix
-                    dist = (1 - pm.astype('float') + normiidm) / 2
+                    # calculating the final distance matrix as a weighted average of the two
+                    dist = (dist_pm + normiidm) / 2
 
-                    if idx_base == (0, 1, 5, 2) and 320 < t < 310:
+                    if idx_base == (0, 1, 5, 2) and 326 < t < 310:
                         with_plotting = True
+                        print(dist_pm)
+                        print(normiidm)
                     else:
                         with_plotting = False
 
                     # clustering
-                    linkage_matrix = linkage(dist, "complete")
-                    ret = dendrogram(linkage_matrix, color_threshold=4.3, labels=[i for i in range(num_agents)],
+                    linkage_matrix = linkage(dist, "ward")
+                    ret = dendrogram(linkage_matrix, color_threshold=15, labels=[i for i in range(num_agents)],
                                      show_leaf_counts=True, no_plot=not with_plotting)
                     colors = [color for _, color in sorted(zip(ret['leaves'], ret['leaves_color_list']))]
                     group_ids = np.array([int(a.split("C")[1]) for a in colors])

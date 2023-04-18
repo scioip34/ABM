@@ -991,8 +991,10 @@ class ExperimentReplay:
                 for col in colors:
                     col[0:3] *= 255
             else:
-                # defining colors according to cluster id in the list clusters
+                # defining colors according to cluster id_s in the clusters array
                 colors = [np.array(cmap(cl / (np.max(clusters))))[0:-1] for cl in clusters]
+                # making the colors brighter
+                colors = [col * 0.5 + 0.5 for col in colors]
                 # rescaling color for pygame
                 for col in colors:
                     col[0:3] *= 255
@@ -1001,7 +1003,8 @@ class ExperimentReplay:
 
         num_agents = len(posx)
         for ai in range(num_agents):
-            self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], colors[ai], coll_resc[ai], radius)
+            cid = clusters[ai] if clusters is not None else None
+            self.draw_agent(ai, posx[ai], posy[ai], orientation[ai], colors[ai], coll_resc[ai], radius, cluster_id=cid)
             if self.show_vfield:
                 self.draw_vfield(ai, posx[ai], posy[ai], orientation[ai], radius)
 
@@ -1115,8 +1118,9 @@ class ExperimentReplay:
 
             self.screen.blit(image, (0, 0))
 
-    def draw_agent(self, id, posx, posy, orientation, agent_color, coll_resc, radius):
+    def draw_agent(self, id, posx, posy, orientation, agent_color, coll_resc, radius, cluster_id=None):
         """Drawing a single agent according to position and orientation"""
+        # todo: add magnify agent checkbox
         radius = int(radius)
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
@@ -1131,7 +1135,13 @@ class ExperimentReplay:
 
         if self.show_stats:
             font = pygame.font.Font(None, 16)
-            text = font.render(f"ID:{id}, R:{coll_resc:.2f}", True, colors.BLACK)
+            if self.env.get("APP_VERSION", "Base") == "Base":
+                text = font.render(f"ID:{id}, R:{coll_resc:.2f}", True, colors.BLACK)
+            elif self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+                if cluster_id is None:
+                    text = font.render(f"ID:{id}, ori:{orientation:.2f}", True, colors.BLACK)
+                else:
+                    text = font.render(f"ID:{id}, ori:{orientation:.2f}, cl:{cluster_id}", True, colors.BLACK)
             self.screen.blit(text, (posx - 10, posy - 10))
 
     def interact_with_event(self, event):

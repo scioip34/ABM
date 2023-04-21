@@ -1014,6 +1014,7 @@ class ExperimentLoader:
         subgroups"""
         # Checking if in the previous run a cluster_dict has already been saved and reloading it if exists
         clustering_data_path = os.path.join(self.experiment_path, "summary", "clustering_data.npy")
+        largest_clustering_data_path = os.path.join(self.experiment_path, "summary", "largest_clustering_data.npy")
         clustering_id_path = os.path.join(self.experiment_path, "summary", "clustering_id.npy")
         if self.iid_matrix is None:
             self.calculate_interindividual_distance()
@@ -1022,6 +1023,7 @@ class ExperimentLoader:
             print("Cluster dict reloaded!")
             # loading cluster data numpy array
             self.clustering_data = np.load(clustering_data_path, mmap_mode="r+")
+            self.largest_clustering_data = np.load(largest_clustering_data_path, mmap_mode="r+")
             self.clustering_ids = np.load(clustering_id_path, mmap_mode="r+")
             return
 
@@ -1040,6 +1042,7 @@ class ExperimentLoader:
         print(f"Num varying params: {len(self.varying_params)}")
         num_varying_params = len(self.varying_params)
         clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
+        largest_clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
         clustering_ids = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_agents, num_timesteps]))
         # calculating the number of parameter combinations along iidm.shape[:num_varying_params+1]
         num_combinations = np.prod(self.iid_matrix.shape[:num_varying_params+1])
@@ -1104,6 +1107,7 @@ class ExperimentLoader:
 
                     group_ids -= 1
                     clustering_data[tuple(list(idx_base) + [t])] = len(list(set(colors)))
+                    largest_clustering_data[tuple(list(idx_base) + [t])] = self.calculate_largest_subcluster_size(group_ids)
                     clustering_ids[tuple(list(idx_base) + [slice(None), t])] = group_ids
                     if with_plotting:
                         plt.show()
@@ -1111,13 +1115,95 @@ class ExperimentLoader:
                 curr_param_comb += 1
 
         self.clustering_data = clustering_data
+        self.largest_clustering_data = largest_clustering_data
         self.clustering_ids = clustering_ids
         print(f"Saving clustering data...")
         # save clustering_data as numpy array
         np.save(clustering_data_path, clustering_data)
+        np.save(largest_clustering_data_path, largest_clustering_data)
         np.save(clustering_id_path, clustering_ids)
 
         return clustering_dict
+
+    def calculate_largest_subcluster_size(self, cluster_id_list):
+        """Calculating the size (i.e. number of agents) of largest subcluster of the group"""
+        cluster_sizes = []
+        for cluster_id in set(cluster_id_list):
+            cluster_sizes.append(np.sum(cluster_id_list == cluster_id))
+        return np.max(cluster_sizes)
+
+    def plot_largest_subclusters(self):
+        """Method to plot size of largest subclusters irrespectively of how many parameters have been tuned during the
+                experiments."""
+        cbar = None
+        self.calculate_clustering()
+        self.mean_largest_clusters = np.mean(self.largest_clustering_data, axis=0)
+        min_data = np.min(self.mean_largest_clusters)
+        max_data = np.max(self.mean_largest_clusters)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            # fig, ax = plt.subplots(1, 1)
+            # plt.title("Number of Subclusters")
+            # plt.plot(self.mean_clusters)
+            # for run_i in range(self.efficiency.shape[0]):
+            #     plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            # ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            # ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            # plt.xlabel(list(self.varying_params.keys())[0])
+            pass
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_largest_clusters)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_largest_clusters.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_largest_clusters = np.zeros((self.mean_largest_clusters.shape[0:3]))
+                print(self.new_mean_largest_clusters.shape)
+                for j in range(self.mean_largest_clusters.shape[0]):
+                    for i in range(self.mean_largest_clusters.shape[1]):
+                        self.new_mean_largest_clusters[j, i, :] = self.mean_largest_clusters[j, i, :, i]
+                self.mean_largest_clusters = self.new_mean_largest_clusters
+            if self.collapse_plot is None:
+                num_plots = self.mean_largest_clusters.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_largest_clusters[i, :, :], vmin=min_data, vmax=max_data)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True)
+        return fig, ax, cbar
 
 
     def plot_clustering(self):

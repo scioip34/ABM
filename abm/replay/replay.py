@@ -16,6 +16,8 @@ import os
 from abm.contrib import playgroundtool as pgt
 import shutil
 import cv2
+import matplotlib as mpl
+mpl.use('TkAgg')
 from matplotlib import cm as colmaps
 
 
@@ -370,6 +372,42 @@ class ExperimentReplay:
                     'MIN-0',
                     'MIN-1'], direction='down', textHAlign='centre'
             )
+
+            # Clustering buttons for VSWRM version
+            if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+                button_start_y += self.button_height
+                self.plot_clus_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.slider_start_x,  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Plot No. Clusters ',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_clustering(),  # Function to call when clicked on
+                    borderThickness=1
+                )
+                self.plot_largest_clus_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.button_start_x_2,  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Plot largest clus.',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_largest_subclusters(),  # Function to call when clicked on
+                    borderThickness=1
+                )
 
         # Plotting Details Button Line
         button_start_y += self.button_height

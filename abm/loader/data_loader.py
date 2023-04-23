@@ -13,6 +13,8 @@ from abm.agent.agent import Agent, supcalc
 from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')
 from matplotlib import pyplot as plt
 import zarr
 

@@ -1,6 +1,4 @@
 from abm.replay.replay import ExperimentReplay
-import numpy as np
-import matplotlib.pyplot as plt
 
 loaded_experiment = ExperimentReplay("/home/david/Desktop/database/figExp0NoColl/figExp0N25NoColl")
 loaded_experiment.start()

@@ -3,8 +3,9 @@
 
 cff-version: 1.2.0
 title: >-
-  A novel vision-based mechanistic model to study
-  social information use in collective foraging
+  P34ABM: A novel vision-based mechanistic model wrapped in
+  a pygame-based simulation framework to study social
+  information use in collective foraging
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -17,3 +18,11 @@ authors:
     affiliation: >-
       Humboldt Universität zu Berlin, Science of
       Intelligence Excellence Cluster Berlin
+repository-code: 'https://github.com/scioip34/ABM'
+keywords:
+  - agent-based-modeling
+  - ABM
+  - collective
+  - foraging
+  - visual
+  - social-information

@@ -42,7 +42,8 @@ class DataLoader:
     parameters
     """
 
-    def __init__(self, data_folder_path, only_env=False, only_agent=False, undersample=1, t_start=0, t_end=5000):
+    def __init__(self, data_folder_path, only_env=False, only_agent=False, undersample=1, t_start=0, t_end=5000,
+                 project_version="Base"):
         """
         Initalization method of main DataLoader class
 
@@ -56,6 +57,7 @@ class DataLoader:
         :param undersample: factor of data undersampling during summary
         :param t_start: start time of summary (slice start)
         :param t_end: end time of summary (slice end)
+        :param project_version: project specific version such as Base or CooperativeSignaling
         """
         # Initializing DataLoader paths according to convention
         self.undersample = undersample
@@ -65,6 +67,7 @@ class DataLoader:
         self.t_start = t_start
         self.t_end = t_end
         self.patch_id_dict = None
+        self.project_version = project_version
 
         self.zarr_compressed_runs = False
         self.zarr_extension = None
@@ -222,16 +225,24 @@ class DataLoader:
                     self.agent_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"ag_posy{self.zarr_extension}"), mode='r')
                     self.agent_data['orientation'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ori{self.zarr_extension}"),
                                                                mode='r')
+                    self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, f"ag_mode{self.zarr_extension}"), mode='r')
                     self.agent_data['velocity'] = zarr.open(os.path.join(self.data_folder_path, f"ag_vel{self.zarr_extension}"),
                                                             mode='r')
-                    self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, f"ag_w{self.zarr_extension}"), mode='r')
-                    self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, f"ag_u{self.zarr_extension}"), mode='r')
-                    self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ipriv{self.zarr_extension}"), mode='r')
-                    self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, f"ag_mode{self.zarr_extension}"), mode='r')
-                    self.agent_data['collresource'] = zarr.open(os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
-                                                                mode='r')
-                    self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
-                                                                 mode='r')
+                    if self.project_version=="Base":
+                        self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, f"ag_w{self.zarr_extension}"), mode='r')
+                        self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, f"ag_u{self.zarr_extension}"), mode='r')
+                        self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ipriv{self.zarr_extension}"), mode='r')
+                        self.agent_data['collresource'] = zarr.open(os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
+                                                                    mode='r')
+                        self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
+                                                                     mode='r')
+                    else:
+                        self.agent_data['meter'] = zarr.open(os.path.join(self.data_folder_path, f"ag_meter{self.zarr_extension}"), mode='r')
+                        self.agent_data['signalling'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_sig{self.zarr_extension}"), mode='r')
+                        self.agent_data['collresource'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
+                            mode='r')
                 else:
                     raise Exception("No json, csv or zarr archive found for agent data!")
             print("agent_data loaded")
@@ -251,13 +262,16 @@ class DataLoader:
                                                                mode='r')
                         self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
                                                                mode='r')
-                        self.resource_data['resc_left'] = zarr.open(
-                            os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
+                        self.resource_data['radius'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
                             mode='r')
-                        self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
-                                                                  mode='r')
-                        self.resource_data['radius'] = zarr.open(os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
-                                                                 mode='r')
+                        if self.project_version=="Base":
+                            self.resource_data['resc_left'] = zarr.open(
+                                os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
+                                mode='r')
+                            self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
+                                                                      mode='r')
+
 
                 print("resource data loaded")
                 print(sys.getsizeof(self.agent_data))
@@ -347,6 +361,7 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.project_version = None
         self.zarr_extension = ".zarr"
         self.mean_iid = None
         self.iid_matrix = None
@@ -399,7 +414,7 @@ class ExperimentLoader:
             # check parameter variability
             self.get_changing_variables()
             # load and summarize data run by run
-            self.read_all_data()
+            self.read_all_data(project_version=self.project_version)
 
         # reloading previously saved numpy arrays
         self.reload_summarized_data()
@@ -426,7 +441,7 @@ class ExperimentLoader:
                 self.collapse_method = np.min
             self.collapse_fixedvar_ind = int(self.collapse_plot.split('-')[1])
 
-    def read_all_data(self, only_res=False):
+    def read_all_data(self, only_res=False, project_version="Base"):
         """reading all data in the experiment folder and saving them as zarr summary archives"""
         max_r_in_runs = None
         if not only_res:
@@ -443,7 +458,8 @@ class ExperimentLoader:
                 for j, run in enumerate(run_folders):
                     print(f"Reading agent data batch {i}, run {j}, {run}")
                     agent_data, _, env_data = DataLoader(run, undersample=self.undersample, only_agent=True,
-                                                         t_start=self.t_start, t_end=self.t_end).get_loaded_data()
+                                                         t_start=self.t_start, t_end=self.t_end,
+                                                         project_version=self.project_version).get_loaded_data()
                     del _
 
                     # finding out max depleted patches for next loop when we summarize
@@ -487,10 +503,6 @@ class ExperimentLoader:
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                         # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"), mode='w',
-                                              shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
                         ori_array = zarr.open(os.path.join(summary_path, f"agent_ori{self.zarr_extension}"), mode='w',
                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
@@ -499,26 +511,44 @@ class ExperimentLoader:
                                               shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                               chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                         # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        w_array = zarr.open(os.path.join(summary_path, f"agent_w{self.zarr_extension}"), mode='w',
-                                            shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                            chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        u_array = zarr.open(os.path.join(summary_path, f"agent_u{self.zarr_extension}"), mode='w',
-                                            shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                            chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        Ip_array = zarr.open(os.path.join(summary_path, f"agent_Ip{self.zarr_extension}"), mode='w',
-                                             shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
                         mode_array = zarr.open(os.path.join(summary_path, f"agent_mode{self.zarr_extension}"), mode='w',
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                        expl_patch_array = zarr.open(os.path.join(summary_path, f"agent_explpatch{self.zarr_extension}"), mode='w',
-                                                     shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                                     chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                        if project_version=="Base":
+                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                            rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"), mode='w',
+                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                            w_array = zarr.open(os.path.join(summary_path, f"agent_w{self.zarr_extension}"), mode='w',
+                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                            u_array = zarr.open(os.path.join(summary_path, f"agent_u{self.zarr_extension}"), mode='w',
+                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                            Ip_array = zarr.open(os.path.join(summary_path, f"agent_Ip{self.zarr_extension}"), mode='w',
+                                                 shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                 chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
+                            expl_patch_array = zarr.open(os.path.join(summary_path, f"agent_explpatch{self.zarr_extension}"), mode='w',
+                                                         shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                         chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                        elif project_version=="CooperativeSignaling":
+                            meter_array = zarr.open(os.path.join(summary_path, f"agent_meter{self.zarr_extension}"),
+                                                  mode='w',
+                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            sig_array = zarr.open(os.path.join(summary_path, f"agent_sig{self.zarr_extension}"),
+                                                    mode='w',
+                                                    shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                    chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"),
+                                                  mode='w',
+                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
                              sorted(list(self.varying_params.keys()))]
@@ -528,27 +558,37 @@ class ExperimentLoader:
                             ind = (i,) + tuple(index) + (ai,)
                             posx_array[ind] = agent_data[f'posx_agent-{pad_to_n_digits(ai, n=2)}']
                             posy_array[ind] = agent_data[f'posy_agent-{pad_to_n_digits(ai, n=2)}']
-                            rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
                             ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
                             vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
-                            w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
-                            u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
-                            Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
                             mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
-                            expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+                            if project_version == "Base":
+                                rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
+                                w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
+                                u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
+                                Ip_array[ind] = agent_data[f'Ipriv_agent-{pad_to_n_digits(ai, n=2)}']
+                                expl_patch_array[ind] = agent_data[f'expl_patch_id_agent-{pad_to_n_digits(ai, n=2)}']
+                            elif project_version == "CooperativeSignaling":
+                                meter_array[ind] = agent_data[f'meter_agent-{pad_to_n_digits(ai, n=2)}']
+                                sig_array[ind] = agent_data[f'sig_agent-{pad_to_n_digits(ai, n=2)}']
+                                rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
                     else:
                         ind = (i,) + tuple(index)
                         posx_array[ind] = agent_data['posx'][..., self.t_start:self.t_end:self.undersample]
                         posy_array[ind] = agent_data['posy'][..., self.t_start:self.t_end:self.undersample]
-                        rew_array[ind] = agent_data['collresource'][..., self.t_start:self.t_end:self.undersample]
                         ori_array[ind] = agent_data['orientation'][..., self.t_start:self.t_end:self.undersample]
-                        vel_array[ind] = agent_data['velocity'][..., self.t_start:self.t_end:self.undersample]
-                        w_array[ind] = agent_data['w'][..., self.t_start:self.t_end:self.undersample]
-                        u_array[ind] = agent_data['u'][..., self.t_start:self.t_end:self.undersample]
-                        Ip_array[ind] = agent_data['Ipriv'][..., self.t_start:self.t_end:self.undersample]
                         mode_array[ind] = agent_data['mode'][..., self.t_start:self.t_end:self.undersample]
-                        expl_patch_array[ind] = agent_data['expl_patch_id'][...,
-                                                self.t_start:self.t_end:self.undersample]
+                        vel_array[ind] = agent_data['velocity'][..., self.t_start:self.t_end:self.undersample]
+                        if project_version == "Base":
+                            w_array[ind] = agent_data['w'][..., self.t_start:self.t_end:self.undersample]
+                            u_array[ind] = agent_data['u'][..., self.t_start:self.t_end:self.undersample]
+                            Ip_array[ind] = agent_data['Ipriv'][..., self.t_start:self.t_end:self.undersample]
+                            rew_array[ind] = agent_data['collresource'][..., self.t_start:self.t_end:self.undersample]
+                            expl_patch_array[ind] = agent_data['expl_patch_id'][...,
+                                                    self.t_start:self.t_end:self.undersample]
+                        elif project_version == "CooperativeSignaling":
+                            meter_array[ind] = agent_data['meter'][..., self.t_start:self.t_end:self.undersample]
+                            sig_array[ind] = agent_data['signalling'][..., self.t_start:self.t_end:self.undersample]
+                            rew_array[ind] = agent_data['collresource'][..., self.t_start:self.t_end:self.undersample]
 
                     del agent_data
 
@@ -569,8 +609,11 @@ class ExperimentLoader:
             #          mode=mode_array,
             #          explpatch=expl_patch_array)
 
-            del posx_array, posy_array, rew_array, ori_array, vel_array, \
-                w_array, u_array, Ip_array, mode_array, expl_patch_array
+            del posx_array, posy_array, ori_array, vel_array, mode_array
+            if project_version == "Base":
+                del rew_array, w_array, u_array, Ip_array, expl_patch_array
+            elif project_version=="CooperativeSignaling":
+                del meter_array, sig_array, rew_array
 
             # Saving max patch number for further calc
             env_data['SUMMARY_MAX_PATCHES'] = int(max_r_in_runs)
@@ -629,7 +672,8 @@ class ExperimentLoader:
                 print(f"Reading resource data batch {i}, run {j}")
                 _, res_data, env_data, patch_id_dict = DataLoader(run, undersample=self.undersample,
                                                                   t_start=self.t_start,
-                                                                  t_end=self.t_end).get_loaded_res_data_json()
+                                                                  t_end=self.t_end,
+                                                                  project_version=self.project_version).get_loaded_res_data_json()
 
                 if i == 0 and j == 0:
                     print("\nInitializing resource data structures")
@@ -644,15 +688,16 @@ class ExperimentLoader:
                     r_posy_array = zarr.open(os.path.join(summary_path, f"res_posy{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                    # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_qual_array = zarr.open(os.path.join(summary_path, f"res_qual{self.zarr_extension}"), mode='w',
-                                             shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
-                                             chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                    # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                    r_rescleft_array = zarr.open(os.path.join(summary_path, f"res_rescleft{self.zarr_extension}"), mode='w',
+                    if project_version=="Base":
+                        # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                        r_qual_array = zarr.open(os.path.join(summary_path, f"res_qual{self.zarr_extension}"), mode='w',
                                                  shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                    # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                        # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
+                        r_rescleft_array = zarr.open(os.path.join(summary_path, f"res_rescleft{self.zarr_extension}"), mode='w',
+                                                     shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
+                                                     chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                        # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
 
                 index = [self.varying_params[k].index(float(env_data[k])) for k in
                          sorted(list(self.varying_params.keys()))]
@@ -731,17 +776,18 @@ class ExperimentLoader:
                         data[data < 0] = 0
                         r_posy_array[ind] += data
 
-                        data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = np.array([float(d) if d != "" else 0.0 for d in data])
-                        data[data < 0] = 0
-                        r_qual_array[ind] += data
+                        if project_version=="Base":
+                            data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
+                            # clean empty strings
+                            data = np.array([float(d) if d != "" else 0.0 for d in data])
+                            data[data < 0] = 0
+                            r_qual_array[ind] += data
 
-                        data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
-                        # clean empty strings
-                        data = np.array([float(d) if d != "" else 0.0 for d in data])
-                        data[data < 0] = 0
-                        r_rescleft_array[ind] += data
+                            data = res_data[f'resc_left_res-{pad_to_n_digits(ri + 1, n=3)}']
+                            # clean empty strings
+                            data = np.array([float(d) if d != "" else 0.0 for d in data])
+                            data[data < 0] = 0
+                            r_rescleft_array[ind] += data
 
                 else:
                     num_res_in_run = res_data['posx'].shape[0]
@@ -749,8 +795,9 @@ class ExperimentLoader:
                         ind = (i,) + tuple(index) + (pid,)
                         r_posx_array[ind] = res_data['posx'][pid, self.t_start:self.t_end:self.undersample]
                         r_posy_array[ind] = res_data['posy'][pid, self.t_start:self.t_end:self.undersample]
-                        r_qual_array[ind] = res_data['quality'][pid, self.t_start:self.t_end:self.undersample]
-                        r_rescleft_array[ind] = res_data['resc_left'][pid, self.t_start:self.t_end:self.undersample]
+                        if project_version=="Base":
+                            r_qual_array[ind] = res_data['quality'][pid, self.t_start:self.t_end:self.undersample]
+                            r_rescleft_array[ind] = res_data['resc_left'][pid, self.t_start:self.t_end:self.undersample]
 
         # print("Saving resource summary...")
         # legacy npz saving is not used anymore due to memory issues and data handling
@@ -760,7 +807,9 @@ class ExperimentLoader:
         #          quality=r_qual_array,
         #          resc_left=r_rescleft_array)
 
-        del r_posx_array, r_posy_array, r_qual_array, r_rescleft_array
+        del r_posx_array, r_posy_array
+        if project_version == "Base":
+            del r_qual_array, r_rescleft_array
 
         raw_description_path = os.path.join(self.experiment_path, "README.txt")
         sum_description_path = os.path.join(summary_path, "README.txt")
@@ -782,6 +831,9 @@ class ExperimentLoader:
 
             for j, run in enumerate(run_folders):
                 _, _, env_data = DataLoader(run, only_env=True).get_loaded_data()
+                if self.project_version is None:
+                    self.project_version = env_data.get("APP_VERSION", "Base")
+                    print(f"Found Project Version: {self.project_version}")
                 all_env[i][j] = env_data
 
         base_keys = list(all_env[0][0].keys())
@@ -813,100 +865,85 @@ class ExperimentLoader:
     def reload_summarized_data(self):
         """Loading an already summarized experiment to spare time and resources"""
         print("Reloading previous experiment summary!")
+        with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
+            self.env = json.loads(fixf.read())
+        self.project_version = self.env.get("APP_VERSION", "Base")
         if os.path.isfile(os.path.join(self.experiment_path, "summary", "agent_summary.npz")):
             # found npz summary for agent data
             self.agent_summary = np.load(os.path.join(self.experiment_path, "summary", "agent_summary.npz"))
         else:
             # no npz summary available for agent data
             if os.path.isdir(os.path.join(self.experiment_path, "summary", "agent_posx.zarr")):
-                # found zarr summary for agent data
-                self.agent_summary = {}
-                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zarr"),
-                                                       mode='r')
-                self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_u.zarr"),
-                                                       mode='r')
-                self.chunksize = int(self.agent_summary['posx'].shape[-1])
-                self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zarr"),
-                                                       mode='r')
-                self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_w.zarr"),
-                                                    mode='r')
-                self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_explpatch.zarr"),
-                                                    mode='r')
-                self.agent_summary['orientation'] = zarr.open(
-                    os.path.join(self.experiment_path, "summary", "agent_ori.zarr"),
-                    mode='r')  # self.experiment.agent_summary['orientation']
-                self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_mode.zarr"),
-                                                       mode='r')  # self.experiment.agent_summary['mode']
-                self.agent_summary['collresource'] = zarr.open(
-                    os.path.join(self.experiment_path, "summary", "agent_rew.zarr"),
-                    mode='r')  # self.experiment.agent_summary['collresource']
-                self.num_batches = self.agent_summary['posx'].shape[0]
+                extension = ".zarr"
             elif os.path.isfile(os.path.join(self.experiment_path, "summary", "agent_posx.zip")):
-                # found zarr summary for agent data
-                self.agent_summary = {}
-                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posx.zip"),
-                                                       mode='r')
-                self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_u.zip"),
-                                                       mode='r')
-                self.chunksize = int(self.agent_summary['posx'].shape[-1])
-                self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_posy.zip"),
-                                                       mode='r')
-                self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_w.zip"),
-                                                       mode='r')
-                self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_explpatch.zip"),
-                                                    mode='r')
-                self.agent_summary['orientation'] = zarr.open(
-                    os.path.join(self.experiment_path, "summary", "agent_ori.zip"),
-                    mode='r')  # self.experiment.agent_summary['orientation']
-                self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", "agent_mode.zip"),
-                                                       mode='r')  # self.experiment.agent_summary['mode']
-                self.agent_summary['collresource'] = zarr.open(
-                    os.path.join(self.experiment_path, "summary", "agent_rew.zip"),
-                    mode='r')  # self.experiment.agent_summary['collresource']
-                self.num_batches = self.agent_summary['posx'].shape[0]
+                extension = ".zip"
             else:
                 print("No npz or zarr format summary has been found for agent data!")
                 self.agent_summary = None
+                extension = None
+
+            if extension is not None:
+                # found zarr summary for agent data
+                self.agent_summary = {}
+                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_posx{extension}"),
+                                                       mode='r')
+                self.chunksize = int(self.agent_summary['posx'].shape[-1])
+                self.num_batches = self.agent_summary['posx'].shape[0]
+                self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_posy{extension}"),
+                                                       mode='r')
+                self.agent_summary['orientation'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", f"agent_ori{extension}"),
+                    mode='r')  # self.experiment.agent_summary['orientation']
+                self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_mode{extension}"),
+                                                       mode='r')  # self.experiment.agent_summary['mode']
+                if self.project_version=="Base":
+                    self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
+                                                           mode='r')
+                    self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
+                                                        mode='r')
+                    self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_explpatch{extension}"),
+                                                        mode='r')
+                    self.agent_summary['collresource'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", f"agent_rew{extension}"),
+                        mode='r')
+                elif self.project_version=="CooperativeSignaling":
+                    self.agent_summary['meter'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_meter{extension}"),
+                                                           mode='r')
+                    self.agent_summary['signalling'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", f"agent_sig{extension}"),
+                        mode='r')
+                    self.agent_summary['collresource'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", f"agent_rew{extension}"),
+                        mode='r')
         if not os.path.isfile(os.path.join(self.experiment_path, "summary", "resource_summary.npz")):
             # no npz summary found for resources
             if os.path.isdir(os.path.join(self.experiment_path, "summary", "res_posx.zarr")):
+                extension = ".zarr"
+            elif os.path.isfile(os.path.join(self.experiment_path, "summary", "res_posx.zip")):
+                extension = ".zip"
+            else:
+                print(
+                    "Previous summary folder has been found but does not contain resource data. Summarizing resource data!")
+                self.read_all_data(only_res=True)
+                extension = None
+            if extension is not None:
                 # we found zarr format summary for resources
                 self.res_summary = {}
                 self.res_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posx.zarr"),
                                                      mode='r')
                 self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zarr"),
                                                      mode='r')
-                self.res_summary['resc_left'] = zarr.open(
-                    os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
-                    mode='r')
-                self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
-                                                        mode='r')
-            elif os.path.isfile(os.path.join(self.experiment_path, "summary", "res_posx.zip")):
-                # we found zarr format summary for resources
-                self.res_summary = {}
-                self.res_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posx.zip"),
-                                                     mode='r')
-                self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zip"),
-                                                     mode='r')
-                self.res_summary['resc_left'] = zarr.open(
-                    os.path.join(self.experiment_path, "summary", "res_rescleft.zip"),
-                    mode='r')
-                self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zip"),
-                                                        mode='r')
-
-            else:
-                print(
-                    "Previous summary folder has been found but does not contain resource data. Summarizing resource data!")
-                self.read_all_data(only_res=True)
-
+                if self.project_version=="Base":
+                    self.res_summary['resc_left'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
+                        mode='r')
+                    self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
+                                                            mode='r')
 
         else:
             # found npz summary for resources
             self.res_summary = np.load(os.path.join(self.experiment_path, "summary", "resource_summary.npz"),
                                        mmap_mode="r+")
-
-        with open(os.path.join(self.experiment_path, "summary", "fixed_env.json"), "r") as fixf:
-            self.env = json.loads(fixf.read())
 
         print("Overwriting undersample ratio with the one read from env file...")
         self.t_start = self.env.get('SUMMARY_TSTART')

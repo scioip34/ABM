@@ -10,21 +10,22 @@ if EXP_NAME == "":
     raise Exception("No experiment name has been passed")
 
 description_text = f"""
-Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations.
-The filename shall not include underscore characters when running on HPC. This description will be included
-as a txt file in the generated experiment data folder.
-
 Title:      Experiment : {EXP_NAME}
-Date:       DD.MM.YYYY
+Date:       03.02.2023
 Parameters: 
-        Testing new subversion of software stack with collective signalling on computainbg cluster   
+        Generating dataset to replicate the upcoming human study.
+        - resource speed (RES_VEL): hard (equal to the agent speed) and easy (equal to the agent speed/2)
+        - signaling condition (SIGNALLING_PROB): 0 (no signaling), 0.5 (to mimic the free choice condition) and 
+          1 (all agents signaling)
+        - number of agents (N): 1 (individual condition) and 5 (group condition)
+        - the number of time steps in the experiment (T): 1800 = 15 (minutes) * 60 (seconds) * 2 (sample frequency)
                 
 Project Maintainers (CoopSignalling): mezdahun & vagechrikov  
 """
 
 # Defining fixed criteria for all automized simulations/experiments
-arena_w = 600
-arena_h = 600
+arena_w = 1200  # 1m=3px, 1sec=2ts
+arena_h = 1200
 fixed_criteria = [
     Constant("ENV_WIDTH", arena_w),
     Constant("ENV_HEIGHT", arena_h),
@@ -41,15 +42,11 @@ fixed_criteria = [
     Constant("POOLING_TIME", 0),
     Constant("VISUAL_FIELD_RESOLUTION", 1200),
     Constant("AGENT_CONSUMPTION", 1),
-    Constant("RADIUS_AGENT", 10),
     Constant("MAX_RESOURCE_QUALITY", -1),  # so that the minimum value will be used as definite
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
-    Constant("MOV_EXP_VEL_MIN", 3),
-    Constant("MOV_EXP_VEL_MAX", 3),
-    Constant("MOV_REL_DES_VEL", 3),
-    Constant("MOV_EXP_TH_MIN", -0.5),
-    Constant("MOV_EXP_TH_MAX", 0.5),
-    Constant("MOV_REL_TH_MAX", 1.8),
+    Constant("MOV_EXP_VEL_MIN", 1),
+    Constant("MOV_EXP_VEL_MAX", 1),
+    Constant("MOV_REL_DES_VEL", 1),
     Constant("CONS_STOP_RATIO", 0.175),
     Constant("REGENERATE_PATCHES", 1),
     Constant("DEC_FN", 0.5),
@@ -80,25 +77,40 @@ fixed_criteria = [
 
 # Defining decision param
 arena_size = arena_w * arena_h
+agent_vel = 10  # px/ts, 1sec=2ts
+agent_radius = 8  # shall be 3 but won't make a qualitative difference
+# 10% of the arena similar to 40 resource radius, which is 10% of the arena diameter of 400 meters
+detection_range = arena_w * 0.1
+signaling_probs = [0, 0.5, 1]
+resource_vels = [i*agent_vel for i in [0.4, 0.8]]
 criteria_exp = [
     Constant("APP_VERSION", "CooperativeSignaling"),  # Enabling project specific run in headless mode
-    Constant("PHOTOTAX_THETA_FAC", 0.2),
-    Constant("METER_TO_RES_MULTI", 1),
-    Constant("SIGNALLING_COST", 0.2),
-    Constant("SIGNALLING_PROB", 0.5),
-    Constant("SIGNAL_PROB_UPDATE_FREQ", 10),
-    Constant("RES_THETA", 0.2),
-    Constant("AGENT_FOV", 1),  # unlimited FOV
-    Constant("PHOTOTAX_THETA_FAC", 0.2),
-    Constant("METER_TO_RES_MULTI", 1),
-    Constant("SIGNALLING_COST", 0.2),
-    Constant("RES_THETA", 0.2),
+    Constant("N", 5),
+    Constant("RADIUS_AGENT", agent_radius),
+    Constant("MAX_SPEED", agent_vel),
+    # Turning off crowding
     Constant("MAX_PROJ_SIZE_PERCENTAGE", 0.05),
-    Constant("CROWD_DENSITY_THRESHOLD", 0.2),
-    Constant("T", 500),
-    Constant("N", 5),  # Can not be tuned, must be fixed for Replay tool
-    Tunable("RES_VEL", values_override=[1, 1.25]), #, 1.5, 2, 3]),
-    Tunable("DETECTION_RANGE", values_override=[50, 75]) #, 100, 125])
+    Constant("CROWD_DENSITY_THRESHOLD", 1),
+    # Taxis
+    Constant("PHOTOTAX_THETA_FAC", 0.42),
+    # Signaling
+    Constant("SIGNALLING_COST", 0),
+    Tunable("SIGNALLING_PROB", values_override=signaling_probs),
+    Constant("SIGNAL_PROB_UPDATE_FREQ", 10),
+    # Movement
+    Constant("MOV_EXP_TH_MIN", -0.21),
+    Constant("MOV_EXP_TH_MAX", 0.21),
+    Constant("MOV_REL_TH_MAX", 0.21),
+    # Memory
+    Constant("MEMORY_DEPTH", 1),
+    # Vision
+    Constant("AGENT_FOV", 0.25),
+    # Resource
+    Constant("RES_THETA", 0.2),
+    Tunable("RES_VEL", values_override=resource_vels),
+    Constant("METER_TO_RES_MULTI", 1),
+    Constant("DETECTION_RANGE", detection_range),
+    Constant("T", 2000),
 ]
 
 # Creating metaprotocol and add defined criteria

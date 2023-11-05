@@ -727,7 +727,6 @@ class ExperimentReplay:
     def draw_frame(self, events):
         """Drawing environment, agents and every other visualization in each timestep"""
         self.screen.fill(colors.BACKGROUND)
-
         self.draw_separator()
         pygame_widgets.update(events)
         self.framerate = self.framerate_slider.getValue()
@@ -872,10 +871,21 @@ class ExperimentReplay:
                                       self.posy[:, max(0, t_ind - self.path_length):t_ind],
                                       radius,
                                       modes=self.agmodes[:, max(0, t_ind - self.path_length):t_ind])
+        if self.experiment.clustering_data is not None:
+            t_ind_cl = int(t_ind / 25)
+            clusters_idx = tuple(list(self.index) + [slice(None), t_ind_cl])
+            clusters = self.experiment.clustering_ids[clusters_idx]
+            print(clusters)
+        else:
+            clusters = None
+
+
         if self.project_version=="Base":
             self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
         elif self.project_version == "CooperativeSignaling":
             self.draw_agents(posx, posy, orientation, mode, [0 for i in range(len(posx))], radius)
+        elif self.project_version == "VisualFlocking":
+            self.draw_agents(posx, posy, orientation, mode, coll_resc, radius, clusters=clusters)
 
         num_agents = len(posx)
         if self.show_stats:
@@ -971,14 +981,21 @@ class ExperimentReplay:
             tbsize = text.get_size()
             self.screen.blit(text, (int(posx + radius - tbsize[0] / 2), int(posy + radius - tbsize[1] / 2)))
 
-    def draw_agents(self, posx, posy, orientation, mode, coll_resc, radius):
+    def draw_agents(self, posx, posy, orientation, mode, coll_resc, radius, clusters=None):
         """Drawing agents in arena according to data"""
         if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
             cmap = colmaps.get_cmap('jet')
-            colors = [np.array(cmap(ori / (2 * np.pi)))[0:-1] for ori in orientation]
-            # rescaling color for pygame
-            for col in colors:
-                col[0:3] *= 255
+            if clusters is None:
+                colors = [np.array(cmap(ori / (2 * np.pi)))[0:-1] for ori in orientation]
+                # rescaling color for pygame
+                for col in colors:
+                    col[0:3] *= 255
+            else:
+                # defining colors according to cluster id in the list clusters
+                colors = [np.array(cmap(cl / (np.max(clusters))))[0:-1] for cl in clusters]
+                # rescaling color for pygame
+                for col in colors:
+                    col[0:3] *= 255
         else:
             colors = [self.mode_to_color(m) for m in mode]
 

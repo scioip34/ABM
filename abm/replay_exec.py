@@ -16,10 +16,10 @@ if folder_path == "":
     print("No folder selected, exiting...")
     exit()
 
-try:
-    loaded_experiment = ExperimentReplay(folder_path)
-    loaded_experiment.start()
-except Exception as e:
-    print("Error during experiment loading:", e)
-    print("Please check if the folder contains all necessary files to be considered as an experiment.")
-    exit()
+# try:
+loaded_experiment = ExperimentReplay(folder_path)
+loaded_experiment.start()
+# except Exception as e:
+#     print("Error during experiment loading:", e)
+#     print("Please check if the folder contains all necessary files to be considered as an experiment.")
+#     exit()

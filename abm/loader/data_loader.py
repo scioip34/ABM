@@ -907,10 +907,17 @@ class ExperimentLoader:
                 self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_mode{extension}"),
                                                        mode='r')  # self.experiment.agent_summary['mode']
                 if self.project_version=="Base":
-                    self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
-                                                           mode='r')
-                    self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
-                                                        mode='r')
+                    # u and w are not crucial for replay, so we can skip them if they are not available
+                    try:
+                        self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
+                                                               mode='r')
+                    except zarr.errors.PathNotFoundError:
+                        print("No agent_u found!")
+                    try:
+                        self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
+                                                            mode='r')
+                    except zarr.errors.PathNotFoundError:
+                        print("No agent_w found!")
                     self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_explpatch{extension}"),
                                                         mode='r')
                     self.agent_summary['collresource'] = zarr.open(
@@ -947,8 +954,12 @@ class ExperimentLoader:
                     self.res_summary['resc_left'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
                         mode='r')
-                    self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
-                                                            mode='r')
+                    try:
+                        self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
+                                                                mode='r')
+                    except zarr.errors.PathNotFoundError:
+                        print("No res_qual found!")
+
 
         else:
             # found npz summary for resources
@@ -2052,7 +2063,7 @@ class ExperimentLoader:
 
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of inter-individual distance between agents.\n"
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
@@ -2148,7 +2159,7 @@ class ExperimentLoader:
 
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of inter-individual distance between agents.\n"
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
@@ -2247,7 +2258,7 @@ class ExperimentLoader:
                 cbar = fig.colorbar(img, cax=cbar_ax)
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of total collected resource units normalized with the mean total\n" \
                            f"distance travelled by agents over the experiments.\n"
@@ -2344,7 +2355,7 @@ class ExperimentLoader:
 
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of relative relocation time, i.e. ratio of time spent in relocation\n"
         self.add_plot_interaction(description_text, fig, ax, show=True)
@@ -2383,7 +2394,7 @@ class ExperimentLoader:
             ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
             plt.ylabel(list(self.varying_params.keys())[1])
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"travelled distance\n"
         self.add_plot_interaction(description_text, fig, ax, show=True)

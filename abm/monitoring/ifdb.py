@@ -436,34 +436,36 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
             import zarr, json
             print("Saving resource data as compressed zarr arrays...")
             num_res = len(resources_dict)
-            t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
-            posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
-                                 chunks=(num_res, t_len), dtype='float')
-            posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zarr"), mode='w', shape=(num_res, t_len),
-                                 chunks=(num_res, t_len), dtype='float')
-            resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
-                               chunks=(num_res, t_len), dtype='float')
-            if project_version == "Base":
-                rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
-                                      chunks=(num_res, t_len), dtype='float')
-                qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
+            if num_res > 0:
+                t_len = len(resources_dict[list(resources_dict.keys())[0]]['pos_x'])
+                posxzarr = zarr.open(os.path.join(save_dir, "res_posx.zarr"), mode='w', shape=(num_res, t_len),
                                      chunks=(num_res, t_len), dtype='float')
-            elif project_version == "CooperativeSignaling":
-                # Here we can save project specific resource data in individual zarr arrays
-                pass
-            for res_id, res_dict in resources_dict.items():
-                posxzarr[res_id - 1, :] = resources_dict[res_id]['pos_x']
-                posyzarr[res_id - 1, :] = resources_dict[res_id]['pos_y']
-                resrad[res_id - 1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
+                posyzarr = zarr.open(os.path.join(save_dir, "res_posy.zarr"), mode='w', shape=(num_res, t_len),
+                                     chunks=(num_res, t_len), dtype='float')
+                resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
+                                   chunks=(num_res, t_len), dtype='float')
                 if project_version == "Base":
-                    rleftzarr[res_id - 1, :] = resources_dict[res_id]['resc_left']
-                    qualzarr[res_id - 1, :] = resources_dict[res_id]['quality']
+                    rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
+                                          chunks=(num_res, t_len), dtype='float')
+                    qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
+                                         chunks=(num_res, t_len), dtype='float')
                 elif project_version == "CooperativeSignaling":
                     # Here we can save project specific resource data in individual zarr arrays
                     pass
+                for res_id, res_dict in resources_dict.items():
+                    posxzarr[res_id - 1, :] = resources_dict[res_id]['pos_x']
+                    posyzarr[res_id - 1, :] = resources_dict[res_id]['pos_y']
+                    resrad[res_id - 1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
+                    if project_version == "Base":
+                        rleftzarr[res_id - 1, :] = resources_dict[res_id]['resc_left']
+                        qualzarr[res_id - 1, :] = resources_dict[res_id]['quality']
+                    elif project_version == "CooperativeSignaling":
+                        # Here we can save project specific resource data in individual zarr arrays
+                        pass
 
             print(f"Saving agent data as compressed zarr arrays in {save_dir}...")
             num_ag = len(agents_dict)
+            t_len = len(agents_dict[list(agents_dict.keys())[0]]['posx'])
             v_field_len = int(float(ifdbp.envconf.get("VISUAL_FIELD_RESOLUTION")))
             aposxzarr = zarr.open(os.path.join(save_dir, "ag_posx.zarr"), mode='w', shape=(num_ag, t_len),
                                   chunks=(num_ag, t_len), dtype='float')

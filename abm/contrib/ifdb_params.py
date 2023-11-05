@@ -22,7 +22,7 @@ print("Using IFDB long timeout and retries!")
 if WRITE_EACH_POINT is not None:
     write_batch_size = 1
 else:
-    T = float(int(envconf["T"]))
+    T = float(int(envconf.get("T", 1000)))
     if T <= 1000:
         write_batch_size = T
     else:

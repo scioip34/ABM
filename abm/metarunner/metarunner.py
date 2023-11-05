@@ -229,6 +229,10 @@ class MetaProtocol:
         elif project == "CoopSignaling":
             from abm import app_collective_signaling
             app_collective_signaling.start(parallel=self.parallel_run, headless=self.headless)
+        elif project == "VisualFlocking":
+            from abm import app_visual_flocking
+            app_visual_flocking.start(parallel=self.parallel_run, headless=self.headless)
+
         os.remove(default_env_path)
         shutil.copyfile(backup_default_env, default_env_path)
         sleep(2)

@@ -1,6 +1,6 @@
 from abm.replay.replay import ExperimentReplay
 
-loaded_experiment = ExperimentReplay("/home/david/Desktop/database/figExp0NoColl/figExp0N25NoColl")
+loaded_experiment = ExperimentReplay("/media/david/DMezeySCIoI/ABMData/VisFlock/VFExp4c")
 loaded_experiment.start()
 # loaded_experiment.experiment.calculate_search_efficiency()
 # m_eff = np.mean(loaded_experiment.experiment.efficiency, axis=0)

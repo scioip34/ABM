@@ -6,6 +6,7 @@ from abm.agent.supcalc import angle_between, find_nearest
 
 from scipy import integrate
 
+
 def distance_infinite(p1, p2, L=500, dim=2):
     """ Returns the distance vector of two position vectors x,y
         by tanking periodic boundary conditions into account.
@@ -13,9 +14,10 @@ def distance_infinite(p1, p2, L=500, dim=2):
     """
     distvec = p2 - p1
     distvec_periodic = np.copy(distvec)
-    distvec_periodic[distvec < -0.5*L] += L
-    distvec_periodic[distvec > 0.5*L] -= L
+    distvec_periodic[distvec < -0.5 * L] += L
+    distvec_periodic[distvec > 0.5 * L] -= L
     return distvec_periodic
+
 
 def projection_field(fov, v_field_resolution, position, radius,
                      orientation, object_positions, object_sizes=None,
@@ -68,12 +70,12 @@ def projection_field(fov, v_field_resolution, position, radius,
 
         # in case torus, positions might change
         if boundary_cond == "infinite":
-            if np.abs(v2[0]) > arena_width/2:
+            if np.abs(v2[0]) > arena_width / 2:
                 if agents_center[0] < object_center[0]:
                     object_center[0] -= arena_width
                 elif agents_center[0] > object_center[0]:
                     object_center[0] += arena_width
-            if np.abs(v2[1]) > arena_height/2:
+            if np.abs(v2[1]) > arena_height / 2:
                 if agents_center[1] < object_center[1]:
                     object_center[1] -= arena_height
                 elif agents_center[1] > object_center[1]:
@@ -128,7 +130,6 @@ def projection_field(fov, v_field_resolution, position, radius,
 
             v_field[i, proj_start:proj_end] = 1
 
-
     # post_processing and limiting FOV
     # flip field data along second dimension
     v_field_post = np.flip(v_field, axis=1)
@@ -136,7 +137,6 @@ def projection_field(fov, v_field_resolution, position, radius,
     # v_field_post[:, phis < fov[0]] = 0
     # v_field_post[:, phis > fov[1]] = 0
     return v_field_post
-
 
 
 def calculate_closed_angle(v1, v2):
@@ -156,6 +156,7 @@ def calculate_closed_angle(v1, v2):
     else:
         closed_angle = 2 * np.pi - closed_angle
     return closed_angle
+
 
 # Functions needed for VSWRM functionality
 def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V_prev=None, t_prev=None, verbose=False,
@@ -226,24 +227,41 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
     # dpsi = vf_params.BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
     #        vf_params.BET0 * vf_params.BET1 * np.sum(np.sin(FOV_rescaling_sin * Phi) * G_psi_spike) * dPhi
 
-
-
     if not verbose:
         # without reacling edge information
-        dvel = vf_params.GAM * (V0 - vel_now) + \
-               ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
-               ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        # dvel = vf_params.GAM * (V0 - vel_now) + \
+        #        ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi) + \
+        #        ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        #
+        # dpsi = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
+        #        BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
 
-        dpsi = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi) + \
-               BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        alpha_blob = ALP0 * integrate.trapz(cos_sigmoid(Phi, 3*np.pi) * G_vel, Phi)
+        alpha_edge = ALP0 * vf_params.ALP1 * np.sum(cos_sigmoid(Phi, 3*np.pi) * G_vel_spike)
+
+        beta_blob = BET0 * integrate.trapz(sin_sigmoid(Phi, 3*np.pi) * G_psi, Phi)
+        beta_edge = BET0 * vf_params.BET1 * np.sum(sin_sigmoid(Phi, 3*np.pi) * G_psi_spike)
+        # without reacling edge information
+        dvel = vf_params.GAM * (V0 - vel_now) + \
+               alpha_blob + \
+               alpha_edge
+
+        dpsi = beta_blob + \
+               beta_edge
 
         return dvel, dpsi
     else:
-        alpha_blob = ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
-        alpha_edge = ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        # alpha_blob = ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
+        # alpha_edge = ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        #
+        # beta_blob = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
+        # beta_edge = BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
 
-        beta_blob = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
-        beta_edge = BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        alpha_blob = ALP0 * integrate.trapz(cos_sigmoid(Phi, 3*np.pi) * G_vel, Phi)
+        alpha_edge = ALP0 * vf_params.ALP1 * np.sum(cos_sigmoid(Phi, 3*np.pi) * G_vel_spike)
+
+        beta_blob = BET0 * integrate.trapz(sin_sigmoid(Phi, 3*np.pi) * G_psi, Phi)
+        beta_edge = BET0 * vf_params.BET1 * np.sum(sin_sigmoid(Phi, 3*np.pi) * G_psi_spike)
         # without reacling edge information
         dvel = vf_params.GAM * (V0 - vel_now) + \
                alpha_blob + \
@@ -252,6 +270,39 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
         dpsi = beta_blob + \
                beta_edge
         return dvel, dpsi, alpha_blob, alpha_edge, beta_blob, beta_edge
+
+
+def sigmoid(x, steepness):
+    return 2 / (1 + np.exp(-steepness * x)) - 1
+
+
+def cos_sigmoid(x, s):
+    # left part
+    left = 2 / (1 + np.exp(-s * (x + (np.pi / 2)))) - 1
+    right = -2 / (1 + np.exp(-s * (x - (np.pi / 2)))) + 1
+    final = []
+    for xid, xi in enumerate(list(x)):
+        if xi < 0:
+            final.append(left[xid])
+        else:
+            final.append(right[xid])
+    return final
+
+
+def sin_sigmoid(x, s):
+    # left part
+    middle = 2 / (1 + np.exp(-s * (x))) - 1
+    left = -2 / (1 + np.exp(-s * (x + (np.pi)))) + 1
+    right = -2 / (1 + np.exp(-s * (x - (np.pi)))) + 1
+    final = []
+    for xid, xi in enumerate(list(x)):
+        if -np.pi / 2 < xi < np.pi / 2:
+            final.append(middle[xid])
+        elif xi < -np.pi / 2:
+            final.append(left[xid])
+        else:
+            final.append(right[xid])
+    return final
 
 
 def dPhi_V_of(Phi, V):
@@ -273,8 +324,9 @@ def dPhi_V_of(Phi, V):
     else:
         dPhi_V_raw = dPhi_V_raw[1:, ...]
 
-    dPhi_V = dPhi_V_raw #/ (Phi[-1] - Phi[-2])
+    dPhi_V = dPhi_V_raw  # / (Phi[-1] - Phi[-2])
     return dPhi_V
+
 
 def distance_coords(x1, y1, x2, y2, vectorized=False):
     """Distance between 2 points in 2D space calculated from point coordinates.
@@ -293,13 +345,13 @@ def distance_coords(x1, y1, x2, y2, vectorized=False):
 def follow_lines_local(agposition, agradius, agorientation, linemap, agvel, sensor_radius=10, sensor_distance=5):
     """Following line with 2 sensors"""
     sensor1_pos = [agposition[1] + agradius - sensor_distance + (
-                1 + np.sin(agorientation + (3*np.pi / 4))) * sensor_distance,
+            1 + np.sin(agorientation + (3 * np.pi / 4))) * sensor_distance,
                    agposition[0] + agradius - sensor_distance + (
-                               1 - np.cos(agorientation + (3*np.pi / 4))) * sensor_distance]
+                           1 - np.cos(agorientation + (3 * np.pi / 4))) * sensor_distance]
     sensor2_pos = [agposition[1] + agradius - sensor_distance + (
-                1 + np.sin(agorientation - (3*np.pi / 4))) * sensor_distance,
+            1 + np.sin(agorientation - (3 * np.pi / 4))) * sensor_distance,
                    agposition[0] + agradius - sensor_distance + (
-                               1 - np.cos(agorientation - (3*np.pi / 4))) * sensor_distance]
+                           1 - np.cos(agorientation - (3 * np.pi / 4))) * sensor_distance]
     # superline = []
     # for line in lines:
     #     superline.extend(line)
@@ -307,15 +359,16 @@ def follow_lines_local(agposition, agradius, agorientation, linemap, agvel, sens
     # line = superline
     # points_s1_range = np.array([point for point in line if distance_coords(sensor1_pos[1], sensor1_pos[0], point[1], point[0])<sensor_radius])
     # points_s2_range = np.array([point for point in line if distance_coords(sensor2_pos[1], sensor2_pos[0], point[1], point[0])<sensor_radius])
-    s1 = np.nanmean(linemap[int(sensor1_pos[1]-sensor_radius):int(sensor1_pos[1]+sensor_radius),int(sensor1_pos[0]-sensor_radius):int(sensor1_pos[0]+sensor_radius)])
+    s1 = np.nanmean(linemap[int(sensor1_pos[1] - sensor_radius):int(sensor1_pos[1] + sensor_radius),
+                    int(sensor1_pos[0] - sensor_radius):int(sensor1_pos[0] + sensor_radius)])
     s2 = np.nanmean(linemap[int(sensor2_pos[1] - sensor_radius):int(sensor2_pos[1] + sensor_radius),
-                 int(sensor2_pos[0] - sensor_radius):int(sensor2_pos[0] + sensor_radius)])
+                    int(sensor2_pos[0] - sensor_radius):int(sensor2_pos[0] + sensor_radius)])
 
     if np.isnan(s1) or np.isnan(s2):
         return 0
     else:
         if np.sign(agvel):
-            ori_change = 0.5 * (s2-s1)
+            ori_change = 0.5 * (s2 - s1)
         else:
             ori_change = 0
         if s1 > s2:

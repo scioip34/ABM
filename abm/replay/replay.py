@@ -384,6 +384,58 @@ class ExperimentReplay:
                     'MIN-1'], direction='down', textHAlign='centre'
             )
 
+            # Clustering buttons for VSWRM version
+            if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+                button_start_y += self.button_height
+                self.plot_clus_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.slider_start_x,  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Plot No. Clusters ',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_clustering(),  # Function to call when clicked on
+                    borderThickness=1
+                )
+                self.plot_largest_clus_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.button_start_x_2,  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Plot largest clus.',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_largest_subclusters(),  # Function to call when clicked on
+                    borderThickness=1
+                )
+                self.dendogram_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.button_start_x_2 + int(self.slider_width / 2),  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Dendogram',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_clustering_in_current_t(self.index + tuple([self.t])),  # Function to call when clicked on
+                    borderThickness=1
+                )
+
         # Plotting Details Button Line
         button_start_y += self.button_height
         self.t_start = None
@@ -626,8 +678,9 @@ class ExperimentReplay:
                 f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
         else:
             undersample = 1
-        fig, ax, cbar = self.experiment.plot_mean_NN_dist(from_script=self.from_script, undersample=undersample)
-        return fig, ax, cbar
+        # fig, ax, cbar = self.experiment.plot_mean_NN_dist(from_script=self.from_script, undersample=undersample)
+        # return fig, ax, cbar
+        self.experiment.plot_mean_NN_dist(from_script=self.from_script, undersample=undersample)
 
     def on_set_t_start(self):
         """Setting starting timestep for plotting and calculations"""
@@ -904,7 +957,6 @@ class ExperimentReplay:
             t_ind_cl = int(t_ind / 25)
             clusters_idx = tuple(list(self.index) + [slice(None), t_ind_cl])
             clusters = self.experiment.clustering_ids[clusters_idx]
-            print(clusters)
         else:
             clusters = None
 

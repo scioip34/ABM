@@ -145,36 +145,37 @@ class VFAgent(Agent):
         self.image = pygame.Surface([self.radius * 2, self.radius * 2])
         self.image.fill(colors.BACKGROUND)
         self.image.set_colorkey(colors.BACKGROUND)
-        if self.is_moved_with_cursor:
-            pygame.gfxdraw.filled_circle(
-                self.image,
-                self.radius,
-                self.radius,
-                self.radius,
-                self.selected_color
+        try:
+            if self.is_moved_with_cursor:
+                pygame.gfxdraw.filled_circle(
+                    self.image,
+                    self.radius,
+                    self.radius,
+                    self.radius,
+                    self.selected_color
+                )
+                pygame.gfxdraw.aacircle(self.image,
+                                        self.radius,
+                                        self.radius,
+                                        self.radius,
+                                        colors.BACKGROUND)
+            else:
+                pygame.gfxdraw.filled_circle(
+                    self.image,
+                    self.radius,
+                    self.radius,
+                    self.radius-1,
+                    self.color[0:-1]
+                )
+                pygame.gfxdraw.aacircle(self.image,
+                                        self.radius,
+                                        self.radius,
+                                        self.radius-1,
+                                        colors.BLACK)
+        except:
+            pygame.draw.circle(
+                self.image, self.color, (self.radius, self.radius), self.radius
             )
-            pygame.gfxdraw.aacircle(self.image,
-                                    self.radius,
-                                    self.radius,
-                                    self.radius,
-                                    colors.BACKGROUND)
-        else:
-            pygame.gfxdraw.filled_circle(
-                self.image,
-                self.radius,
-                self.radius,
-                self.radius-1,
-                self.color[0:-1]
-            )
-            pygame.gfxdraw.aacircle(self.image,
-                                    self.radius,
-                                    self.radius,
-                                    self.radius-1,
-                                    colors.BLACK)
-
-            # pygame.draw.circle(
-            #     self.image, self.color, (self.radius, self.radius), self.radius
-            # )
 
         # showing agent orientation with a line towards agent orientation
         new_white = (255, 255, 254)

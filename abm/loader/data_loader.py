@@ -15,6 +15,8 @@ from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
 from matplotlib import pyplot as plt
 import zarr
+from fastcluster import linkage
+from scipy.cluster.hierarchy import dendrogram
 
 
 class LoadedAgent(Agent):
@@ -1020,6 +1022,91 @@ class ExperimentLoader:
         pol_matrix = np.moveaxis(pol_matrix, -1, agent_dim)
         return pol_matrix
 
+    def return_clustering_distnace(self, condition_idx, t_real, undersample, pm=None):
+        """Returns the clustering sidtance calculated from orientation and iid"""
+        t_closest = int(t_real / undersample)
+        # print("Using t_closest=", t_closest, "for t_real=", t_real)
+        max_dist = (self.env.get("ENV_WIDTH") ** 2 + self.env.get("ENV_HEIGHT") ** 2) ** 0.5 / 2
+        niidm = self.iid_matrix[condition_idx + tuple([slice(None), slice(None), t_closest])]  # /max_dist
+        niidm = np.abs(np.median(niidm)-niidm) / max_dist
+        # niidm = (niidm - mean_iidm) / std_iidm
+        # niidm = (niidm - np.mean(niidm)) / max_dist
+        # # punishing large distances more
+        # niidm = niidm ** 2
+        # make lower triangle elements the same as upper triangle elements
+        niidm = niidm + niidm.T
+
+        if pm is None:
+            pm = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, int(t_closest*undersample))
+
+        # standardizing pm and normiidm so that their mean is 0 and their std is 1
+        # todo: here we normalize with the mean and std of the slice and not the whole matrix
+        # pm = (pm - np.mean(pm)) / np.std(pm)
+        dist_pm = 1 - pm.astype('float')
+        # # squaring distances to punish large distances more
+        # dist_pm = dist_pm ** 2
+
+        # calculating the final distance matrix as a weighted average of the two
+        dist = (dist_pm + niidm) / 2
+
+        return niidm, dist_pm, dist
+
+    def return_dendogram_data(self, linkage, labels, thr=1, show_leaf_counts=True, no_plot=True):
+        """Returning the clustering data according to the linkage matrix"""
+        ret = dendrogram(linkage, color_threshold=thr, labels=labels,
+                         show_leaf_counts=show_leaf_counts, no_plot=no_plot)
+        return ret
+
+    def plot_clustering_in_current_t(self, idx, with_plotting=True):
+        """Calculating clustering in a given time step
+        param: idx: index tuple of the currently viewed slice from the replay tool
+            idx = (batchi, <dims along varying_params>, slice(None), slice(None), t)
+            idx will be used to index both the IID and polarization matrices to get an NxN matrix of pairwise distances
+            for both the interindividual distance and the pairwise polarization."""
+        if self.iid_matrix is None:
+            self.calculate_interindividual_distance()
+
+        num_agents = int(self.env.get("N"))
+        # The shape will depend on the IID matrix which is costly.
+        # If we use undersample there, we also use undersample here
+        num_timesteps_orig = self.env.get("T")
+        num_timesteps = self.iid_matrix.shape[-1]
+        undersample = int(num_timesteps_orig // num_timesteps)
+        print(f"Num varying params: {len(self.varying_params)}")
+        num_varying_params = len(self.varying_params)
+
+        condition_idx = idx[0:-1]
+        t = idx[-1]
+        t_closest = int(t / undersample)
+
+        # calculating the clustering distance
+        niidm, dist_pm, dist = self.return_clustering_distnace(condition_idx, t, undersample)
+
+        # clustering
+        linkage_matrix = linkage(dist, "ward")
+        # print(linkage_matrix.shape, linkage_matrix)
+        ret = self.return_dendogram_data(linkage_matrix, [i for i in range(num_agents)], no_plot=not with_plotting)
+        colors = [color for _, color in sorted(zip(ret['leaves'], ret['leaves_color_list']))]
+        # print(colors)
+        # print(len(list(set(colors))))
+        group_ids = np.array([int(a.split("C")[1]) for a in colors])
+        for i, gid in enumerate(group_ids):
+            # when gid is zero we make it the maximum element
+            # because it means it is an independent leaf
+            if gid == 0:
+                group_ids[i] = np.max(group_ids) + 1
+        group_ids -= 1
+        # print(group_ids)
+
+        fig, ax = plt.subplots(1, 2)
+        ax[0].imshow(dist_pm, cmap="viridis")
+        ax[0].set_title("Pairwise polarization")
+        ax[1].imshow(niidm, cmap="viridis")
+        ax[1].set_title("Interindividual distance")
+        plt.show()
+
+
+
     def calculate_clustering(self):
         """Using hierarhical clustering according to inter-individual distance and order scores to get number of
         subgroups"""
@@ -1061,16 +1148,10 @@ class ExperimentLoader:
         print("Calculating polarizations first")
         t_slice = slice(0, num_timesteps_orig, undersample)
 
-        # calculating the normalized iid distance matrix with punishing large distances more
-        niidm = self.iid_matrix.copy()
-        niidm /= max_dist
-        niidm = (niidm - np.mean(niidm)) / np.std(niidm)
-        # punishing large distances more
-        niidm = niidm ** 2
 
         for batchi in range(self.agent_summary["orientation"].shape[0]):
             print("Batchi: ", batchi)
-            # if batchi < 5:
+            # if batchi < 3:
             #     pass
             # else:
             #     break
@@ -1083,21 +1164,10 @@ class ExperimentLoader:
                     idx = tuple(list(idx_base) + [slice(None), slice(None), t])
                     idx_ = tuple(list(idx_base_) + [slice(None), slice(None), t])
 
-                    # getting the distance matrix for current condition and timestep
-                    normiidm = niidm[idx]
+                    # calculating the clustering distance
+                    normiidm, dist_pm, dist = self.return_clustering_distnace(idx_base, t*undersample, undersample, pm=pol_m_large[idx_])
 
-                    # calculating the distance matrix for polarization
-                    pm = pol_m_large[idx_]
-                    # standardizing pm and normiidm so that their mean is 0 and their std is 1
-                    pm = (pm - np.mean(pm)) / np.std(pm)
-                    dist_pm = 1 - pm.astype('float')
-                    # squaring distances to punish large distances more
-                    dist_pm = dist_pm ** 2
-
-                    # calculating the final distance matrix as a weighted average of the two
-                    dist = (dist_pm + normiidm) / 2
-
-                    if idx_base == (0, 1, 5, 2) and 326 < t < 310:
+                    if idx_base == (0, 0, 0, 0) and 5 < t < 3:
                         with_plotting = True
                         print(dist_pm)
                         print(normiidm)
@@ -1106,8 +1176,7 @@ class ExperimentLoader:
 
                     # clustering
                     linkage_matrix = linkage(dist, "ward")
-                    ret = dendrogram(linkage_matrix, color_threshold=15, labels=[i for i in range(num_agents)],
-                                     show_leaf_counts=True, no_plot=not with_plotting)
+                    ret = self.return_dendogram_data(linkage_matrix, [i for i in range(num_agents)], no_plot=not with_plotting)
                     colors = [color for _, color in sorted(zip(ret['leaves'], ret['leaves_color_list']))]
                     group_ids = np.array([int(a.split("C")[1]) for a in colors])
                     for i, gid in enumerate(group_ids):
@@ -1117,7 +1186,7 @@ class ExperimentLoader:
                             group_ids[i] = np.max(group_ids) + 1
 
                     group_ids -= 1
-                    clustering_data[tuple(list(idx_base) + [t])] = len(list(set(colors)))
+                    clustering_data[tuple(list(idx_base) + [t])] = len(list(set(group_ids)))
                     largest_clustering_data[tuple(list(idx_base) + [t])] = self.calculate_largest_subcluster_size(group_ids)
                     clustering_ids[tuple(list(idx_base) + [slice(None), t])] = group_ids
                     if with_plotting:
@@ -1148,7 +1217,7 @@ class ExperimentLoader:
                 experiments."""
         cbar = None
         self.calculate_clustering()
-        self.mean_largest_clusters = np.mean(self.largest_clustering_data, axis=0)
+        self.mean_largest_clusters = np.mean(np.mean(self.largest_clustering_data, axis=0), axis=-1)
         min_data = np.min(self.mean_largest_clusters)
         max_data = np.max(self.mean_largest_clusters)
 
@@ -1222,7 +1291,7 @@ class ExperimentLoader:
                 experiments."""
         cbar = None
         self.calculate_clustering()
-        self.mean_clusters = np.mean(self.clustering_data, axis=0)
+        self.mean_clusters = np.mean(np.mean(self.clustering_data, axis=0), axis=-1)
         min_data = np.min(self.mean_clusters)
         max_data = np.max(self.mean_clusters)
 
@@ -1479,6 +1548,9 @@ class ExperimentLoader:
         num_agents = iid.shape[-2]
         for i in range(num_agents):
             iid[..., i, i, :] = np.nan
+            # setting lower triangle equal to upper triangular
+            iid[..., i:, i, :] = iid[..., i, i:, :]
+
         nearest_per_agents = np.nanmin(iid, axis=-2)
         mean_nearest = np.mean(nearest_per_agents, axis=-2)
         self.mean_nn_dist = np.mean(mean_nearest, axis=0)
@@ -1693,6 +1765,9 @@ class ExperimentLoader:
 
         # Get the orientations of all agents at time t
         agent_ori = self.agent_summary["orientation"][condition_idx + (slice(None), t)]
+        # plt.figure()
+        # plt.plot(agent_ori)
+        # plt.show()
         # print(agent_ori.shape)
         # input()
 
@@ -1981,53 +2056,36 @@ class ExperimentLoader:
             # self.calculate_interindividual_distance(undersample=undersample)
             self.calculate_mean_NN_dist(undersample=undersample)
 
+        print(self.mean_nn_dist.shape)
+        _mean_nn_dist = np.mean(self.mean_nn_dist, axis=-1)
+
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
         if num_var_params == 1:
-            fig, ax = plt.subplots(1, 1)
-            plt.title("Inter-individual distance (mean)")
-            plt.plot(self.mean_nn_dist)
-            num_agents = self.iid_matrix.shape[-2]
-            restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1]]
-            for run_i in range(self.iid_matrix.shape[0]):
-                plt.plot(restr_m[run_i, :, :], marker=".", linestyle='None')
-            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
-            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
-            plt.xlabel(list(self.varying_params.keys())[0])
+            raise Exception("Not implemented yet!")
 
         elif num_var_params == 2:
-            fig, ax = plt.subplots(1, 1)
-            plt.title("Inter-individual distance (mean)")
-            keys = sorted(list(self.varying_params.keys()))
-            im = ax.imshow(self.mean_nn_dist)
-
-            ax.set_yticks(range(len(self.varying_params[keys[0]])))
-            ax.set_yticklabels(self.varying_params[keys[0]])
-            ax.set_ylabel(keys[0])
-
-            ax.set_xticks(range(len(self.varying_params[keys[1]])))
-            ax.set_xticklabels(self.varying_params[keys[1]])
-            ax.set_xlabel(keys[1])
+            raise Exception("Not implemented yet!")
 
         elif num_var_params == 3 or num_var_params == 4:
-            if len(self.mean_nn_dist.shape) == 4:
+            if len(_mean_nn_dist.shape) == 4:
                 # reducing the number of variables to 3 by connecting 2 of the dimensions
-                self.new_mean_nn_dist = np.zeros((self.mean_nn_dist.shape[0:3]))
+                self.new_mean_nn_dist = np.zeros((_mean_nn_dist.shape[0:3]))
                 print(self.new_mean_nn_dist.shape)
-                for j in range(self.mean_nn_dist.shape[0]):
-                    for i in range(self.mean_nn_dist.shape[1]):
-                        self.new_mean_nn_dist[j, i, :] = self.mean_nn_dist[j, i, :, i]
-                self.mean_nn_dist = self.new_mean_nn_dist
+                for j in range(_mean_nn_dist.shape[0]):
+                    for i in range(_mean_nn_dist.shape[1]):
+                        self.new_mean_nn_dist[j, i, :] = _mean_nn_dist[j, i, :, i]
+                _mean_nn_dist = self.new_mean_nn_dist
 
             if self.collapse_plot is None:
-                num_plots = self.mean_nn_dist.shape[0]
+                num_plots = _mean_nn_dist.shape[0]
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
                 for i in range(num_plots):
-                    img = ax[i].imshow(self.mean_nn_dist[i, :, :])
+                    img = ax[i].imshow(_mean_nn_dist[i, :, :])
                     ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
                     if i == 0:
@@ -2046,7 +2104,7 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
 
-                collapsed_data, labels = self.collapse_mean_data(self.mean_nn_dist, save_name="coll_iid.npy")
+                collapsed_data, labels = self.collapse_mean_data(_mean_nn_dist, save_name="coll_iid.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
@@ -2077,6 +2135,9 @@ class ExperimentLoader:
         if self.iid_matrix is None:
             self.calculate_interindividual_distance(undersample=undersample)
 
+        _mean_iid = np.mean(self.mean_iid, axis=-1)
+        print("shape:", _mean_iid.shape)
+
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
         agent_dim = batch_dim + num_var_params + 1
@@ -2085,7 +2146,7 @@ class ExperimentLoader:
         if num_var_params == 1:
             fig, ax = plt.subplots(1, 1)
             plt.title("Inter-individual distance (mean)")
-            plt.plot(self.mean_iid)
+            plt.plot(_mean_iid)
             num_agents = self.iid_matrix.shape[-2]
             restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1]]
             for run_i in range(self.iid_matrix.shape[0]):
@@ -2098,7 +2159,7 @@ class ExperimentLoader:
             fig, ax = plt.subplots(1, 1)
             plt.title("Inter-individual distance (mean)")
             keys = sorted(list(self.varying_params.keys()))
-            im = ax.imshow(self.mean_iid)
+            im = ax.imshow(_mean_iid)
 
             ax.set_yticks(range(len(self.varying_params[keys[0]])))
             ax.set_yticklabels(self.varying_params[keys[0]])
@@ -2109,21 +2170,21 @@ class ExperimentLoader:
             ax.set_xlabel(keys[1])
 
         elif num_var_params == 3 or num_var_params == 4:
-            if len(self.mean_iid.shape) == 4:
+            if len(_mean_iid.shape) == 4:
                 # reducing the number of variables to 3 by connecting 2 of the dimensions
-                self.new_mean_iid = np.zeros((self.mean_iid.shape[0:3]))
+                self.new_mean_iid = np.zeros((_mean_iid.shape[0:3]))
                 print(self.new_mean_iid.shape)
-                for j in range(self.mean_iid.shape[0]):
-                    for i in range(self.mean_iid.shape[1]):
-                        self.new_mean_iid[j, i, :] = self.mean_iid[j, i, :, i]
-                self.mean_iid = self.new_mean_iid
+                for j in range(_mean_iid.shape[0]):
+                    for i in range(_mean_iid.shape[1]):
+                        self.new_mean_iid[j, i, :] = _mean_iid[j, i, :, i]
+                _mean_iid = self.new_mean_iid
 
             if self.collapse_plot is None:
-                num_plots = self.mean_iid.shape[0]
+                num_plots = _mean_iid.shape[0]
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
                 for i in range(num_plots):
-                    img = ax[i].imshow(self.mean_iid[i, :, :], vmin=np.min(self.mean_iid), vmax=np.max(self.mean_iid))
+                    img = ax[i].imshow(_mean_iid[i, :, :], vmin=np.min(_mean_iid), vmax=np.max(_mean_iid))
                     ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
                     if i == 0:
@@ -2142,7 +2203,7 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
 
-                collapsed_data, labels = self.collapse_mean_data(self.mean_iid, save_name="coll_iid.npy")
+                collapsed_data, labels = self.collapse_mean_data(_mean_iid, save_name="coll_iid.npy")
 
                 img = ax.imshow(collapsed_data)
                 ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))

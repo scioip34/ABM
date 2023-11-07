@@ -147,6 +147,9 @@ class PlaygroundSimulation(Simulation):
                                   inactiveColour=colors.GREY, borderThickness=1,
                                   onClick=lambda: self.start_stop_IFDB_logging())
         self.function_buttons.append(self.IFDB_button)
+        # hiding ifdb button
+        self.IFDB_button.hide()
+
         function_button_start_x += self.function_button_width + self.function_button_pad
         self.Snapshot_button = Button(self.screen, function_button_start_x, function_button_start_y,
                                   self.function_button_width,
@@ -356,6 +359,7 @@ class PlaygroundSimulation(Simulation):
     def change_ghost_mode(self):
         """Changing ghost mdoe during exploutation"""
         self.ghost_mode = not self.ghost_mode
+        self.collide_agents = not self.ghost_mode
         if self.ghost_mode:
             self.ghost_mode_button.inactiveColour = colors.GREEN
         else:

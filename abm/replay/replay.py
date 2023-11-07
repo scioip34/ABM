@@ -16,8 +16,6 @@ import os
 from abm.contrib import playgroundtool as pgt
 import shutil
 import cv2
-import matplotlib as mpl
-mpl.use('TkAgg')
 from matplotlib import cm as colmaps
 
 
@@ -55,6 +53,7 @@ class ExperimentReplay:
         self.full_height = self.action_area_height
 
         self.env = self.experiment.env
+        self.project_version = self.experiment.project_version
 
         self.connected_params = self.env.get('SUMMARY_CONNECTED_PARAMS')
         if self.connected_params is None:
@@ -64,12 +63,17 @@ class ExperimentReplay:
         self.posy_z = self.experiment.agent_summary['posy']
         self.orientation_z = self.experiment.agent_summary['orientation']
         self.agmodes_z = self.experiment.agent_summary['mode']
-        self.coll_resc_z = self.experiment.agent_summary['collresource']
-
         self.res_pos_x_z = self.experiment.res_summary['posx']
         self.res_pos_y_z = self.experiment.res_summary['posy']
-        self.resc_left_z = self.experiment.res_summary['resc_left']
-        self.resc_quality_z = self.experiment.res_summary['quality']
+
+        if self.project_version=="Base":
+            self.coll_resc_z = self.experiment.agent_summary['collresource']
+            self.resc_left_z = self.experiment.res_summary['resc_left']
+            self.resc_quality_z = self.experiment.res_summary.get('quality', None)
+        elif self.project_version=="CooperativeSignaling":
+            self.meter_z = self.experiment.agent_summary['meter']
+            self.sig_z = self.experiment.agent_summary['signalling']
+            self.coll_resc_z = self.experiment.agent_summary['collresource']
 
         self.varying_params = self.experiment.varying_params
         self.index_prev = None
@@ -120,6 +124,10 @@ class ExperimentReplay:
         slider_start_y = slider_i * (self.slider_height + self.action_area_pad)
         self.batch_slider = Slider(self.screen, self.slider_start_x, slider_start_y, self.slider_width,
                                    self.slider_height, min=0, max=slider_max_val, step=1, initial=0)
+        if slider_max_val == 1:
+            self.batch_slider.disable()
+            self.batch_slider.colour = (250, 250, 250)
+            self.batch_slider.handleColour = (200, 200, 200)
         self.batch_textbox = TextBox(self.screen, self.textbox_start_x, slider_start_y, self.textbox_width,
                                      self.slider_height, fontSize=self.slider_height - 2, borderThickness=1)
 
@@ -271,6 +279,9 @@ class ExperimentReplay:
             onClick=lambda: self.on_print_NNdist(),  # Function to call when clicked on
             borderThickness=1
         )
+        if self.project_version in ["Base", "CooperativeSignaling"]:
+            self.NNdist_b.disable()
+            self.NNdist_b.hide()
 
 
         # Plotting Button Line
@@ -372,42 +383,6 @@ class ExperimentReplay:
                     'MIN-0',
                     'MIN-1'], direction='down', textHAlign='centre'
             )
-
-            # Clustering buttons for VSWRM version
-            if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
-                button_start_y += self.button_height
-                self.plot_clus_b = Button(
-                    # Mandatory Parameters
-                    self.screen,  # Surface to place button on
-                    self.slider_start_x,  # X-coordinate of top left corner
-                    button_start_y,  # Y-coordinate of top left corner
-                    int(self.slider_width / 2),  # Width
-                    self.button_height,  # Height
-
-                    # Optional Parameters
-                    text='Plot No. Clusters ',  # Text to display
-                    fontSize=20,  # Size of font
-                    margin=20,  # Minimum distance between text/image and edge of button
-                    inactiveColour=colors.GREY,
-                    onClick=lambda: self.experiment.plot_clustering(),  # Function to call when clicked on
-                    borderThickness=1
-                )
-                self.plot_largest_clus_b = Button(
-                    # Mandatory Parameters
-                    self.screen,  # Surface to place button on
-                    self.button_start_x_2,  # X-coordinate of top left corner
-                    button_start_y,  # Y-coordinate of top left corner
-                    int(self.slider_width / 2),  # Width
-                    self.button_height,  # Height
-
-                    # Optional Parameters
-                    text='Plot largest clus.',  # Text to display
-                    fontSize=20,  # Size of font
-                    margin=20,  # Minimum distance between text/image and edge of button
-                    inactiveColour=colors.GREY,
-                    onClick=lambda: self.experiment.plot_largest_subclusters(),  # Function to call when clicked on
-                    borderThickness=1
-                )
 
         # Plotting Details Button Line
         button_start_y += self.button_height
@@ -548,13 +523,20 @@ class ExperimentReplay:
         self.posy = self.posy_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.orientation = self.orientation_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.agmodes = self.agmodes_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.radius = self.env["RADIUS_AGENT"]
-
         self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+        if self.project_version=="Base":
+            self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            if self.resc_quality_z is not None:
+                self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            else:
+                self.resc_quality = None
+        elif self.project_version=="CooperativeSignaling":
+            self.meter = self.meter_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.sig = self.sig_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
+            self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
 
     def on_print_reloc_time(self):
         """print mean relative relocation time"""
@@ -841,12 +823,27 @@ class ExperimentReplay:
         posy = self.posy[:, t_ind]
         orientation = self.orientation[:, t_ind]
         mode = self.agmodes[:, t_ind]
-        coll_resc = self.coll_resc[:, t_ind]
         radius = self.env["RADIUS_AGENT"]
 
         res_posx = self.res_pos_x[:, t_ind]
         res_posy = self.res_pos_y[:, t_ind]
-        resc_left = self.resc_left[:, t_ind]
+
+        if self.project_version in ["Base", "CooperativeSignaling"]:
+            coll_resc = self.coll_resc[:, t_ind]
+            if self.project_version == "Base":
+                if self.resc_quality is not None:
+                    resc_quality = self.resc_quality[:, t_ind]
+                else:
+                    resc_quality = [0 for i in range(len(res_posx))]
+                resc_left = self.resc_left[:, t_ind]
+            else:
+                resc_quality = None
+                resc_left = None
+        elif self.project_version == "VisualFlocking":
+            coll_resc = [0 for i in range(len(posx))]
+            resc_left = [0 for i in range(len(posx))]
+            resc_quality = [0 for i in range(len(posx))]
+
 
         res_unit = self.env["MIN_RESOURCE_PER_PATCH"]
         if res_unit == "----TUNED----":
@@ -861,8 +858,8 @@ class ExperimentReplay:
             max_num_res = max(self.varying_params["N_RESOURCES"])
 
         max_units = [res_unit for _ in range(int(max_num_res))]
-        resc_quality = self.resc_quality[:, t_ind]
-        if self.env.get("APP_VERSION", "Base") == "CooperativeSignaling":
+
+        if self.project_version == "CooperativeSignaling":
             radius_keyword = "DETECTION_RANGE"
         else:
             radius_keyword = "RADIUS_RESOURCE"
@@ -877,7 +874,21 @@ class ExperimentReplay:
             indexalongdim = slider.getValue()
             res_radius = self.varying_params[radius_keyword][indexalongdim]
 
-        self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
+        # getting FOV if it is varying
+        if self.env["AGENT_FOV"] == "----TUNED----":
+            var_keys = sorted(list(self.varying_params.keys()))
+            dimnum = var_keys.index("AGENT_FOV")
+            slider = self.varying_sliders[dimnum]
+            indexalongdim = slider.getValue()
+            self.current_fov = float(self.varying_params["AGENT_FOV"][indexalongdim])
+        else:
+            self.current_fov = float(self.env["AGENT_FOV"])
+
+
+        if self.project_version=="Base":
+            self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
+        elif self.project_version=="CooperativeSignaling":
+            self.draw_resources(res_posx, res_posy, [1], [1], [1], res_radius)
         if self.show_paths:
             if self.experiment.env.get("APP_VERSION", "") == "VisualFlocking":
                 self.draw_agent_paths_vf(self.posx[:, max(0, t_ind - self.path_length):t_ind],
@@ -897,7 +908,13 @@ class ExperimentReplay:
         else:
             clusters = None
 
-        self.draw_agents(posx, posy, orientation, mode, coll_resc, radius, clusters=clusters)
+
+        if self.project_version=="Base":
+            self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
+        elif self.project_version == "CooperativeSignaling":
+            self.draw_agents(posx, posy, orientation, mode, [0 for i in range(len(posx))], radius)
+        elif self.project_version == "VisualFlocking":
+            self.draw_agents(posx, posy, orientation, mode, [0 for i in range(len(posx))], radius, clusters=clusters)
 
         num_agents = len(posx)
         if self.show_stats:
@@ -911,9 +928,14 @@ class ExperimentReplay:
             if np.isnan(std_reloc):
                 std_reloc = 0
             time_dep_stats.append(f"Relocation Time (0-t): Mean:{mean_reloc:10.2f} ± {std_reloc:10.2f}")
-            end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
-                                                   coll_resc, previous_metrics=time_dep_stats)
-            self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
+            if self.project_version in ["Base", "CooperativeSignaling"]:
+                end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
+                                                       coll_resc, previous_metrics=time_dep_stats)
+            elif self.project_version == "VisualFlocking":
+                end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
+                                                       [0 for i in range(len(posx))], previous_metrics=time_dep_stats)
+            if self.project_version == "Base":
+                self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
 
     def draw_agent_paths_vf(self, posx, posy, radius, orientations):
         num_agents = posx.shape[0]
@@ -1042,6 +1064,11 @@ class ExperimentReplay:
                 return colors.RED
             else:
                 return "Collide"
+        elif mode == 4:
+            if not to_text:
+                return colors.RED
+            else:
+                return "Crowd"
 
     def draw_agent_stat_summary(self, ids, posx, posy, orientation, mode, coll_resc, previous_metrics=None):
         """Showing the summary of agent data for given frame"""
@@ -1090,11 +1117,11 @@ class ExperimentReplay:
 
     def draw_vfield(self, id, posx, posy, orientation, radius):
         """Drawing a single agent according to position and orientation"""
-        FOV_rat = float(self.env.get("AGENT_FOV", 1))
+        FOV_rat = self.current_fov
         FOV = (-FOV_rat * np.pi, FOV_rat * np.pi)
 
         # Show limits of FOV
-        if FOV[1] < np.pi:
+        if 0 < FOV[1] < np.pi:
 
             # Center and radius of pie chart
             cx, cy, r = posx + radius, posy + radius, self.env.get("VISION_RANGE", 3 * radius)
@@ -1142,7 +1169,7 @@ class ExperimentReplay:
 
         if self.show_stats:
             font = pygame.font.Font(None, 16)
-            if self.env.get("APP_VERSION", "Base") == "Base":
+            if self.env.get("APP_VERSION", "Base") in ["Base", "CooperativeSignaling"]:
                 text = font.render(f"ID:{id}, R:{coll_resc:.2f}", True, colors.BLACK)
             elif self.experiment.env.get("APP_VERSION") == "VisualFlocking":
                 if cluster_id is None:

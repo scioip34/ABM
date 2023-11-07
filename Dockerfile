@@ -5,7 +5,7 @@ RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false upd
     apt-get install -y python3-pip wget apt-utils systemctl
 
 # Download and install InlfuxDB
-RUN wget -qO- https://repos.influxdata.com/influxdb.key | apt-key add - && \
+RUN wget -qO- https://repos.influxdata.com/influxdata-archive_compat.key | apt-key add - && \
     echo "deb https://repos.influxdata.com/debian bionic stable" | tee /etc/apt/sources.list.d/influxdb.list && \
     apt update && apt install -y influxdb
 

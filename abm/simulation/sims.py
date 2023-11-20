@@ -273,7 +273,7 @@ class Simulation:
         """Visualizing the range of vision for agents as opaque circles around the agents"""
         for agent in self.agents:
             # Show visual range
-            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, agent.position + agent.radius, agent.vision_range,
+            pygame.draw.circle(self.screen, colors.LIGHT_BLUE, np.array(agent.position) + agent.radius, agent.vision_range,
                                width=1)
 
             # Show limits of FOV
@@ -567,11 +567,7 @@ class Simulation:
                 sys.exit()
 
             # Change orientation with mouse wheel
-            if event.type == pygame.MOUSEWHEEL:
-                if event.y == -1:
-                    event.y = 0
-                for ag in self.agents:
-                    ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
+            self.handle_mouse_wheel_event(event)
 
             # Pause on Space
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
@@ -590,22 +586,34 @@ class Simulation:
                 self.framerate = self.framerate_orig
 
             # Continuous mouse events (move with cursor)
-            if pygame.mouse.get_pressed()[0]:
-                try:
-                    for ag in self.agents:
-                        ag.move_with_mouse(event.pos, 0, 0)
-                    for res in self.rescources:
-                        res.update_clicked_status(event.pos)
-                except AttributeError:
-                    for ag in self.agents:
-                        ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
-            else:
+            self.handle_cursor_event(event)
+
+    def handle_mouse_wheel_event(self, event):
+        """Handling event if mouse wheel is moved"""
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y == -1:
+                event.y = 0
+            for ag in self.agents:
+                ag.move_with_mouse(pygame.mouse.get_pos(), event.y, 1 - event.y)
+
+    def handle_cursor_event(self, event):
+        """Handling event if cursor buttons are clicked"""
+        if pygame.mouse.get_pressed()[0]:
+            try:
                 for ag in self.agents:
-                    ag.is_moved_with_cursor = False
-                    ag.draw_update()
+                    ag.move_with_mouse(event.pos, 0, 0)
                 for res in self.rescources:
-                    res.is_clicked = False
-                    res.draw_update()
+                    res.update_clicked_status(event.pos)
+            except AttributeError:
+                for ag in self.agents:
+                    ag.move_with_mouse(pygame.mouse.get_pos(), 0, 0)
+        else:
+            for ag in self.agents:
+                ag.is_moved_with_cursor = False
+                ag.draw_update()
+            for res in self.rescources:
+                res.is_clicked = False
+                res.draw_update()
 
     def decide_on_vis_field_visibility(self, turned_on_vfield):
         """Deciding f the visual field needs to be shown or not"""

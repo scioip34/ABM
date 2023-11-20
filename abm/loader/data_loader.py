@@ -116,6 +116,7 @@ class DataLoader:
         self.load_files()
         self.preprocess_data()
 
+
     def agent_json_to_csv_format(self):
         """transforming a read in json format dictionary to the standard data structure we use when read in a csv file"""
         new_dict = {}
@@ -248,29 +249,32 @@ class DataLoader:
             print("agent_data loaded")
 
             if not self.only_agent:
-                if self.resource_csv_path is not None:
-                    self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
-                    print("OLD")
-                elif self.resource_json_path is not None:
-                    with open(self.resource_json_path, "r") as f:
-                        self.resource_data = json.load(f)
-                    self.resource_data = self.resource_json_to_csv_format()
-                else:
-                    if self.zarr_compressed_runs:
-                        self.resource_data = {}
-                        self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
-                                                               mode='r')
-                        self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
-                                                               mode='r')
-                        self.resource_data['radius'] = zarr.open(
-                            os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
-                            mode='r')
-                        if self.project_version=="Base":
-                            self.resource_data['resc_left'] = zarr.open(
-                                os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
+                try:
+                    if self.resource_csv_path is not None:
+                        self.resource_data = dh.load_csv_file(self.resource_csv_path, undersample=self.undersample)
+                        print("OLD")
+                    elif self.resource_json_path is not None:
+                        with open(self.resource_json_path, "r") as f:
+                            self.resource_data = json.load(f)
+                        self.resource_data = self.resource_json_to_csv_format()
+                    else:
+                        if self.zarr_compressed_runs:
+                            self.resource_data = {}
+                            self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
+                                                                   mode='r')
+                            self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
+                                                                   mode='r')
+                            self.resource_data['radius'] = zarr.open(
+                                os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
                                 mode='r')
-                            self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
-                                                                      mode='r')
+                            if self.project_version=="Base":
+                                self.resource_data['resc_left'] = zarr.open(
+                                    os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
+                                                                          mode='r')
+                                self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
+                                                                         mode='r')
+                except:
+                    pass
 
 
                 print("resource data loaded")
@@ -302,7 +306,7 @@ class DataLoader:
         self.env_data["SHOW_VISUAL_FIELDS"] = bool(int(self.env_data["SHOW_VISUAL_FIELDS"])),
         self.env_data["POOLING_TIME"] = int(self.env_data["POOLING_TIME"]),
         self.env_data["POOLING_PROBABILITY"] = float(self.env_data["POOLING_PROBABILITY"]),
-        self.env_data["RADIUS_AGENT"] = int(self.env_data["RADIUS_AGENT"]),
+        self.env_data["RADIUS_AGENT"] = int(float(self.env_data["RADIUS_AGENT"])),
         self.env_data["N_RESOURCES"] = int(self.env_data["N_RESOURCES"]),
         self.env_data["MIN_RESOURCE_PER_PATCH"] = int(self.env_data["MIN_RESOURCE_PER_PATCH"]),
         self.env_data["MAX_RESOURCE_PER_PATCH"] = int(self.env_data["MAX_RESOURCE_PER_PATCH"]),
@@ -361,9 +365,12 @@ class ExperimentLoader:
     def __init__(self, experiment_path, enforce_summary=False, undersample=1, with_plotting=False, collapse_plot=None,
                  t_start=None, t_end=None):
         # experiment data after summary
+        self.clustering_data = None
+        self.clustering_ids = None
         self.project_version = None
         self.zarr_extension = ".zarr"
         self.mean_iid = None
+        self.mean_nn_dist = None
         self.iid_matrix = None
         self.undersample = int(undersample)
         self.chunksize = None  # chunk size in zarr array
@@ -790,7 +797,10 @@ class ExperimentLoader:
                             r_rescleft_array[ind] += data
 
                 else:
-                    num_res_in_run = res_data['posx'].shape[0]
+                    try:
+                        num_res_in_run = res_data['posx'].shape[0]
+                    except:
+                        num_res_in_run = 0
                     for pid in range(num_res_in_run):
                         ind = (i,) + tuple(index) + (pid,)
                         r_posx_array[ind] = res_data['posx'][pid, self.t_start:self.t_end:self.undersample]
@@ -897,10 +907,17 @@ class ExperimentLoader:
                 self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_mode{extension}"),
                                                        mode='r')  # self.experiment.agent_summary['mode']
                 if self.project_version=="Base":
-                    self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
-                                                           mode='r')
-                    self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
-                                                        mode='r')
+                    # u and w are not crucial for replay, so we can skip them if they are not available
+                    try:
+                        self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
+                                                               mode='r')
+                    except zarr.errors.PathNotFoundError:
+                        print("No agent_u found!")
+                    try:
+                        self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
+                                                            mode='r')
+                    except zarr.errors.PathNotFoundError:
+                        print("No agent_w found!")
                     self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_explpatch{extension}"),
                                                         mode='r')
                     self.agent_summary['collresource'] = zarr.open(
@@ -937,8 +954,12 @@ class ExperimentLoader:
                     self.res_summary['resc_left'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
                         mode='r')
-                    self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
-                                                            mode='r')
+                    try:
+                        self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
+                                                                mode='r')
+                    except zarr.errors.PathNotFoundError:
+                        print("No res_qual found!")
+
 
         else:
             # found npz summary for resources
@@ -965,6 +986,310 @@ class ExperimentLoader:
             print(self.description)
             print("___END_README___\n")
         print("Experiment loaded")
+
+    def calculate_pairwise_pol_matrix_supervect(self, t, undersample=1, batchi=0):
+        """
+        Calculating NxN matrix of pairwise polarizations between agents in a given condition.
+        The condition idx is a tuple of the varying parameter indices.
+        t is the time index.
+        """
+        # Defining dimesnions in the orientation array
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+
+        # reshape the orientation array to have the first dimensions batch_dim and num_var_params
+        print("Loading Orientation data!")
+        ori_data = self.agent_summary["orientation"][batchi, ..., ::undersample]
+        ori_shape = ori_data.shape
+        num_timesteps = ori_shape[-1]
+        new_shape = ori_shape[0:agent_dim] + (num_agents, num_timesteps)
+        print(ori_shape, new_shape)
+        ori_reshaped = np.reshape(ori_data, new_shape)
+
+        # calculate pairwise polarizations
+        ag_uni = np.stack((np.cos(ori_reshaped), np.sin(ori_reshaped)), axis=-1)
+        ag_uni = ag_uni.reshape((-1, num_agents, num_timesteps, 2))
+        normed_sum = np.linalg.norm(ag_uni[:, :, None, :] + ag_uni[:, None, :, :], axis=-1) / 2
+        pol_matrix = normed_sum.reshape((new_shape[:-1] + (num_agents, num_agents, num_timesteps)))
+
+        # reshape pol_matrix back to the desired shape
+        pol_matrix = np.moveaxis(pol_matrix, -1, agent_dim)
+        return pol_matrix
+
+    def calculate_clustering(self):
+        """Using hierarhical clustering according to inter-individual distance and order scores to get number of
+        subgroups"""
+        # Checking if in the previous run a cluster_dict has already been saved and reloading it if exists
+        clustering_data_path = os.path.join(self.experiment_path, "summary", "clustering_data.npy")
+        largest_clustering_data_path = os.path.join(self.experiment_path, "summary", "largest_clustering_data.npy")
+        clustering_id_path = os.path.join(self.experiment_path, "summary", "clustering_id.npy")
+        if self.iid_matrix is None:
+            self.calculate_interindividual_distance()
+
+        if os.path.isfile(clustering_data_path):
+            print("Cluster dict reloaded!")
+            # loading cluster data numpy array
+            self.clustering_data = np.load(clustering_data_path, mmap_mode="r+")
+            self.largest_clustering_data = np.load(largest_clustering_data_path, mmap_mode="r+")
+            self.clustering_ids = np.load(clustering_id_path, mmap_mode="r+")
+            return
+
+        from fastcluster import linkage
+        from scipy.cluster.hierarchy import dendrogram
+        clustering_dict = {}
+        num_agents = int(self.env.get("N"))
+        # calculating the maximum distance on the torus as the half diameter of the arena
+        max_dist = (self.env.get("ENV_WIDTH") ** 2 + self.env.get("ENV_HEIGHT") ** 2) ** 0.5 / 2
+        # The shape will depend on the IID matrix which is costly.
+        # If we use undersample there, we also use undersample here
+        num_timesteps_orig = self.env.get("T")
+        num_timesteps = self.iid_matrix.shape[-1]
+        undersample = int(num_timesteps_orig // num_timesteps)
+        clustering_dict['num_subgroups'] = []
+        print(f"Num varying params: {len(self.varying_params)}")
+        num_varying_params = len(self.varying_params)
+        clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
+        largest_clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
+        clustering_ids = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_agents, num_timesteps]))
+        # calculating the number of parameter combinations along iidm.shape[:num_varying_params+1]
+        num_combinations = np.prod(self.iid_matrix.shape[:num_varying_params+1])
+        curr_param_comb = 0
+        print("Calculating polarizations first")
+        t_slice = slice(0, num_timesteps_orig, undersample)
+
+        # calculating the normalized iid distance matrix with punishing large distances more
+        niidm = self.iid_matrix.copy()
+        niidm /= max_dist
+        niidm = (niidm - np.mean(niidm)) / np.std(niidm)
+        # punishing large distances more
+        niidm = niidm ** 2
+
+        for batchi in range(self.agent_summary["orientation"].shape[0]):
+            print("Batchi: ", batchi)
+            # if batchi < 5:
+            #     pass
+            # else:
+            #     break
+            condition_idx = (batchi, slice(None), slice(None), slice(None))
+            pol_m_large = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, t_slice)
+            for idx_base_ in np.ndindex(*self.iid_matrix.shape[1:num_varying_params+1]):
+                print("Progress: ", curr_param_comb, "/", num_combinations)
+                idx_base = tuple([batchi] + list(idx_base_))
+                for t in range(num_timesteps):
+                    idx = tuple(list(idx_base) + [slice(None), slice(None), t])
+                    idx_ = tuple(list(idx_base_) + [slice(None), slice(None), t])
+
+                    # getting the distance matrix for current condition and timestep
+                    normiidm = niidm[idx]
+
+                    # calculating the distance matrix for polarization
+                    pm = pol_m_large[idx_]
+                    # standardizing pm and normiidm so that their mean is 0 and their std is 1
+                    pm = (pm - np.mean(pm)) / np.std(pm)
+                    dist_pm = 1 - pm.astype('float')
+                    # squaring distances to punish large distances more
+                    dist_pm = dist_pm ** 2
+
+                    # calculating the final distance matrix as a weighted average of the two
+                    dist = (dist_pm + normiidm) / 2
+
+                    if idx_base == (0, 1, 5, 2) and 326 < t < 310:
+                        with_plotting = True
+                        print(dist_pm)
+                        print(normiidm)
+                    else:
+                        with_plotting = False
+
+                    # clustering
+                    linkage_matrix = linkage(dist, "ward")
+                    ret = dendrogram(linkage_matrix, color_threshold=15, labels=[i for i in range(num_agents)],
+                                     show_leaf_counts=True, no_plot=not with_plotting)
+                    colors = [color for _, color in sorted(zip(ret['leaves'], ret['leaves_color_list']))]
+                    group_ids = np.array([int(a.split("C")[1]) for a in colors])
+                    for i, gid in enumerate(group_ids):
+                        # when gid is zero we make it the maximum element
+                        # because it means it is an independent leaf
+                        if gid == 0:
+                            group_ids[i] = np.max(group_ids) + 1
+
+                    group_ids -= 1
+                    clustering_data[tuple(list(idx_base) + [t])] = len(list(set(colors)))
+                    largest_clustering_data[tuple(list(idx_base) + [t])] = self.calculate_largest_subcluster_size(group_ids)
+                    clustering_ids[tuple(list(idx_base) + [slice(None), t])] = group_ids
+                    if with_plotting:
+                        plt.show()
+                        input(group_ids)
+                curr_param_comb += 1
+
+        self.clustering_data = clustering_data
+        self.largest_clustering_data = largest_clustering_data
+        self.clustering_ids = clustering_ids
+        print(f"Saving clustering data...")
+        # save clustering_data as numpy array
+        np.save(clustering_data_path, clustering_data)
+        np.save(largest_clustering_data_path, largest_clustering_data)
+        np.save(clustering_id_path, clustering_ids)
+
+        return clustering_dict
+
+    def calculate_largest_subcluster_size(self, cluster_id_list):
+        """Calculating the size (i.e. number of agents) of largest subcluster of the group"""
+        cluster_sizes = []
+        for cluster_id in set(cluster_id_list):
+            cluster_sizes.append(np.sum(cluster_id_list == cluster_id))
+        return np.max(cluster_sizes)
+
+    def plot_largest_subclusters(self):
+        """Method to plot size of largest subclusters irrespectively of how many parameters have been tuned during the
+                experiments."""
+        cbar = None
+        self.calculate_clustering()
+        self.mean_largest_clusters = np.mean(self.largest_clustering_data, axis=0)
+        min_data = np.min(self.mean_largest_clusters)
+        max_data = np.max(self.mean_largest_clusters)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            # fig, ax = plt.subplots(1, 1)
+            # plt.title("Number of Subclusters")
+            # plt.plot(self.mean_clusters)
+            # for run_i in range(self.efficiency.shape[0]):
+            #     plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            # ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            # ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            # plt.xlabel(list(self.varying_params.keys())[0])
+            pass
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_largest_clusters)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_largest_clusters.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_largest_clusters = np.zeros((self.mean_largest_clusters.shape[0:3]))
+                print(self.new_mean_largest_clusters.shape)
+                for j in range(self.mean_largest_clusters.shape[0]):
+                    for i in range(self.mean_largest_clusters.shape[1]):
+                        self.new_mean_largest_clusters[j, i, :] = self.mean_largest_clusters[j, i, :, i]
+                self.mean_largest_clusters = self.new_mean_largest_clusters
+            if self.collapse_plot is None:
+                num_plots = self.mean_largest_clusters.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_largest_clusters[i, :, :], vmin=min_data, vmax=max_data)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True)
+        return fig, ax, cbar
+
+
+    def plot_clustering(self):
+        """Method to plot clustering irrespectively of how many parameters have been tuned during the
+                experiments."""
+        cbar = None
+        self.calculate_clustering()
+        self.mean_clusters = np.mean(self.clustering_data, axis=0)
+        min_data = np.min(self.mean_clusters)
+        max_data = np.max(self.mean_clusters)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            # fig, ax = plt.subplots(1, 1)
+            # plt.title("Number of Subclusters")
+            # plt.plot(self.mean_clusters)
+            # for run_i in range(self.efficiency.shape[0]):
+            #     plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            # ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            # ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            # plt.xlabel(list(self.varying_params.keys())[0])
+            pass
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_clusters)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_clusters.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_clusters = np.zeros((self.mean_clusters.shape[0:3]))
+                print(self.new_mean_clusters.shape)
+                for j in range(self.mean_clusters.shape[0]):
+                    for i in range(self.mean_clusters.shape[1]):
+                        self.new_mean_clusters[j, i, :] = self.mean_clusters[j, i, :, i]
+                self.mean_clusters = self.new_mean_clusters
+            if self.collapse_plot is None:
+                num_plots = self.mean_clusters.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_clusters[i, :, :], vmin=min_data, vmax=max_data)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True)
+        return fig, ax, cbar
+
 
     def calculate_search_efficiency(self, t_start_plot=0, t_end_plot=-1, used_batches=None):
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
@@ -1039,11 +1364,12 @@ class ExperimentLoader:
                 iid[i, j] = distance[i]
         return iid
 
-    def calculate_interindividual_distance(self, undersample=1, avg_over_time=False):
+    def calculate_interindividual_distance(self, undersample=1, avg_over_time=False, periodic_boundary=False):
         """Method to calculate inter-individual distance array from posx and posy arrays of agents. The final
         array has the same dimension as any of the input arrays, i.e.:
         (num_batches, *[dims of varying params], num_agents, time)
         and defines the mean (across group members) inter-individual distance for a given agent i in timestep t.
+        If periodic boundary is true, we calculate distances on a torus.
         """
         summary_path = os.path.join(self.experiment_path, "summary")
         iidpath = os.path.join(summary_path, "iid.npy")
@@ -1052,6 +1378,12 @@ class ExperimentLoader:
             print("Found saved I.I.D array in summary, reloading it...")
             self.iid_matrix = np.load(iidpath)
         else:
+            if self.env.get("BOUNDARY") == "infinite":
+                print(
+                    "Dataset was generated with periodic boundary conditions. Do you want to calculate I.I.D. according"
+                    "to torus environment? (Y/N)")
+                periodic_boundary = input().lower() == "y"
+
             agposx = self.agent_summary['posx']
             agposy = self.agent_summary['posy']
 
@@ -1078,7 +1410,7 @@ class ExperimentLoader:
             iid = np.zeros(new_shape)
 
             for batchi in range(num_batches):
-                print(f"Calculating iid for batch {batchi}")
+                print(f"Calculating iid for batch {batchi}, torus={periodic_boundary}")
                 for agi in range(num_agents):
                     for agj in range(num_agents):
                         if agj > agi:
@@ -1086,7 +1418,16 @@ class ExperimentLoader:
                             y1s = agposy[batchi, ..., agi, ::undersample]
                             x2s = agposx[batchi, ..., agj, ::undersample]
                             y2s = agposy[batchi, ..., agj, ::undersample]
-                            distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
+                            if not periodic_boundary:
+                                distance_matrix = supcalc.distance_coords(x1s, y1s, x2s, y2s, vectorized=True)
+                            else:
+                                p1 = np.array([[x1s[ii], y1s[ii]] for ii in range(len(x1s))])
+                                p2 = np.array([[x2s[ii], y2s[ii]] for ii in range(len(x2s))])
+                                dim = np.array([int(self.env["ENV_WIDTH"]), int(self.env["ENV_HEIGHT"])])
+                                dima = np.zeros_like(p1)
+                                dima[:, 0, ...] = dim[0]
+                                dima[:, 1, ...] = dim[1]
+                                distance_matrix = supcalc.distance_torus(p1, p2, dima)
                             if not avg_over_time:
                                 iid[batchi, ..., agi, agj, :] = distance_matrix
                             else:
@@ -1101,6 +1442,7 @@ class ExperimentLoader:
             # for the mean we restrict the iid matrix as upper triangular in the agent dimensions so that we
             # don't calculate IIDs in mean twice (as IID is symmetric, i.e. the distance between agent i and j
             # is the same as between j and i)
+            num_agents = self.agent_summary['posx'].shape[-2]
             restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1], :]
             # Then we take the mean along the flattened dimension in which we defined the previous restriction, and we also
             # take the mean along all the repeated batches (0dim)
@@ -1111,10 +1453,452 @@ class ExperimentLoader:
             else:
                 self.mean_iid = np.mean(np.mean(restr_m, axis=-2), axis=0)
 
-        # Saving calculated arrays for future use
-        print("Saving I.I.D and mean I.I.D arrays into summary!")
-        np.save(iidpath, self.iid_matrix)
-        np.save(meaniid_path, self.mean_iid)
+            # Saving calculated arrays for future use
+            print("Saving I.I.D and mean I.I.D arrays into summary!")
+            np.save(iidpath, self.iid_matrix)
+            np.save(meaniid_path, self.mean_iid)
+
+    def calculate_mean_NN_dist(self, undersample=1, avg_over_time=False):
+        """Calculating the mean nearest neighbor metric over time. We take the average over
+        agents of the min neighbor distance per agent."""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        iidpath = os.path.join(summary_path, "iid.npy")
+        meanNNd_path = os.path.join(summary_path, "meanNNd.npy")
+        if os.path.isfile(meanNNd_path):
+            print("Found saved mean NND array in summary, reloading it...")
+
+            self.mean_nn_dist = np.load(meanNNd_path)
+        if self.iid_matrix is None:
+            if os.path.isfile(iidpath):
+                print("Found saved IID array in summary, reloading it...")
+                self.iid_matrix = np.load(iidpath)
+            else:
+                print("Didn't find saved IID array in summary, calculating them...")
+                self.calculate_interindividual_distance(undersample=undersample, avg_over_time=False)
+        iid = self.iid_matrix.copy()
+        num_agents = iid.shape[-2]
+        for i in range(num_agents):
+            iid[..., i, i, :] = np.nan
+        nearest_per_agents = np.nanmin(iid, axis=-2)
+        mean_nearest = np.mean(nearest_per_agents, axis=-2)
+        self.mean_nn_dist = np.mean(mean_nearest, axis=0)
+        print("Saving mean NNd array under ", meanNNd_path)
+        np.save(meanNNd_path, self.mean_nn_dist)
+
+
+
+    def plot_mean_polarization(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
+        """Method to plot polarization irrespectively of how many parameters have been tuned during the
+        experiments."""
+        cbar = None
+        self.calculate_polarization()
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Polarization")
+            plt.plot(self.mean_pol)
+            plt.plot(self.mean_pol + self.pol_std)
+            plt.plot(self.mean_pol - self.pol_std)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_pol)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_pol.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_pol = np.zeros((self.mean_pol.shape[0:3]))
+                print(self.new_mean_pol.shape)
+                for j in range(self.mean_pol.shape[0]):
+                    for i in range(self.mean_pol.shape[1]):
+                        self.new_mean_pol[j, i, :] = self.mean_pol[j, i, :, i]
+                self.mean_pol = self.new_mean_pol
+            if self.collapse_plot is None:
+                num_plots = self.mean_pol.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_pol[i, :, :], vmin=0, vmax=1)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_pol, save_name="coll_pol.npy")
+                coll_std, _ = self.collapse_mean_data(self.pol_std, save_name="coll_polstd.npy")
+
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
+
+    def plot_mean_collision_time(self, t_start=0, t_end=-1, from_script=False, used_batches=None, undersample=1):
+        cbar = None
+        self.calculate_collision_time(undersample=undersample)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Collision Time")
+            plt.plot(self.mean_aacoll)
+            plt.plot(self.mean_aacoll + self.aacoll_std)
+            plt.plot(self.mean_aacoll - self.aacoll_std)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_aacoll)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_aacoll.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_pol = np.zeros((self.mean_aacoll.shape[0:3]))
+                print(self.new_mean_pol.shape)
+                for j in range(self.mean_aacoll.shape[0]):
+                    for i in range(self.mean_aacoll.shape[1]):
+                        self.new_mean_pol[j, i, :] = self.mean_aacoll[j, i, :, i]
+                self.mean_aacoll = self.new_mean_pol
+            if self.collapse_plot is None:
+                num_plots = self.mean_aacoll.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_aacoll[i, :, :], vmin=0, vmax=np.max(self.mean_aacoll))
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_aacoll, save_name="coll_aacoll.npy")
+                coll_std, _ = self.collapse_mean_data(self.aacoll_std, save_name="coll_polstd.npy")
+
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
+
+    def calculate_pairwise_pol_matrix_vectorized(self, condition_idx, t):
+        """t is also slice"""
+        # Defining dimesnions in the orientation array
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+
+        # Get the orientations of all agents at time t
+        agent_ori = self.agent_summary["orientation"][condition_idx + (slice(None), t)]
+        # print(agent_ori.shape)
+        # input()
+
+        # Calculate the univectors of all agent pairs
+        agent_uni = np.stack([np.cos(agent_ori), np.sin(agent_ori)], axis=-1)
+        # print(agent_uni.shape)
+        # input()
+        if isinstance(t, slice):
+            # print("t is slice")
+            agi_uni = np.expand_dims(agent_uni, axis=-3)
+            # print(agi_uni.shape)
+            agj_uni = np.expand_dims(agent_uni, axis=-4)
+            # print(agj_uni.shape)
+            # input()
+        else:
+            # print("t is not slice")
+            agi_uni = np.expand_dims(agent_uni, axis=-2)
+            # print(agi_uni.shape)
+            agj_uni = np.expand_dims(agent_uni, axis=-3)
+            # print(agj_uni.shape)
+            # input()
+
+        # Calculate the pairwise polarizations using matrix multiplication
+        pol_matrix = np.linalg.norm(agi_uni + agj_uni, axis=-1) / 2
+
+        # print(pol_matrix.shape)
+        # input()
+        # print(pol_matrix[..., 0])
+
+        return pol_matrix
+
+    def calculate_pairwise_pol_matrix(self, condition_idx, t):
+        """
+        Calculating NxN matrix of pairwise polarizations between agents in a given condition.
+        The condition idx is a tuple of the varying parameter indices.
+        t is the time index.
+        """
+        # Defining dimesnions in the orientation array
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+
+        # calculate pairwise polarizations
+        pol_matrix = np.zeros((num_agents, num_agents))
+        for i in range(num_agents):
+            for j in range(num_agents):
+                # getting orientation of 2 agents i and j
+                agi_ori = self.agent_summary["orientation"][condition_idx + (i, t)]
+                agj_ori = self.agent_summary["orientation"][condition_idx + (j, t)]
+
+                # calculating univectors with orientations of agent i and j
+                agi_uni = np.array([np.cos(agi_ori), np.sin(agi_ori)])
+                agj_uni = np.array([np.cos(agj_ori), np.sin(agj_ori)])
+
+                # calculating the absolute sum of the univectors normed by the number of agents
+                # contributing to the sum (=2, pairwise)
+                normed_sum = np.linalg.norm(agi_uni + agj_uni) / 2
+
+                pol_matrix[i, j] = normed_sum
+
+        return pol_matrix
+
+    def calculate_polarization(self, undersample=1, filtered_by_wallcoll=0, filtering_window=50):
+        """Calculating polarization of agents in the environment used to
+        quantify e.g. flocking models"""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        if filtered_by_wallcoll:
+            self.find_wall_collisions()
+            polpath = os.path.join(summary_path, f"polarization_wallcoll.npy")
+        else:
+            polpath = os.path.join(summary_path, f"polarization_us{undersample}.npy")
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if os.path.isfile(polpath):
+            print("Found saved polarization array in summary, reloading it...")
+            self.pol_matrix = np.load(polpath)
+            self.mean_pol = np.nanmean(np.nanmean(self.pol_matrix, axis=batch_dim), axis=-1)
+            self.pol_std = np.nanmean(np.nanstd(self.pol_matrix, axis=batch_dim), axis=-1)
+
+        else:
+            num_agents = self.agent_summary["orientation"].shape[agent_dim]
+            num_timesteps = self.agent_summary["orientation"].shape[time_dim]/undersample
+            ori_shape = list(self.agent_summary["orientation"].shape)
+            new_shape = ori_shape[0:num_var_params+1] + [int(num_timesteps/undersample)]
+
+            self.pol_matrix = np.zeros(new_shape)
+            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, int(num_timesteps/undersample)]
+
+            for runi in range(self.num_batches):
+                print(f"Calculating polarization for batch {runi}")
+                if filtered_by_wallcoll:
+
+                    # wrefs = list(tuple(self.wrefs[runi][:]))
+                    # for ti, t in enumerate(wrefs_old[-1]):
+                    #     print(ti)
+                    #     wrefs[-1] = np.append(wrefs[1], np.array([tk for tk in range(t, t+100)]))
+                    #     for wi in range(len(wrefs)-1):
+                    #         wrefs[wi] = np.append(wrefs[wi], np.array([wrefs[wi][t] for tk in range(100)]))
+
+                    orif = self.agent_summary["orientation"][runi, ...]
+                    print(f"Extending collision filtering with time window {filtering_window}")
+                    wrefs = self.wrefs[runi][:]
+                    for wi in range(filtering_window):
+                        print(wi)
+                        new_times = wrefs[-1] + 1
+                        new_times[new_times>self.env["T"]-1]=self.env["T"]-1
+                        wrefs[-1] = new_times
+                        new_wrefs = tuple(wrefs)
+                        orif[new_wrefs] = np.nan
+
+                unitvecs = np.zeros(unitvec_shape)
+                for robi in range(num_agents):
+                    if filtered_by_wallcoll:
+                        ori = orif[..., robi, :]
+                    else:
+                        ori = self.agent_summary["orientation"][runi, ..., robi, ::undersample]
+                    unitvecs[..., 0, robi, :] = np.array([np.cos(ang) for ang in ori])
+                    unitvecs[..., 1, robi, :] = np.array([np.sin(ang) for ang in ori])
+
+                unitsum = np.nansum(unitvecs, axis=-2)  # summing for all robots
+                unitsum_norm = np.linalg.norm(unitsum, axis=-2) / num_agents  # getting norm in x and y
+                self.pol_matrix[runi, ...] = unitsum_norm  # np.nanmean(unitsum_norm, axis=-1)
+
+            # for runi in range(self.num_batches):
+            #     pol_matrix[runi, ...] = np.mean(np.array(
+            #         [np.linalg.norm([unitsum[runi, 0, t], unitsum[runi, 1, t]]) / num_agents for t in
+            #          range(num_timesteps)]), axis=-1)
+
+            self.mean_pol = np.nanmean(np.nanmean(self.pol_matrix, axis=batch_dim), axis=-1)
+            self.pol_std = np.nanmean(np.nanstd(self.pol_matrix, axis=batch_dim), axis=-1)
+            print("Saving calculated polarization time matrix!")
+            np.save(polpath, self.pol_matrix)
+
+        return self.pol_matrix, self.mean_pol
+
+    def calculate_collision_time(self, undersample=1):
+        summary_path = os.path.join(self.experiment_path, "summary")
+        iidpath = os.path.join(summary_path, "iid.npy")
+        aacollpath = os.path.join(summary_path, "aacoll.npy")
+        batch_dim = 0
+
+        if os.path.isfile(aacollpath):
+            print("Found saved collision time array in summary, reloading it...")
+            self.aacoll_matrix = np.load(aacollpath)
+        else:
+            if self.iid_matrix is None and not os.path.isfile(iidpath):
+                self.calculate_interindividual_distance(undersample=undersample)
+            elif os.path.isfile(iidpath):
+                self.iid_matrix = np.load(iidpath)
+            aacoll = np.zeros(list(self.agent_summary['orientation'].shape)[0:-2])
+            num_timesteps = self.iid_matrix.shape[-1]
+            if self.iid_matrix.shape[-1] < 1000:
+                raise Exception(f"The IID matrix has been collapsed on the time axis to len {self.iid_matrix.shape[-1]} when was calculated, can not"
+                                " calculate collision matrix. Please delete iid.npy from the summary folder and"
+                                "try again!")
+            else:
+                iid_individual_coll = np.any(self.iid_matrix < (2*self.env["RADIUS_AGENT"]), axis=-2)  # containing info about which agent has been collided
+                iid_sum_coll = np.any(np.logical_and(self.iid_matrix > 0, self.iid_matrix < (2*self.env["RADIUS_AGENT"])), axis=-2)  # is there collision or not in every timestep
+                aacoll = np.count_nonzero(iid_sum_coll, axis=-1) / num_timesteps
+                self.aacoll_matrix = aacoll
+
+        self.mean_aacoll = np.mean(np.mean(self.aacoll_matrix, axis=batch_dim), axis=-1)
+        self.aacoll_std = np.std(np.mean(self.aacoll_matrix, axis=batch_dim), axis=-1)
+        print("Saving calculated mean aacoll time matrix!")
+        np.save(aacollpath, self.aacoll_matrix)
+
+        return self.aacoll_matrix, self.mean_aacoll
+
+    def find_wall_collisions(self, undersample=1):
+        """Finding the timepoints of the data where ANY of the agents have been reflected from ANY of the walls"""
+        summary_path = os.path.join(self.experiment_path, "summary")
+        wrefpaths = [os.path.join(summary_path, f"wallref_b{bi}.zarr") for bi in range(self.num_batches)]
+        self.wrefs = {}
+        if os.path.isdir(wrefpaths[0]):
+            print("Found saved wall reflection array in summary, reloading it...")
+            for bi in range(self.num_batches):
+                self.wrefs[bi] = zarr.open(wrefpaths[bi], mode='r', dtype='int')
+        else:
+            boundaries_x = [0, int(float(self.env.get("ENV_WIDTH")))]
+            boundaries_y = [0, int(float(self.env.get("ENV_HEIGHT")))]
+            for bi in range(self.num_batches):
+                print(f"Calculating wall reflection times to batch {bi}")
+                agposx = self.agent_summary['posx'][bi, ...]
+                agposy = self.agent_summary['posy'][bi, ...]
+
+                wrefs = np.array(np.where(np.logical_or(np.logical_or(
+                                 agposx < boundaries_x[0] - self.env.get("RADIUS_AGENT"),
+                                 agposx > boundaries_x[1] - self.env.get("RADIUS_AGENT")),
+                                                    np.logical_or(
+                                 agposy < boundaries_y[0] - self.env.get("RADIUS_AGENT"),
+                                 agposy > boundaries_y[1] - self.env.get("RADIUS_AGENT")))))
+
+                wrefszarr = zarr.open(wrefpaths[bi], mode='w',
+                            shape=wrefs.shape, dtype='int')
+                wrefszarr[...] = wrefs[...]
+                self.wrefs[bi] = wrefszarr
+
+
+
 
     def calculate_relocation_time(self, undersample=1):
         """Calculating relocation time matrix over the given data"""
@@ -1189,13 +1973,109 @@ class ExperimentLoader:
 
         return collapsed_data, labels
 
+    def plot_mean_NN_dist(self, from_script=False, undersample=1):
+        """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the
+        experiments."""
+        cbar = None
+        if self.mean_nn_dist is None:
+            # self.calculate_interindividual_distance(undersample=undersample)
+            self.calculate_mean_NN_dist(undersample=undersample)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Inter-individual distance (mean)")
+            plt.plot(self.mean_nn_dist)
+            num_agents = self.iid_matrix.shape[-2]
+            restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1]]
+            for run_i in range(self.iid_matrix.shape[0]):
+                plt.plot(restr_m[run_i, :, :], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Inter-individual distance (mean)")
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_nn_dist)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_nn_dist.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_nn_dist = np.zeros((self.mean_nn_dist.shape[0:3]))
+                print(self.new_mean_nn_dist.shape)
+                for j in range(self.mean_nn_dist.shape[0]):
+                    for i in range(self.mean_nn_dist.shape[1]):
+                        self.new_mean_nn_dist[j, i, :] = self.mean_nn_dist[j, i, :, i]
+                self.mean_nn_dist = self.new_mean_nn_dist
+
+            if self.collapse_plot is None:
+                num_plots = self.mean_nn_dist.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_nn_dist[i, :, :])
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_nn_dist, save_name="coll_iid.npy")
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
+        description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
+                           f"of inter-individual distance between agents.\n"
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
+
 
     def plot_mean_iid(self, from_script=False, undersample=1):
         """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the
         experiments."""
         cbar = None
         if self.iid_matrix is None:
-            self.calculate_interindividual_distance(avg_over_time=True, undersample=undersample)
+            self.calculate_interindividual_distance(undersample=undersample)
 
         batch_dim = 0
         num_var_params = len(list(self.varying_params.keys()))
@@ -1243,7 +2123,7 @@ class ExperimentLoader:
                 fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
                 keys = sorted(list(self.varying_params.keys()))
                 for i in range(num_plots):
-                    img = ax[i].imshow(self.mean_iid[i, :, :])
+                    img = ax[i].imshow(self.mean_iid[i, :, :], vmin=np.min(self.mean_iid), vmax=np.max(self.mean_iid))
                     ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
 
                     if i == 0:
@@ -1279,7 +2159,7 @@ class ExperimentLoader:
 
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of inter-individual distance between agents.\n"
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
@@ -1378,7 +2258,7 @@ class ExperimentLoader:
                 cbar = fig.colorbar(img, cax=cbar_ax)
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of total collected resource units normalized with the mean total\n" \
                            f"distance travelled by agents over the experiments.\n"
@@ -1475,7 +2355,7 @@ class ExperimentLoader:
 
                 fig.set_tight_layout(True)
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"of relative relocation time, i.e. ratio of time spent in relocation\n"
         self.add_plot_interaction(description_text, fig, ax, show=True)
@@ -1514,7 +2394,7 @@ class ExperimentLoader:
             ax.set_yticklabels(self.varying_params[list(self.varying_params.keys())[1]])
             plt.ylabel(list(self.varying_params.keys())[1])
 
-        num_agents = self.agent_summary["collresource"].shape[agent_dim]
+        num_agents = self.agent_summary["posx"].shape[agent_dim]
         description_text = f"Showing the mean (over {self.num_batches} batches and {num_agents} agents)\n" \
                            f"travelled distance\n"
         self.add_plot_interaction(description_text, fig, ax, show=True)

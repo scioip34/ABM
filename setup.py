@@ -23,7 +23,8 @@ setup(
         'influxdb<5.3.0',
         'opencv-python',
         'xvfbwrapper',
-        'zarr'
+        'zarr',
+        'fastcluster'
     ],
     extras_require={
         'test': [
@@ -37,9 +38,11 @@ setup(
         'console_scripts': [
             'abm-start=abm.app:start',
             'abm-start-coopsig=abm.app_collective_signaling:start',
+            'abm-start-visflock=abm.app_visual_flocking:start',
             'headless-abm-start=abm.app:start_headless',
             'playground-start=abm.app:start_playground',
-            'playground-start-coopsig=abm.app_collective_signaling:start_playground'
+            'playground-start-coopsig=abm.app_collective_signaling:start_playground',
+            'playground-start-visflock=abm.app_visual_flocking:start_playground'
         ]
     },
     classifiers=[

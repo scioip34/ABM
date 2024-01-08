@@ -237,7 +237,7 @@ class DataLoader:
                                                                     mode='r')
                         self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
                                                                      mode='r')
-                    else:
+                    elif self.project_version=="CooperativeSignaling":
                         self.agent_data['meter'] = zarr.open(os.path.join(self.data_folder_path, f"ag_meter{self.zarr_extension}"), mode='r')
                         self.agent_data['signalling'] = zarr.open(
                             os.path.join(self.data_folder_path, f"ag_sig{self.zarr_extension}"), mode='r')

@@ -59,7 +59,7 @@ fi
 
 # Load singularity
 echo "Loading singularity..."
-module load singularity
+module load singularity/3.7.4
 singularity version
 
 # Create singularity instance

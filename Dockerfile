@@ -40,7 +40,7 @@ RUN pip install -e /app
 ENV GID 1330493118
 ENV UID 1330493118
 RUN groupadd --gid $GID appgroup && \
-    useradd -r -d /app -g appgroup -G root,sudo -u $UID appuser
+    useradd -r -d /app -g appgroup -G root,sudo -l -u $UID appuser
 
 RUN adduser appuser sudo
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers

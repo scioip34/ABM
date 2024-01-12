@@ -251,24 +251,27 @@ def VSWRM_flocking_state_variables(vel_now, Phi, V_now, vf_params, t_now=None, V
 
         return dvel, dpsi
     else:
-        # alpha_blob = ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
-        # alpha_edge = ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
-        #
-        # beta_blob = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
-        # beta_edge = BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        if not vf_params.USE_SIN_SIGMOID:
+            beta_blob = BET0 * integrate.trapz(np.sin(Phi) * G_psi, Phi)
+            beta_edge = BET0 * vf_params.BET1 * np.sum(np.sin(Phi) * G_psi_spike)
+        else:
+            beta_blob = BET0 * integrate.trapz(sin_sigmoid(Phi, 3 * np.pi) * G_psi, Phi)
+            beta_edge = BET0 * vf_params.BET1 * np.sum(sin_sigmoid(Phi, 3 * np.pi) * G_psi_spike)
 
-        alpha_blob = ALP0 * integrate.trapz(cos_sigmoid(Phi, 3*np.pi) * G_vel, Phi)
-        alpha_edge = ALP0 * vf_params.ALP1 * np.sum(cos_sigmoid(Phi, 3*np.pi) * G_vel_spike)
+        if not vf_params.USE_COS_SIGMOID:
+            alpha_blob = ALP0 * integrate.trapz(np.cos(Phi) * G_vel, Phi)
+            alpha_edge = ALP0 * vf_params.ALP1 * np.sum(np.cos(Phi) * G_vel_spike)
+        else:
+            alpha_blob = ALP0 * integrate.trapz(cos_sigmoid(Phi, 3*np.pi) * G_vel, Phi)
+            alpha_edge = ALP0 * vf_params.ALP1 * np.sum(cos_sigmoid(Phi, 3*np.pi) * G_vel_spike)
 
-        beta_blob = BET0 * integrate.trapz(sin_sigmoid(Phi, 3*np.pi) * G_psi, Phi)
-        beta_edge = BET0 * vf_params.BET1 * np.sum(sin_sigmoid(Phi, 3*np.pi) * G_psi_spike)
-        # without reacling edge information
         dvel = vf_params.GAM * (V0 - vel_now) + \
                alpha_blob + \
                alpha_edge
 
         dpsi = beta_blob + \
                beta_edge
+
         return dvel, dpsi, alpha_blob, alpha_edge, beta_blob, beta_edge
 
 

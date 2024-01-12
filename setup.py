@@ -24,9 +24,7 @@ setup(
         'opencv-python',
         'xvfbwrapper',
         'zarr',
-        'fastcluster',
-        'SpoutGL',
-        'pyopengl'
+        'fastcluster'
     ],
     extras_require={
         'test': [
@@ -34,6 +32,10 @@ setup(
             'flake8',
             'pytest',
             'pytest-cov'
+        ],
+        'cobe': [
+            'SpoutGL==0.0.6',  # will break on non-windows systems (Spout.dll is needed)
+            'pyopengl'
         ]
     },
     entry_points={

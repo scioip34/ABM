@@ -13,8 +13,10 @@ from math import atan2
 import os
 import uuid
 import json
-import SpoutGL
-from OpenGL import GL
+if spout.WITH_SPOUT:
+    # Only works on Windows
+    import SpoutGL
+    from OpenGL import GL
 
 from datetime import datetime
 

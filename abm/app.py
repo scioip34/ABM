@@ -111,3 +111,6 @@ def generate_env_file(env_data, file_name, save_folder):
     with open(file_path, "a") as file:
         for k, v in env_data.items():
             file.write(f"{k}={v}\n")
+
+if __name__ == '__main__':
+    start()

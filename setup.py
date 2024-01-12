@@ -24,7 +24,9 @@ setup(
         'opencv-python',
         'xvfbwrapper',
         'zarr',
-        'fastcluster'
+        'fastcluster',
+        'SpoutGL',
+        'pyopengl'
     ],
     extras_require={
         'test': [

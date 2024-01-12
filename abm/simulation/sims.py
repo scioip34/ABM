@@ -5,7 +5,7 @@ import sys
 from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
-from abm.contrib import colors, ifdb_params, evolution
+from abm.contrib import colors, ifdb_params, evolution, spout
 from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
 from abm.monitoring import env_saver
@@ -13,6 +13,8 @@ from math import atan2
 import os
 import uuid
 import json
+import SpoutGL
+from OpenGL import GL
 
 from datetime import datetime
 
@@ -721,7 +723,15 @@ class Simulation:
 
         print("Starting main simulation loop!")
         # Main Simulation loop until dedicated simulation time
+
+        if spout.WITH_SPOUT:
+            sender = SpoutGL.SpoutSender()
+            sender.setSenderName(spout.SENDER_NAME)
+
         while self.t < self.T:
+
+            if spout.WITH_SPOUT:
+                result = sender.sendImage(pygame.image.tostring(self.screen, 'RGBA'), self.screen.get_width(), self.screen.get_height(), GL.GL_RGBA, False, 0)
 
             events = pygame.event.get()
             # Carry out interaction according to user activity
@@ -872,6 +882,9 @@ class Simulation:
             # Draw environment and agents
             if self.with_visualization:
                 self.draw_frame(self.stats, self.stats_pos)
+                if spout.WITH_SPOUT:
+                    # Indicate that a frame is ready to read
+                    sender.setFrameSync(spout.SENDER_NAME)
                 pygame.display.flip()
 
             # Monitoring with IFDB (also when paused)

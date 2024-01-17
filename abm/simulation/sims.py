@@ -5,7 +5,7 @@ import sys
 from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
-from abm.contrib import colors, ifdb_params, evolution, spout
+from abm.contrib import colors, ifdb_params, evolution, spout, cobe_settings
 from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
 from abm.monitoring import env_saver
@@ -28,6 +28,12 @@ root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(
 env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
 envconf = dotenv_values(env_path)
+
+def read_cobe_input():
+    """Reads input from CoBe"""
+    with open(os.path.join(cobe_settings.ABM_COBE_INPUT_FOLDER, cobe_settings.COBE_INPUT_FILENAME), "r") as f:
+        cobe_input = json.load(f)
+    return cobe_input
 
 
 def notify_agent(agent, status, res_id=None):
@@ -703,6 +709,35 @@ class Simulation:
             json.dump(evo_sum_dict, f, indent=4)
         return pop_num
 
+    def find_closest_agent(self, pos):
+        """Finding the closest agent to a given position"""
+        closest_agent_id = None
+        distances = []
+        ids = []
+        for ag in self.agents:
+            if not ag.cobe_updated:
+                distances.append(np.linalg.norm(np.array(pos) - np.array(ag.rect.center)))
+                ids.append(ag.id)
+        closest_agent_id = ids[np.argmin(distances)]
+        return closest_agent_id
+
+    def update_agent_positions_with_cobe(self, position_list):
+        """Updating agent positions with the positions passed from the COBE system
+        through a json file. For each passed position we first look for the closest agent (in the previous step). Then
+        we update this agent's position and state according to the one read from the file."""
+        print(position_list)
+        for agent_dict in position_list:
+            agent_id = agent_dict["ID"]
+            agent_pos = np.array([agent_dict["x0"], agent_dict["x1"]])
+            agent_state = agent_dict["MODE"]
+            target_agent_id = self.find_closest_agent(agent_pos)
+
+            target_agent = self.agents.sprites()[target_agent_id]
+            target_agent.position = agent_pos
+            target_agent.set_mode(agent_state)
+            target_agent.draw_update()
+            target_agent.cobe_updated = True
+
     def start(self):
 
         start_time = datetime.now()
@@ -731,6 +766,10 @@ class Simulation:
             sender.setSenderName(spout.SENDER_NAME)
 
         while self.t < self.T:
+
+            if cobe_settings.ABM_WITH_COBE_INPUT:
+                for agent in self.agents:
+                    agent.cobe_updated = False
 
             if spout.WITH_SPOUT:
                 result = sender.sendImage(pygame.image.tostring(self.screen, 'RGBA'), self.screen.get_width(), self.screen.get_height(), GL.GL_RGBA, False, 0)
@@ -870,7 +909,10 @@ class Simulation:
                 self.rescources.update()
 
                 # Update agents according to current visible obstacles
-                self.agents.update(self.agents)
+                if not cobe_settings.ABM_WITH_COBE_INPUT:
+                    self.agents.update(self.agents)
+                else:
+                    self.update_agent_positions_with_cobe(read_cobe_input())
 
                 # move to next simulation timestep (only when not paused)
                 self.t += 1

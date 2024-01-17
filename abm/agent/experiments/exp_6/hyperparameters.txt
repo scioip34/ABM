@@ -1,0 +1,26 @@
+DQN-Architecture and Hyperparameters:
+
+DQNAgent:
+- number of agents: 2
+- state_size: self.v_field_res+ 1, action_size=3
+- action_size: 3 [1: explore, 2: exploit, 3: relocate]
+- replay_memory_capacity: 10,000
+- batch_size: 128
+- gamma: 0.99
+- epsilon_start: 0.9
+- tau: 0.005
+- epsilon_decay: 1000
+- epsilon_end: 0.05
+- lr: 1e-5 with scheduler
+- if self.t!=0 reward= ag.collected_r /self.t else reward=0
+
+DQNetwork:
+- input_size: [Specify the size of the input]
+- output_size: [Specify the size of the output layer]
+
+Training Process:
+- Experience replay with a deque (max capacity: 10,000)
+- Epsilon-greedy exploration
+- Q-network trained with mini-batches (batch size: 128)
+- Mean Squared Error (MSE) loss
+- Target Q-network updated with soft update (tau: 0.005) every 50 iterations

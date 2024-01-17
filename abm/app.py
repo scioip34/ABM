@@ -10,7 +10,7 @@ from dotenv import dotenv_values
 
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+env_path = os.getenv("ENV_PATH", os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
 envconf = dotenv_values(env_path)
 
 def start(parallel=False, headless=False, agent_behave_param_list=None):

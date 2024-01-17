@@ -8,19 +8,15 @@ import os
 # loading env variables from dotenv file
 from dotenv import dotenv_values
 
-print("HELLO")
-print(os.getenv("ENV_PATH"))
-print(dotenv_values(os.getenv("ENV_PATH")))
 EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 env_path = os.getenv("ENV_PATH", os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
-print(env_path)
 envconf = dotenv_values(env_path)
-print(envconf)
 
 def start(parallel=False, headless=False, agent_behave_param_list=None):
     root_abm_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    envconf = dotenv_values(os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
+    env_path = os.getenv("ENV_PATH", os.path.join(root_abm_dir, f"{EXP_NAME}.env"))
+    envconf = dotenv_values(env_path)
     window_pad = 30
     vscreen_width = int(float(envconf["ENV_WIDTH"])) + 2 * window_pad + 10
     vscreen_height = int(float(envconf["ENV_HEIGHT"])) + 2 * window_pad + 10

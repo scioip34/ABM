@@ -31,8 +31,12 @@ envconf = dotenv_values(env_path)
 
 def read_cobe_input():
     """Reads input from CoBe"""
-    with open(os.path.join(cobe_settings.ABM_COBE_INPUT_FOLDER, cobe_settings.COBE_INPUT_FILENAME), "r") as f:
-        cobe_input = json.load(f)
+    try:
+        with open(os.path.join(cobe_settings.ABM_COBE_INPUT_FOLDER, cobe_settings.COBE_INPUT_FILENAME), "r") as f:
+            cobe_input = json.load(f)
+    except:
+        print("Could not read CoBe input")
+        cobe_input = []
     return cobe_input
 
 
@@ -733,11 +737,11 @@ class Simulation:
             agent_id = agent_dict["ID"]
             agent_pos = np.array([agent_dict["x0"], agent_dict["x1"]])
             agent_state = agent_dict["MODE"]
-            target_agent_id = self.find_closest_agent(agent_pos)
+            target_agent_id = agent_id #self.find_closest_agent(agent_pos)
             if target_agent_id is not None:
                 target_agent = self.agents.sprites()[target_agent_id]
-                target_agent.position = agent_pos
-                target_agent.set_mode(agent_state)
+                target_agent.position = agent_pos + np.array([self.WIDTH / 2, self.HEIGHT / 2]) + self.window_pad
+                # target_agent.set_mode(agent_state)
                 target_agent.draw_update()
                 target_agent.cobe_updated = True
 
@@ -915,6 +919,7 @@ class Simulation:
                 if not cobe_settings.ABM_WITH_COBE_INPUT:
                     self.agents.update(self.agents)
                 else:
+                    self.agents.update(self.agents)
                     self.update_agent_positions_with_cobe(read_cobe_input())
 
                 # move to next simulation timestep (only when not paused)

@@ -718,8 +718,11 @@ class Simulation:
             if not ag.cobe_updated:
                 distances.append(np.linalg.norm(np.array(pos) - np.array(ag.rect.center)))
                 ids.append(ag.id)
-        closest_agent_id = ids[np.argmin(distances)]
-        return closest_agent_id
+        if len(distances) > 0:
+            closest_agent_id = ids[np.argmin(distances)]
+            return closest_agent_id
+        else:
+            return None
 
     def update_agent_positions_with_cobe(self, position_list):
         """Updating agent positions with the positions passed from the COBE system
@@ -731,12 +734,12 @@ class Simulation:
             agent_pos = np.array([agent_dict["x0"], agent_dict["x1"]])
             agent_state = agent_dict["MODE"]
             target_agent_id = self.find_closest_agent(agent_pos)
-
-            target_agent = self.agents.sprites()[target_agent_id]
-            target_agent.position = agent_pos
-            target_agent.set_mode(agent_state)
-            target_agent.draw_update()
-            target_agent.cobe_updated = True
+            if target_agent_id is not None:
+                target_agent = self.agents.sprites()[target_agent_id]
+                target_agent.position = agent_pos
+                target_agent.set_mode(agent_state)
+                target_agent.draw_update()
+                target_agent.cobe_updated = True
 
     def start(self):
 

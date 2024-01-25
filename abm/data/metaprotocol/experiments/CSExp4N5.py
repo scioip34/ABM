@@ -110,7 +110,7 @@ criteria_exp = [
     Tunable("RES_VEL", values_override=resource_vels),
     Constant("METER_TO_RES_MULTI", 1),
     Constant("DETECTION_RANGE", detection_range),
-    Constant("T", 2000),
+    Constant("T", 5000),
 ]
 
 # Creating metaprotocol and add defined criteria

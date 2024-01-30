@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=4                  # on ex_scioi partition we have 32core/node
 #SBATCH --mem=32G                          # memory requested
 #SBATCH --exclusive=user
-#SBATCH --exclude=node[134-135]
+#SBATCH --exclude=node[134-137]
 
 # BEHAVIOR:
 # Runs a single experiment on a dedicated cluster node. The experiment is defined in the dedicated folder of the codebase with the

@@ -473,6 +473,24 @@ class ExperimentReplay:
             borderThickness=1
         )
 
+        if self.experiment.env.get("APP_VERSION") == "VisualFlocking":
+            self.plot_rotord_b = Button(
+                # Mandatory Parameters
+                self.screen,  # Surface to place button on
+                self.button_start_x_2 + int(self.slider_width / 2),  # X-coordinate of top left corner
+                button_start_y,  # Y-coordinate of top left corner
+                int(self.slider_width / 2),  # Width
+                self.button_height,  # Height
+
+                # Optional Parameters
+                text='Plot Rot. Order',  # Text to display
+                fontSize=20,  # Size of font
+                margin=20,  # Minimum distance between text/image and edge of button
+                inactiveColour=colors.GREY,
+                onClick=lambda: self.on_print_rot_order(),  # Function to call when clicked on
+                borderThickness=1
+            )
+
         # Connecting variables Line
         button_start_y += 2 * self.button_height
         self.connect_vars_b = Button(
@@ -632,6 +650,23 @@ class ExperimentReplay:
         else:
             t_end = self.t_end
         fig, ax, cbar = self.experiment.plot_mean_polarization(t_start=t_start, t_end=t_end,
+                                                               from_script=self.from_script,
+                                                               used_batches=used_batches)
+        return fig, ax, cbar
+
+    def on_print_rot_order(self, with_read_collapse_param=True, used_batches=None):
+        if with_read_collapse_param:
+            if len(list(self.experiment.varying_params.keys())) in [3, 4]:
+                self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
+        if self.t_start is None:
+            t_start = 0
+        else:
+            t_start = self.t_start
+        if self.t_end is None:
+            t_end = self.T - 1
+        else:
+            t_end = self.t_end
+        fig, ax, cbar = self.experiment.plot_mean_rotational_order(t_start=t_start, t_end=t_end,
                                                                from_script=self.from_script,
                                                                used_batches=used_batches)
         return fig, ax, cbar

@@ -1558,6 +1558,104 @@ class ExperimentLoader:
         np.save(meanNNd_path, self.mean_nn_dist)
 
 
+    def plot_mean_rotational_order(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
+        """Method to plot rotational order irrespectively of how many parameters have been tuned during the
+        experiments."""
+        cbar = None
+        self.calculate_rotational_order()
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            fig, ax = plt.subplots(1, 1)
+            plt.title("Polarization")
+            plt.plot(self.mean_rotord)
+            plt.plot(self.mean_rotord + self.rotord_std)
+            plt.plot(self.mean_rotord - self.rotord_std)
+            for run_i in range(self.efficiency.shape[0]):
+                plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            plt.xlabel(list(self.varying_params.keys())[0])
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_rotord)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_rotord.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_rotord = np.zeros((self.mean_rotord.shape[0:3]))
+                print(self.new_mean_rotord.shape)
+                for j in range(self.mean_rotord.shape[0]):
+                    for i in range(self.mean_rotord.shape[1]):
+                        self.new_mean_rotord[j, i, :] = self.mean_rotord[j, i, :, i]
+                self.mean_rotord = self.new_mean_rotord
+            if self.collapse_plot is None:
+                num_plots = self.mean_rotord.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_rotord[i, :, :])
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+            else:
+                fig, ax = plt.subplots(1, 1, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+
+                collapsed_data, labels = self.collapse_mean_data(self.mean_rotord, save_name="coll_rotord.npy")
+                coll_std, _ = self.collapse_mean_data(self.rotord_std, save_name="coll_rotordstd.npy")
+
+                # # column-wise normalization
+                # for coli in range(collapsed_data.shape[1]):
+                #     print(f"Normalizing column {coli}")
+                #     minval = np.min(collapsed_data[:, coli])
+                #     maxval = np.max(collapsed_data[:, coli])
+                #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+
+                img = ax.imshow(collapsed_data)
+                ax.set_yticks(range(len(self.varying_params[keys[self.collapse_fixedvar_ind]])))
+                ax.set_yticklabels(self.varying_params[keys[self.collapse_fixedvar_ind]])
+                ax.set_ylabel(keys[self.collapse_fixedvar_ind])
+
+                ax.set_xticks(range(len(labels)))
+                ax.set_xticklabels(labels, rotation=45)
+                ax.set_xlabel("Combined Parameters")
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+                fig.set_tight_layout(True)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
+        return fig, ax, cbar
+
 
     def plot_mean_polarization(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot polarization irrespectively of how many parameters have been tuned during the
@@ -1832,6 +1930,88 @@ class ExperimentLoader:
                 pol_matrix[i, j] = normed_sum
 
         return pol_matrix
+
+    def calculate_rotational_order(self, undersample=1, filtered_by_wallcoll=0, filtering_window=50):
+        """Calculating the rotational order of the simulated agents as defined in:
+        https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1002915#s2
+        The rotational order is the sum of cross products between
+        1.) ri: the vector pointing from COM to agent i and
+        2.) ui: the unit vector of the orientation of agent i
+        """
+        summary_path = os.path.join(self.experiment_path, "summary")
+        if filtered_by_wallcoll:
+            self.find_wall_collisions()
+            rotordpath = os.path.join(summary_path, f"rotord_wallcoll.npy")
+        else:
+            rotordpath = os.path.join(summary_path, f"rotord_us{undersample}.npy")
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if os.path.isfile(rotordpath):
+            print("Found saved rotational order array in summary, reloading it...")
+            self.rotord_matrix = np.abs(np.load(rotordpath))
+            self.mean_rotord = np.nanmean(np.nanmean(self.rotord_matrix, axis=batch_dim), axis=-1)
+            self.rotord_std = np.nanmean(np.nanstd(self.rotord_matrix, axis=batch_dim), axis=-1)
+        else:
+            num_agents = self.agent_summary["orientation"].shape[agent_dim]
+            num_timesteps = self.agent_summary["orientation"].shape[time_dim]/undersample
+            ori_shape = list(self.agent_summary["orientation"].shape)
+            new_shape = ori_shape[0:num_var_params+1] + [int(num_timesteps/undersample)]
+
+            self.rotord_matrix = np.zeros(new_shape)
+            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, int(num_timesteps / undersample)]
+
+            for runi in range(self.num_batches):
+                print(f"Calculating rotational order for batch {runi}")
+                if filtered_by_wallcoll:
+                    orif = self.agent_summary["orientation"][runi, ...]
+                    print(f"Extending collision filtering with time window {filtering_window}")
+                    wrefs = self.wrefs[runi][:]
+                    for wi in range(filtering_window):
+                        print(wi)
+                        new_times = wrefs[-1] + 1
+                        new_times[new_times > self.env["T"] - 1] = self.env["T"] - 1
+                        wrefs[-1] = new_times
+                        new_wrefs = tuple(wrefs)
+                        orif[new_wrefs] = np.nan
+                else:
+                    orif = self.agent_summary["orientation"][runi, ..., ::undersample]
+
+                unitvecs = np.zeros(unitvec_shape)
+                for robi in range(num_agents):
+                    if filtered_by_wallcoll:
+                        ori = orif[..., robi, :]
+                    else:
+                        ori = self.agent_summary["orientation"][runi, ..., robi, ::undersample]
+                    unitvecs[..., 0, robi, :] = np.array([np.cos(ang) for ang in ori])
+                    unitvecs[..., 1, robi, :] = np.array([np.sin(ang) for ang in ori])
+
+                # calculating the center of mass of the agents in all timesteps for current run alomg agent dimension
+                comx = np.nanmean(self.agent_summary["posx"][runi, ..., ::undersample], axis=-2)
+                comy = np.nanmean(self.agent_summary["posy"][runi, ..., ::undersample], axis=-2)
+
+                # calculating the vector pointing from COM to agent i
+                rvec = np.zeros(unitvec_shape)
+                for robi in range(num_agents):
+                    rvec[..., 0, robi, :] = self.agent_summary["posx"][runi, ..., robi, ::undersample] - comx
+                    rvec[..., 1, robi, :] = self.agent_summary["posy"][runi, ..., robi, ::undersample] - comy
+
+                # calculating the absolute value of cross product between rvec and unitvec
+                crossprod = np.abs(np.cross(rvec, unitvecs, axis=-3))
+
+                # summing over all agents
+                self.rotord_matrix[runi, ...] = np.nansum(crossprod, axis=-2)
+
+            self.mean_rotord = np.nanmean(np.nanmean(self.rotord_matrix, axis=batch_dim), axis=-1)
+            self.rotord_std = np.nanmean(np.nanstd(self.rotord_matrix, axis=batch_dim), axis=-1)
+            print("Saving calculated rotational order time matrix!")
+            np.save(rotordpath, self.rotord_matrix)
+
+        return self.rotord_matrix, self.mean_rotord
+
 
     def calculate_polarization(self, undersample=1, filtered_by_wallcoll=0, filtering_window=50):
         """Calculating polarization of agents in the environment used to

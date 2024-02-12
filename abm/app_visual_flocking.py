@@ -106,3 +106,6 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
                            )
         sim.write_batch_size = 100
         sim.start()
+
+
+start()

@@ -2,17 +2,13 @@ import pygame
 import numpy as np
 import sys
 
-import torch
-from matplotlib import pyplot as plt
-from torch.utils.tensorboard import SummaryWriter
-
 from abm.agent import supcalc
 from abm.agent.agent import Agent
-from abm.agent.dqn import Experience
 from abm.environment.rescource import Rescource
-from abm.contrib import colors, ifdb_params
+from abm.contrib import colors, ifdb_params, evolution
 from abm.simulation import interactions as itra
 from abm.monitoring import ifdb
+from abm.monitoring import env_saver
 from math import atan2
 import os
 import uuid
@@ -224,10 +220,6 @@ class Simulation:
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         self.env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
-        #For training
-        #self.train= True
-        self.num_episodes = 80
-
     def proove_sprite(self, sprite, prove_with_agents=True, prove_with_res=True):
         """Checks if the proposed agent or resource is valid according to some rules, e.g. no overlap with resource
         patches or agents
@@ -380,6 +372,8 @@ class Simulation:
             retries += 1
         self.rescources.add(resource)
         return resource.id
+
+
 
     def agent_agent_collision_particle(self, agent1, agent2):
         """collision protocol called on any agent that has been collided with another one
@@ -684,13 +678,6 @@ class Simulation:
             # showing visual fields of the agents
             self.show_visual_fields(stats, stats_pos)
 
-    def plot_rewards(self,rewards):
-        plt.plot(list(range(1, self.num_episodes+1)),rewards)
-        plt.title('Training Rewards')
-        plt.xlabel('Episode')
-        plt.ylabel('Total Reward')
-        plt.savefig('rewards.png')
-
     def generate_evo_summary(self):
         """Generating a simple summary with indidviual and collective return and genotypes of agents for evolutionary
         optimization. The method will generate a single json file with N dictionaries with the behave_param_list passed
@@ -714,170 +701,15 @@ class Simulation:
             json.dump(evo_sum_dict, f, indent=4)
         return pop_num
 
-    def agent2agent_interaction(self):
-        if self.collide_agents:
-            # distance from which proximity event is triggered
-            proximity_distance = 2
-            for agent in self.agents:
-                agent.radius += proximity_distance
-
-            # Check if any 2 agents has been collided and reflect them from each other if so
-            collision_group_aa = pygame.sprite.groupcollide(
-                self.agents,
-                self.agents,
-                False,
-                False,
-                itra.within_group_collision
-            )
-
-            for agent in self.agents:
-                agent.radius -= proximity_distance
-
-            collided_agents = []
-            # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
-            # such as ghost mode, or teleportation)
-            for agent1, agent2 in collision_group_aa.items():
-                self.agent_agent_collision_proximity(agent1, agent2)
-                if not isinstance(agent2, list):
-                    agents2 = [agent2]
-                else:
-                    agents2 = agent2
-                for agent2 in agents2:
-                    if self.teleport_exploit:
-                        if agent1.get_mode() != "exploit":
-                            collided_agents.append(agent1)
-                        if agent2.get_mode() != "exploit":
-                            collided_agents.append(agent2)
-                    else:
-                        if not self.ghost_mode:
-                            collided_agents.append(agent1)
-                            collided_agents.append(agent2)
-                        else:
-                            if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
-                                collided_agents.append(agent1)
-                                collided_agents.append(agent2)
-
-            # Turn off collision mode when over
-            for agent in self.agents:
-                if agent not in collided_agents and agent.get_mode() == "collide":
-                    agent.set_mode("explore")
-                if agent in collided_agents and agent.get_mode() == "collide":
-                    notify_agent(agent, -1)
-
-        else:
-            collided_agents = []
-        return collided_agents
-
-    def agent2resource_interaction(self,collided_agents):
-        collision_group_ar = pygame.sprite.groupcollide(
-            self.rescources,
-            self.agents,
-            False,
-            False,
-            pygame.sprite.collide_circle
-        )
-
-        # refine collision group according to point-like pooling in center of agents
-        collision_group_ar = refine_ar_overlap_group(collision_group_ar)
-
-        # collecting agents that are on resource patch
-        agents_on_rescs = []
-
-        # Notifying agents about resource if pooling is successful + exploitation dynamics
-        for resc, agents in collision_group_ar.items():  # looping through patches
-            destroy_resc = 0  # if we destroy a patch it is 1
-            for agent in agents:  # looping through all agents on patches
-                # Turn agent towards patch center
-                self.bias_agent_towards_res_center(agent, resc)
-
-                # One of previous agents on patch consumed the last unit
-                if destroy_resc:
-                    notify_agent(agent, -1)
-                else:
-                    # Agent finished pooling on a resource patch
-
-                    if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
-                            or agent.pooling_time == 0:
-                        # Notify about the patch
-                        notify_agent(agent, 1, resc.id)
-                        # Teleport agent to the middle of the patch if needed
-                        if self.teleport_exploit:
-                            agent.position = resc.position + resc.radius - agent.radius
-
-
-                    # Agent was already exploiting this patch
-                    if agent.get_mode() == "exploit":
-                        # continue depleting the patch
-                        depl_units, destroy_resc = resc.deplete(agent.consumption)
-                        agent.collected_r_before = agent.collected_r  # rolling resource memory
-                        agent.collected_r += depl_units  # and increasing it's collected rescources
-                        if destroy_resc:  # consumed unit was the last in the patch
-                            # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
-                            #       f"there are no more units before the next timestep, otherwise they stop"
-                            #       f"exploiting with delays")
-                            for agent_tob_notified in agents:
-                                # print("C notify agent NO res ", agent_tob_notified.id)
-                                notify_agent(agent_tob_notified, -1)
-
-                # Collect all agents on resource patches
-                agents_on_rescs.append(agent)
-
-            # Patch is fully depleted
-            if destroy_resc:
-                # we clear it from the memory and regenerate it somewhere else if needed
-                self.kill_resource(resc)
-
-        # Notifying other agents that there is no resource patch in current position (they are not on patch)
-        for agent in self.agents.sprites():
-            if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
-                if agent not in collided_agents:  # and are not colliding with each other currently
-                    # if they finished pooling
-                    if (agent.get_mode() in ["pool",
-                                             "relocate"] and agent.pool_success) or agent.pooling_time == 0:
-                        notify_agent(agent, -1)
-                    elif agent.get_mode() == "exploit":
-                        notify_agent(agent, -1)
-
-        # Update resource patches
-        self.rescources.update()
-
-    def load_trained_models(self,
-                            model_path="/Users/ferielamira/Desktop/Uni/Master-thesis/ABM/abm/agent/models/model_{"
-                                       "}.pth"):
-        print("Loading trained models...")
-
-        for ag in self.agents:
-            model_file_path = model_path.format(ag.id)
-
-            try:
-                # Load the saved model weights
-                ag.policy_network.q_network.load_state_dict(torch.load(model_file_path))
-                ag.policy_network.q_network.eval()
-                print(f"Agent {ag.id} model loaded successfully from {model_file_path}")
-            except FileNotFoundError:
-                print(f"Warning: Model file not found for Agent {ag.id} at {model_file_path}")
-
-        print("Trained models loaded.")
-
     def start(self):
 
         start_time = datetime.now()
-        mode = "eval"
         print(f"Running simulation start method!")
 
         # Creating N agents in the environment
         print("Creating agents!")
         self.create_agents()
-        if mode == "eval":
-            # Load pre-trained models before starting the evaluation loop
-            for count, ag in enumerate(self.agents):
-                model_path = '/Users/ferielamira/Desktop/Uni/Master-thesis/ABM/abm/agent/experiments/exp_10/model_{}.pth'.format(ag.id)
-                ag.policy_network.q_network.load_state_dict(torch.load(model_path))
-                ag.policy_network.q_network.eval()  # Set to evaluation mode
-                ag.policy_network.update_target_network()  # Update the target network initially
-                ag.policy_network.epsilon_start = 0
-                ag.policy_network.epsilon_end = 0
-                ag.policy_network.epsilon_decay = 1
+
         # Creating resource patches
         print("Creating resources!")
         self.create_resources()
@@ -890,17 +722,8 @@ class Simulation:
         turned_on_vfield = 0
 
         print("Starting main simulation loop!")
-        training_rewards=[]
-        writer = SummaryWriter("/Users/ferielamira/Desktop/Uni/Master-thesis/ABM/abm/agent/tf_logs")
-
         # Main Simulation loop until dedicated simulation time
-        #for episode in range(1, self.num_episodes + 1):
-
-        done= False
-
         while self.t < self.T:
-            if self.t==self.T-1:
-                done = True
 
             events = pygame.event.get()
             # Carry out interaction according to user activity
@@ -912,61 +735,135 @@ class Simulation:
             if not self.is_paused:
 
                 # # ------ AGENT-AGENT INTERACTION ------
-                collided_agents = self.agent2agent_interaction()
+                if self.collide_agents:
+                    # distance from which proximity event is triggered
+                    proximity_distance = 2
+                    for agent in self.agents:
+                        agent.radius += proximity_distance
+
+                    # Check if any 2 agents has been collided and reflect them from each other if so
+                    collision_group_aa = pygame.sprite.groupcollide(
+                        self.agents,
+                        self.agents,
+                        False,
+                        False,
+                        itra.within_group_collision
+                    )
+
+                    for agent in self.agents:
+                        agent.radius -= proximity_distance
+
+                    collided_agents = []
+                    # Carry out agent-agent collisions and collecting collided agents for later (according to parameters
+                    # such as ghost mode, or teleportation)
+                    for agent1, agent2 in collision_group_aa.items():
+                        self.agent_agent_collision_proximity(agent1, agent2)
+                        if not isinstance(agent2, list):
+                            agents2 = [agent2]
+                        else:
+                            agents2 = agent2
+                        for agent2 in agents2:
+                            if self.teleport_exploit:
+                                if agent1.get_mode() != "exploit":
+                                    collided_agents.append(agent1)
+                                if agent2.get_mode() != "exploit":
+                                    collided_agents.append(agent2)
+                            else:
+                                if not self.ghost_mode:
+                                    collided_agents.append(agent1)
+                                    collided_agents.append(agent2)
+                                else:
+                                    if agent1.get_mode() != "exploit" and agent2.get_mode() != "exploit":
+                                        collided_agents.append(agent1)
+                                        collided_agents.append(agent2)
+
+                    # Turn off collision mode when over
+                    for agent in self.agents:
+                        if agent not in collided_agents and agent.get_mode() == "collide":
+                            agent.set_mode("explore")
+                        if agent in collided_agents and agent.get_mode() == "collide":
+                            notify_agent(agent, -1)
+
+                else:
+                    collided_agents = []
+
 
                 # ------ AGENT-RESCOURCE INTERACTION (can not be separated from main thread for some reason)------
-                self.agent2resource_interaction(collided_agents)
-                # Update agents according to current visible obstacles
-                for ag in self.agents:
-                    ag.calc_social_V_proj(self.agents)
+                collision_group_ar = pygame.sprite.groupcollide(
+                    self.rescources,
+                    self.agents,
+                    False,
+                    False,
+                    pygame.sprite.collide_circle
+                )
 
-                    # Concatenate the resource signal array along a new axis (axis=0 in this case)
-                    state = np.concatenate((ag.nn_social_v_field, [ag.env_status]))
-                    # check how many values in state are non zero
-                    action=ag.policy_network.select_action(state)
+                # refine collision group according to point-like pooling in center of agents
+                collision_group_ar = refine_ar_overlap_group(collision_group_ar)
+
+                # collecting agents that are on resource patch
+                agents_on_rescs = []
+
+                # Notifying agents about resource if pooling is successful + exploitation dynamics
+                for resc, agents in collision_group_ar.items():  # looping through patches
+                    destroy_resc = 0  # if we destroy a patch it is 1
+                    for agent in agents:  # looping through all agents on patches
+                        # Turn agent towards patch center
+                        self.bias_agent_towards_res_center(agent, resc)
+
+                        # One of previous agents on patch consumed the last unit
+                        if destroy_resc:
+                            notify_agent(agent, -1)
+                        else:
+                            # Agent finished pooling on a resource patch
+                            if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
+                                    or agent.pooling_time == 0:
+                                # Notify about the patch
+                                notify_agent(agent, 1, resc.id)
+                                # Teleport agent to the middle of the patch if needed
+                                if self.teleport_exploit:
+                                    agent.position = resc.position + resc.radius - agent.radius
+
+                            # Agent was already exploiting this patch
+                            if agent.get_mode() == "exploit":
+                                # continue depleting the patch
+                                depl_units, destroy_resc = resc.deplete(agent.consumption)
+                                agent.collected_r_before = agent.collected_r  # rolling resource memory
+                                agent.collected_r += depl_units  # and increasing it's collected rescources
+                                if destroy_resc:  # consumed unit was the last in the patch
+                                    # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
+                                    #       f"there are no more units before the next timestep, otherwise they stop"
+                                    #       f"exploiting with delays")
+                                    for agent_tob_notified in agents:
+                                        # print("C notify agent NO res ", agent_tob_notified.id)
+                                        notify_agent(agent_tob_notified, -1)
+
+                        # Collect all agents on resource patches
+                        agents_on_rescs.append(agent)
+
+                    # Patch is fully depleted
+                    if destroy_resc:
+                        # we clear it from the memory and regenerate it somewhere else if needed
+                        self.kill_resource(resc)
+
+                # Notifying other agents that there is no resource patch in current position (they are not on patch)
+                for agent in self.agents.sprites():
+                    if agent not in agents_on_rescs:  # for all the agents that are not on recourse patches
+                        if agent not in collided_agents:  # and are not colliding with each other currently
+                            # if they finished pooling
+                            if (agent.get_mode() in ["pool",
+                                                     "relocate"] and agent.pool_success) or agent.pooling_time == 0:
+                                notify_agent(agent, -1)
+                            elif agent.get_mode() == "exploit":
+                                notify_agent(agent, -1)
+
+                # Update resource patches
+                self.rescources.update()
+
+                # Update agents according to current visible obstacles
                 self.agents.update(self.agents)
 
-                if mode== "train":
-                    collective_se=0
-                    for ag in self.agents:
-                        ag.calc_social_V_proj(self.agents)
-
-                        if self.t != 0:
-                            collective_se += (ag.collected_r / self.t)
-                        else:
-                            collective_se = 0
-                    collective_se = collective_se / len(self.agents)
-
-
-                    for ag in self.agents:
-
-                        # Concatenate the resource signal array along a new axis (axis=0 in this case)
-                        next_state = np.concatenate((ag.nn_social_v_field, [ag.env_status]))
-                        #reward=0
-                        #if ag.get_mode() == "exploit":
-                        #    reward=ag.collected_r /self.t
-                        if self.t!=0:
-                            individual_se= ag.collected_r /self.t # - ag.collected_r_before
-                        else:
-                            individual_se=0
-
-                        # Store experiences in replay memory
-
-                        reward = 0.8*individual_se + 0.2*collective_se
-
-                        ag.policy_network.add_to_replay_memory(Experience(state, action,reward, next_state, done))
-                        loss = ag.policy_network.train()
-
-                        if self.t % 100 == 0:
-                            ag.policy_network.update_target_network()
-                        #ag.policy_network.decay_epsilon()
-
-
-                ####
                 # move to next simulation timestep (only when not paused)
                 self.t += 1
-                for ag in self.agents:
-                    ag.policy_network.steps_done += 1
 
             # Simulation is paused
             else:
@@ -979,35 +876,6 @@ class Simulation:
                 self.draw_frame(self.stats, self.stats_pos)
                 pygame.display.flip()
 
-
-
-            # Moving time forward
-
-            if self.t % 100 == 0 :
-                #print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
-                #print(f"Simulation FPS: {self.clock.get_fps()}")
-                collective_se = 0
-
-                for ag in self.agents:
-                    # Save metrics to TensorBoard
-
-                    individual_se =  ag.collected_r/self.t
-                    collective_se += individual_se
-
-                    print("Agent {} search efficiency: {}".format(ag.id, individual_se))
-
-                    writer.add_scalar(f'Agent_{ag.id}/Reward (individual search efficiency)', individual_se, self.t)
-                    if mode == "train":
-                        if loss is not None :
-                            writer.add_scalar(f'Agent_{ag.id}/Loss', loss, self.t)
-                collective_se /= len(self.agents)
-                print("Collective search efficiency ({}): {}".format(collective_se,mode))
-                writer.add_scalar(f'Collective search efficiency ({mode})', collective_se, self.t)
-
-
-
-            self.clock.tick(self.framerate)
-            '''
             # Monitoring with IFDB (also when paused)
             if self.save_in_ifd:
                 ifdb.save_agent_data(self.ifdb_client, self.agents, self.t, exp_hash=self.ifdb_hash,
@@ -1019,30 +887,24 @@ class Simulation:
                 if not self.is_paused:
                     ifdb.save_agent_data_RAM(self.agents, self.t)
                     ifdb.save_resource_data_RAM(self.rescources, self.t)
-            '''
 
-        #training_rewards.append(total_reward)
-        if  mode == "train":
-            for count, ag in enumerate(self.agents):
-                torch.save(ag.policy_network.q_network.state_dict(),
-                           '/Users/ferielamira/Desktop/Uni/Master-thesis/ABM/abm/agent/models/model_{}.pth'.format(
-                               ag.id))
-        writer.close()
+            # Moving time forward
+            if self.t % 500 == 0 or self.t == 1:
+                print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} t={self.t}")
+                print(f"Simulation FPS: {self.clock.get_fps()}")
+            self.clock.tick(self.framerate)
 
-
-
-        '''
         end_time = datetime.now()
-
         print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ",
               (end_time - start_time).total_seconds())
+
         # Saving data from IFDB when simulation time is over
         if self.agent_behave_param_list is not None:
             if self.agent_behave_param_list[0].get("evo_summary_path") is not None:
                 pop_num = self.generate_evo_summary()
         else:
             pop_num = None
-        
+
         if self.save_csv_files:
             if self.save_in_ifd or self.save_in_ram:
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
@@ -1052,29 +914,9 @@ class Simulation:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
                                 " or turn off CSV saving feature.")
+
         end_save_time = datetime.now()
         print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total saving time:",
               (end_save_time - end_time).total_seconds())
-        '''
 
-        # Reset simulation environment
-        '''
-        for ag in self.agents:
-            ag.reset()
-        for resc in self.rescources:
-            self.kill_resource(resc)
-        self.t=0
-        '''
-        #Save the trained models
-
-
-        # Plot training rewards
-
-        #self.plot_rewards(training_rewards)
         pygame.quit()
-
-
-        #return total_reward
-    ###########
-
-

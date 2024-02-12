@@ -13,6 +13,8 @@ from abm.agent.agent import Agent, supcalc
 from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 import zarr
 
@@ -229,7 +231,7 @@ class DataLoader:
                     self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, f"ag_mode{self.zarr_extension}"), mode='r')
                     self.agent_data['velocity'] = zarr.open(os.path.join(self.data_folder_path, f"ag_vel{self.zarr_extension}"),
                                                             mode='r')
-                    if self.project_version=="Base":
+                    if self.project_version in ["Base", "MADRLForaging"]:
                         self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, f"ag_w{self.zarr_extension}"), mode='r')
                         self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, f"ag_u{self.zarr_extension}"), mode='r')
                         self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ipriv{self.zarr_extension}"), mode='r')
@@ -237,7 +239,7 @@ class DataLoader:
                                                                     mode='r')
                         self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
                                                                      mode='r')
-                    else:
+                    elif self.project_version=="CooperativeSignaling":
                         self.agent_data['meter'] = zarr.open(os.path.join(self.data_folder_path, f"ag_meter{self.zarr_extension}"), mode='r')
                         self.agent_data['signalling'] = zarr.open(
                             os.path.join(self.data_folder_path, f"ag_sig{self.zarr_extension}"), mode='r')
@@ -267,7 +269,7 @@ class DataLoader:
                             self.resource_data['radius'] = zarr.open(
                                 os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
                                 mode='r')
-                            if self.project_version=="Base":
+                            if self.project_version in ["Base", "MADRLForaging"]:
                                 self.resource_data['resc_left'] = zarr.open(
                                     os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
                                                                           mode='r')
@@ -521,7 +523,7 @@ class ExperimentLoader:
                         mode_array = zarr.open(os.path.join(summary_path, f"agent_mode{self.zarr_extension}"), mode='w',
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        if project_version=="Base":
+                        if project_version in ["Base", "MADRLForaging"]:
                             # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
                             rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"), mode='w',
                                                   shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
@@ -568,7 +570,7 @@ class ExperimentLoader:
                             ori_array[ind] = agent_data[f'orientation_agent-{pad_to_n_digits(ai, n=2)}']
                             vel_array[ind] = agent_data[f'velocity_agent-{pad_to_n_digits(ai, n=2)}']
                             mode_array[ind] = agent_data[f'mode_agent-{pad_to_n_digits(ai, n=2)}']
-                            if project_version == "Base":
+                            if project_version in ["Base", "MADRLForaging"]:
                                 rew_array[ind] = agent_data[f'collectedr_agent-{pad_to_n_digits(ai, n=2)}']
                                 w_array[ind] = agent_data[f'w_agent-{pad_to_n_digits(ai, n=2)}']
                                 u_array[ind] = agent_data[f'u_agent-{pad_to_n_digits(ai, n=2)}']
@@ -585,7 +587,7 @@ class ExperimentLoader:
                         ori_array[ind] = agent_data['orientation'][..., self.t_start:self.t_end:self.undersample]
                         mode_array[ind] = agent_data['mode'][..., self.t_start:self.t_end:self.undersample]
                         vel_array[ind] = agent_data['velocity'][..., self.t_start:self.t_end:self.undersample]
-                        if project_version == "Base":
+                        if project_version in ["Base", "MADRLForaging"]:
                             w_array[ind] = agent_data['w'][..., self.t_start:self.t_end:self.undersample]
                             u_array[ind] = agent_data['u'][..., self.t_start:self.t_end:self.undersample]
                             Ip_array[ind] = agent_data['Ipriv'][..., self.t_start:self.t_end:self.undersample]
@@ -617,7 +619,7 @@ class ExperimentLoader:
             #          explpatch=expl_patch_array)
 
             del posx_array, posy_array, ori_array, vel_array, mode_array
-            if project_version == "Base":
+            if project_version in ["Base", "MADRLForaging"]:
                 del rew_array, w_array, u_array, Ip_array, expl_patch_array
             elif project_version=="CooperativeSignaling":
                 del meter_array, sig_array, rew_array
@@ -695,7 +697,7 @@ class ExperimentLoader:
                     r_posy_array = zarr.open(os.path.join(summary_path, f"res_posy{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                    if project_version=="Base":
+                    if project_version in ["Base", "MADRLForaging"]:
                         # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
                         r_qual_array = zarr.open(os.path.join(summary_path, f"res_qual{self.zarr_extension}"), mode='w',
                                                  shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
@@ -783,7 +785,7 @@ class ExperimentLoader:
                         data[data < 0] = 0
                         r_posy_array[ind] += data
 
-                        if project_version=="Base":
+                        if project_version in ["Base", "MADRLForaging"]:
                             data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
                             # clean empty strings
                             data = np.array([float(d) if d != "" else 0.0 for d in data])
@@ -805,7 +807,7 @@ class ExperimentLoader:
                         ind = (i,) + tuple(index) + (pid,)
                         r_posx_array[ind] = res_data['posx'][pid, self.t_start:self.t_end:self.undersample]
                         r_posy_array[ind] = res_data['posy'][pid, self.t_start:self.t_end:self.undersample]
-                        if project_version=="Base":
+                        if project_version in ["Base", "MADRLForaging"]:
                             r_qual_array[ind] = res_data['quality'][pid, self.t_start:self.t_end:self.undersample]
                             r_rescleft_array[ind] = res_data['resc_left'][pid, self.t_start:self.t_end:self.undersample]
 
@@ -818,7 +820,7 @@ class ExperimentLoader:
         #          resc_left=r_rescleft_array)
 
         del r_posx_array, r_posy_array
-        if project_version == "Base":
+        if project_version in ["Base", "MADRLForaging"]:
             del r_qual_array, r_rescleft_array
 
         raw_description_path = os.path.join(self.experiment_path, "README.txt")
@@ -906,7 +908,7 @@ class ExperimentLoader:
                     mode='r')  # self.experiment.agent_summary['orientation']
                 self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_mode{extension}"),
                                                        mode='r')  # self.experiment.agent_summary['mode']
-                if self.project_version=="Base":
+                if self.project_version in ["Base", "MADRLForaging"]:
                     # u and w are not crucial for replay, so we can skip them if they are not available
                     try:
                         self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
@@ -950,7 +952,7 @@ class ExperimentLoader:
                                                      mode='r')
                 self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zarr"),
                                                      mode='r')
-                if self.project_version=="Base":
+                if self.project_version in ["Base", "MADRLForaging"]:
                     self.res_summary['resc_left'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
                         mode='r')
@@ -2176,6 +2178,7 @@ class ExperimentLoader:
         agent_dim = batch_dim + num_var_params + 1
         time_dim = agent_dim + 1
 
+
         if num_var_params == 1:
             fig, ax = plt.subplots(1, 1)
             plt.title("Search Efficiency")
@@ -2200,7 +2203,11 @@ class ExperimentLoader:
             ax.set_xticks(range(len(self.varying_params[keys[1]])))
             ax.set_xticklabels(self.varying_params[keys[1]])
             ax.set_xlabel(keys[1])
-
+            # TODO: Check if this change is necessary
+            # Add color bar setup (was not working )
+            fig.subplots_adjust(right=0.8)
+            cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+            cbar = fig.colorbar(im, cax=cbar_ax)
         elif num_var_params == 3 or num_var_params == 4:
             if len(self.mean_efficiency.shape) == 4:
                 # reducing the number of variables to 3 by connecting 2 of the dimensions

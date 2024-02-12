@@ -2,6 +2,7 @@
 metarunner.py: including the main classes and methods to programatically ruzn metaprotocols of simulations, i.e.
      for some parameter search.
 """
+import importlib
 import shutil
 import numpy as np
 import os
@@ -165,7 +166,7 @@ class MetaProtocol:
                         print("combo already removed")
         return new_combos
 
-    def generate_temp_env_files(self):
+    def generate_temp_env_files(self, num_samples=None):
         """generating a batch of env files that will describe the metaprotocol in a temporary folder"""
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         temp_dir = os.path.join(root_abm_dir, self.temp_dir)
@@ -179,6 +180,21 @@ class MetaProtocol:
         combos = list(itertools.product(*tunable_values))
 
         combos = self.consider_tuned_pairs(combos)
+        #TODO: Remove this segment and the num_samples arg (I used it to for hyperparameter tuning and evaluation )
+        # 1. add seed attribute in .env file to have different executions
+        # 2. for hyperparameter tuning with random search, I should use optuna instead
+        '''
+        if num_samples is not None:
+            if len(combos) == 1:
+                tmp =[]
+                #make duplicates
+                while len(tmp) < num_samples:
+                    tmp = tmp + combos
+                combos = tmp
+            else:
+                combos = random.sample(combos, num_samples+1)
+        '''
+
 
         print(f"Generating {len(combos)} env files for simulations")
 
@@ -214,18 +230,30 @@ class MetaProtocol:
                 readmefile.write(self.description)
 
     def run_protocol(self, env_path, project="Base"):
+
+
+
         """Runs a single simulation run according to an env file given by the env path"""
         root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         default_env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+
         backup_default_env = os.path.join(root_abm_dir, ".env-orig")
         if os.path.isfile(default_env_path) and not os.path.isfile(backup_default_env):
             shutil.copyfile(default_env_path, backup_default_env)
         os.remove(default_env_path)
         shutil.copy(env_path, default_env_path)
         os.remove(env_path)
+
+        import abm.contrib.ifdb_params as ifdbp
+        importlib.reload(ifdbp)
+
         # here we run the simulation
         if project == "Base":
             app.start(parallel=self.parallel_run, headless=self.headless)
+        if project == "MADRLForaging":
+
+            from abm import app_madrl_foraging
+            app_madrl_foraging .start(parallel=self.parallel_run, headless=self.headless)
         elif project == "CoopSignaling":
             from abm import app_collective_signaling
             app_collective_signaling.start(parallel=self.parallel_run, headless=self.headless)

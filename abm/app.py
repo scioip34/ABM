@@ -112,5 +112,7 @@ def generate_env_file(env_data, file_name, save_folder):
         for k, v in env_data.items():
             file.write(f"{k}={v}\n")
 
+
 if __name__ == '__main__':
-    start()
+
+    start_playground()

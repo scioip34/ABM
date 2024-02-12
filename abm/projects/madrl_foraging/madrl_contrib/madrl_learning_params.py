@@ -1,0 +1,28 @@
+"""parameters for individual exploration, relocation and exploitation movements"""
+from pathlib import Path
+
+from dotenv import dotenv_values
+import os
+
+EXP_NAME = os.getenv("EXPERIMENT_NAME", "")
+root_abm_dir = Path(__file__).parent.parent.parent.parent.parent
+#root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
+envconf = dotenv_values(env_path)
+
+# Exploration movement parameters
+pretrained = bool(int(envconf.get("PRETRAINED")))
+pretrained_models_dir = envconf.get("PRETRAINED_MODELS_DIR")
+train = bool(int(envconf.get("TRAIN")))
+train_every = int(envconf.get("TRAIN_EVERY"))
+batch_size = int(envconf.get("BATCH_SIZE"))
+replay_memory_capacity = int(envconf.get("REPLAY_MEMORY_CAPACITY"))
+gamma = float(envconf.get("GAMMA"))
+lr = float(envconf.get("LR"))
+epsilon_start = float(envconf.get("EPSILON_START"))
+epsilon_end = float(envconf.get("EPSILON_END"))
+epsilon_decay = int(envconf.get("EPSILON_DECAY"))
+tau = float(envconf.get("TAU"))
+optimizer = envconf.get("OPTIMIZER")
+
+brain_type = envconf.get("BRAIN_TYPE")

@@ -1,7 +1,8 @@
 from distutils.core import setup
 
 from setuptools import find_packages
-
+#TODO: Optuna,torch,tensorboard, matplotlib should be added
+#TODO: I am using python 3.10
 setup(
     name='P34 ABM',
     description='Agent based model framework to simulate collectively foraging agents relying on their private and social'

@@ -373,7 +373,6 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     global resources_dict, agents_dict
-    importlib.reload(ifdbp)
     if not use_ram:
         print("Saving data with client timeout of 600s")
         ifclient = DataFrameClient(ifdbp.INFLUX_HOST,
@@ -444,7 +443,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                                      chunks=(num_res, t_len), dtype='float')
                 resrad = zarr.open(os.path.join(save_dir, "res_rad.zarr"), mode='w', shape=(num_res, t_len),
                                    chunks=(num_res, t_len), dtype='float')
-                if project_version == "Base":
+                if project_version in  ["Base", "MADRLForaging"]:
                     rleftzarr = zarr.open(os.path.join(save_dir, "res_left.zarr"), mode='w', shape=(num_res, t_len),
                                           chunks=(num_res, t_len), dtype='float')
                     qualzarr = zarr.open(os.path.join(save_dir, "res_qual.zarr"), mode='w', shape=(num_res, t_len),
@@ -456,7 +455,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                     posxzarr[res_id - 1, :] = resources_dict[res_id]['pos_x']
                     posyzarr[res_id - 1, :] = resources_dict[res_id]['pos_y']
                     resrad[res_id - 1, :] = [resources_dict[res_id]['radius'] for i in range(t_len)]
-                    if project_version == "Base":
+                    if project_version in ["Base", "MADRLForaging"]:
                         rleftzarr[res_id - 1, :] = resources_dict[res_id]['resc_left']
                         qualzarr[res_id - 1, :] = resources_dict[res_id]['quality']
                     elif project_version == "CooperativeSignaling":
@@ -477,7 +476,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                                  chunks=(num_ag, t_len), dtype='float')
             amodezarr = zarr.open(os.path.join(save_dir, "ag_mode.zarr"), mode='w', shape=(num_ag, t_len),
                                   chunks=(num_ag, t_len), dtype='float')
-            if project_version == "Base":
+            if project_version in ["Base", "MADRLForaging"]:
                 awzarr = zarr.open(os.path.join(save_dir, "ag_w.zarr"), mode='w', shape=(num_ag, t_len),
                                    chunks=(num_ag, t_len), dtype='float')
                 auzarr = zarr.open(os.path.join(save_dir, "ag_u.zarr"), mode='w', shape=(num_ag, t_len),
@@ -506,7 +505,7 @@ def save_ifdb_as_csv(exp_hash="", use_ram=False, as_zar=True, save_extracted_vfi
                 aorizarr[ag_id - 1, :] = agents_dict[ag_id]['orientation']
                 avelzarr[ag_id - 1, :] = agents_dict[ag_id]['velocity']
                 amodezarr[ag_id - 1, :] = agents_dict[ag_id]['mode']
-                if project_version == "Base":
+                if project_version in ["Base", "MADRLForaging"]:
                     awzarr[ag_id - 1, :] = agents_dict[ag_id]['w']
                     auzarr[ag_id - 1, :] = agents_dict[ag_id]['u']
                     aiprivzarr[ag_id - 1, :] = agents_dict[ag_id]['Ipriv']

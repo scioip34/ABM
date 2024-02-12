@@ -66,7 +66,7 @@ class ExperimentReplay:
         self.res_pos_x_z = self.experiment.res_summary['posx']
         self.res_pos_y_z = self.experiment.res_summary['posy']
 
-        if self.project_version=="Base":
+        if self.project_version in ["Base", "MADRLForaging"]:
             self.coll_resc_z = self.experiment.agent_summary['collresource']
             self.resc_left_z = self.experiment.res_summary['resc_left']
             self.resc_quality_z = self.experiment.res_summary.get('quality', None)
@@ -279,7 +279,7 @@ class ExperimentReplay:
             onClick=lambda: self.on_print_NNdist(),  # Function to call when clicked on
             borderThickness=1
         )
-        if self.project_version in ["Base", "CooperativeSignaling"]:
+        if self.project_version in ["Base", "CooperativeSignaling", "MADRLForaging"]:
             self.NNdist_b.disable()
             self.NNdist_b.hide()
 
@@ -526,7 +526,7 @@ class ExperimentReplay:
         self.radius = self.env["RADIUS_AGENT"]
         self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        if self.project_version=="Base":
+        if self.project_version in ["Base", "MADRLForaging"]:
             self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             if self.resc_quality_z is not None:
@@ -828,9 +828,9 @@ class ExperimentReplay:
         res_posx = self.res_pos_x[:, t_ind]
         res_posy = self.res_pos_y[:, t_ind]
 
-        if self.project_version in ["Base", "CooperativeSignaling"]:
+        if self.project_version in ["Base", "CooperativeSignaling", "MADRLForaging"]:
             coll_resc = self.coll_resc[:, t_ind]
-            if self.project_version == "Base":
+            if self.project_version in [ "Base", "MADRLForaging"]:
                 if self.resc_quality is not None:
                     resc_quality = self.resc_quality[:, t_ind]
                 else:
@@ -885,7 +885,7 @@ class ExperimentReplay:
             self.current_fov = float(self.env["AGENT_FOV"])
 
 
-        if self.project_version=="Base":
+        if self.project_version in ["Base", "MADRLForaging"]:
             self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
         elif self.project_version=="CooperativeSignaling":
             self.draw_resources(res_posx, res_posy, [1], [1], [1], res_radius)
@@ -909,7 +909,7 @@ class ExperimentReplay:
             clusters = None
 
 
-        if self.project_version=="Base":
+        if self.project_version in ["Base", "MADRLForaging"]:
             self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
         elif self.project_version == "CooperativeSignaling":
             self.draw_agents(posx, posy, orientation, mode, [0 for i in range(len(posx))], radius)
@@ -928,13 +928,13 @@ class ExperimentReplay:
             if np.isnan(std_reloc):
                 std_reloc = 0
             time_dep_stats.append(f"Relocation Time (0-t): Mean:{mean_reloc:10.2f} ± {std_reloc:10.2f}")
-            if self.project_version in ["Base", "CooperativeSignaling"]:
+            if self.project_version in ["Base","MADRLForaging", "CooperativeSignaling"]:
                 end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
                                                        coll_resc, previous_metrics=time_dep_stats)
             elif self.project_version == "VisualFlocking":
                 end_pos = self.draw_agent_stat_summary([ai for ai in range(num_agents)], posx, posy, orientation, mode,
                                                        [0 for i in range(len(posx))], previous_metrics=time_dep_stats)
-            if self.project_version == "Base":
+            if self.project_version in ["Base","MADRLForaging"]:
                 self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
 
     def draw_agent_paths_vf(self, posx, posy, radius, orientations):
@@ -1169,7 +1169,7 @@ class ExperimentReplay:
 
         if self.show_stats:
             font = pygame.font.Font(None, 16)
-            if self.env.get("APP_VERSION", "Base") in ["Base", "CooperativeSignaling"]:
+            if self.env.get("APP_VERSION", "Base") in ["Base", "CooperativeSignaling", "MADRLForaging"]:
                 text = font.render(f"ID:{id}, R:{coll_resc:.2f}", True, colors.BLACK)
             elif self.experiment.env.get("APP_VERSION") == "VisualFlocking":
                 if cluster_id is None:

@@ -119,4 +119,5 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
 
 
 if __name__ == "__main__":
+    #start()
     start_playground()

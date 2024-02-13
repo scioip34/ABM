@@ -2,14 +2,17 @@
 data_loader.py : including the main classes to load previously saved data (csv+json) into an initialized replayable simulation.
     The DataLoader class is only the data layer that loads data and then can create a LoadedSimulation instance accordingly.
 """
-
+import itertools
 import json
 import os
 import glob
 import shutil
 import sys
 
+from scipy.spatial import ConvexHull
+
 from abm.agent.agent import Agent, supcalc
+from abm.agent.supcalc import angle_between
 from abm.loader import helper as dh
 from abm.monitoring.ifdb import pad_to_n_digits
 import numpy as np
@@ -224,23 +227,34 @@ class DataLoader:
             else:
                 if self.zarr_compressed_runs:
                     self.agent_data = {}
-                    self.agent_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"ag_posx{self.zarr_extension}"), mode='r')
-                    self.agent_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"ag_posy{self.zarr_extension}"), mode='r')
-                    self.agent_data['orientation'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ori{self.zarr_extension}"),
-                                                               mode='r')
-                    self.agent_data['mode'] = zarr.open(os.path.join(self.data_folder_path, f"ag_mode{self.zarr_extension}"), mode='r')
-                    self.agent_data['velocity'] = zarr.open(os.path.join(self.data_folder_path, f"ag_vel{self.zarr_extension}"),
-                                                            mode='r')
-                    if self.project_version=="Base":
-                        self.agent_data['w'] = zarr.open(os.path.join(self.data_folder_path, f"ag_w{self.zarr_extension}"), mode='r')
-                        self.agent_data['u'] = zarr.open(os.path.join(self.data_folder_path, f"ag_u{self.zarr_extension}"), mode='r')
-                        self.agent_data['Ipriv'] = zarr.open(os.path.join(self.data_folder_path, f"ag_ipriv{self.zarr_extension}"), mode='r')
-                        self.agent_data['collresource'] = zarr.open(os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
-                                                                    mode='r')
-                        self.agent_data['expl_patch_id'] = zarr.open(os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
-                                                                     mode='r')
-                    else:
-                        self.agent_data['meter'] = zarr.open(os.path.join(self.data_folder_path, f"ag_meter{self.zarr_extension}"), mode='r')
+                    self.agent_data['posx'] = zarr.open(
+                        os.path.join(self.data_folder_path, f"ag_posx{self.zarr_extension}"), mode='r')
+                    self.agent_data['posy'] = zarr.open(
+                        os.path.join(self.data_folder_path, f"ag_posy{self.zarr_extension}"), mode='r')
+                    self.agent_data['orientation'] = zarr.open(
+                        os.path.join(self.data_folder_path, f"ag_ori{self.zarr_extension}"),
+                        mode='r')
+                    self.agent_data['mode'] = zarr.open(
+                        os.path.join(self.data_folder_path, f"ag_mode{self.zarr_extension}"), mode='r')
+                    self.agent_data['velocity'] = zarr.open(
+                        os.path.join(self.data_folder_path, f"ag_vel{self.zarr_extension}"),
+                        mode='r')
+                    if self.project_version == "Base":
+                        self.agent_data['w'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_w{self.zarr_extension}"), mode='r')
+                        self.agent_data['u'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_u{self.zarr_extension}"), mode='r')
+                        self.agent_data['Ipriv'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_ipriv{self.zarr_extension}"), mode='r')
+                        self.agent_data['collresource'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_collr{self.zarr_extension}"),
+                            mode='r')
+                        self.agent_data['expl_patch_id'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_explr{self.zarr_extension}"),
+                            mode='r')
+                    elif self.project_version == "CooperativeSignaling":
+                        self.agent_data['meter'] = zarr.open(
+                            os.path.join(self.data_folder_path, f"ag_meter{self.zarr_extension}"), mode='r')
                         self.agent_data['signalling'] = zarr.open(
                             os.path.join(self.data_folder_path, f"ag_sig{self.zarr_extension}"), mode='r')
                         self.agent_data['collresource'] = zarr.open(
@@ -262,22 +276,24 @@ class DataLoader:
                     else:
                         if self.zarr_compressed_runs:
                             self.resource_data = {}
-                            self.resource_data['posx'] = zarr.open(os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
-                                                                   mode='r')
-                            self.resource_data['posy'] = zarr.open(os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
-                                                                   mode='r')
+                            self.resource_data['posx'] = zarr.open(
+                                os.path.join(self.data_folder_path, f"res_posx{self.zarr_extension}"),
+                                mode='r')
+                            self.resource_data['posy'] = zarr.open(
+                                os.path.join(self.data_folder_path, f"res_posy{self.zarr_extension}"),
+                                mode='r')
                             self.resource_data['radius'] = zarr.open(
                                 os.path.join(self.data_folder_path, f"res_rad{self.zarr_extension}"),
                                 mode='r')
-                            if self.project_version=="Base":
+                            if self.project_version == "Base":
                                 self.resource_data['resc_left'] = zarr.open(
                                     os.path.join(self.data_folder_path, f"res_left{self.zarr_extension}"),
-                                                                          mode='r')
-                                self.resource_data['quality'] = zarr.open(os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
-                                                                         mode='r')
+                                    mode='r')
+                                self.resource_data['quality'] = zarr.open(
+                                    os.path.join(self.data_folder_path, f"res_qual{self.zarr_extension}"),
+                                    mode='r')
                 except:
                     pass
-
 
                 print("resource data loaded")
                 print(sys.getsizeof(self.agent_data))
@@ -374,6 +390,9 @@ class ExperimentLoader:
         self.mean_iid = None
         self.mean_nn_dist = None
         self.iid_matrix = None
+        self.elong_matrix = None
+        self.mean_elong = None
+        self.hull_points_array = None
         self.undersample = int(undersample)
         self.chunksize = None  # chunk size in zarr array
         self.env = None
@@ -523,9 +542,10 @@ class ExperimentLoader:
                         mode_array = zarr.open(os.path.join(summary_path, f"agent_mode{self.zarr_extension}"), mode='w',
                                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        if project_version=="Base":
+                        if project_version == "Base":
                             # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                            rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"), mode='w',
+                            rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"),
+                                                  mode='w',
                                                   shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                   chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                             # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
@@ -541,23 +561,23 @@ class ExperimentLoader:
                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                             # np.zeros((self.num_batches, *axes_lens, num_agents, num_timesteps))
-                            expl_patch_array = zarr.open(os.path.join(summary_path, f"agent_explpatch{self.zarr_extension}"), mode='w',
-                                                         shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                                         chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                        elif project_version=="CooperativeSignaling":
+                            expl_patch_array = zarr.open(
+                                os.path.join(summary_path, f"agent_explpatch{self.zarr_extension}"), mode='w',
+                                shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                        elif project_version == "CooperativeSignaling":
                             meter_array = zarr.open(os.path.join(summary_path, f"agent_meter{self.zarr_extension}"),
-                                                  mode='w',
-                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
-                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                            sig_array = zarr.open(os.path.join(summary_path, f"agent_sig{self.zarr_extension}"),
                                                     mode='w',
                                                     shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                     chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
+                            sig_array = zarr.open(os.path.join(summary_path, f"agent_sig{self.zarr_extension}"),
+                                                  mode='w',
+                                                  shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
+                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                             rew_array = zarr.open(os.path.join(summary_path, f"agent_rew{self.zarr_extension}"),
                                                   mode='w',
                                                   shape=(self.num_batches, *axes_lens, num_agents, num_timesteps),
                                                   chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-
 
                     index = [self.varying_params[k].index(float(env_data[k])) for k in
                              sorted(list(self.varying_params.keys()))]
@@ -621,7 +641,7 @@ class ExperimentLoader:
             del posx_array, posy_array, ori_array, vel_array, mode_array
             if project_version == "Base":
                 del rew_array, w_array, u_array, Ip_array, expl_patch_array
-            elif project_version=="CooperativeSignaling":
+            elif project_version == "CooperativeSignaling":
                 del meter_array, sig_array, rew_array
 
             # Saving max patch number for further calc
@@ -697,13 +717,14 @@ class ExperimentLoader:
                     r_posy_array = zarr.open(os.path.join(summary_path, f"res_posy{self.zarr_extension}"), mode='w',
                                              shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                              chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
-                    if project_version=="Base":
+                    if project_version == "Base":
                         # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
                         r_qual_array = zarr.open(os.path.join(summary_path, f"res_qual{self.zarr_extension}"), mode='w',
                                                  shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                                  chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                         # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
-                        r_rescleft_array = zarr.open(os.path.join(summary_path, f"res_rescleft{self.zarr_extension}"), mode='w',
+                        r_rescleft_array = zarr.open(os.path.join(summary_path, f"res_rescleft{self.zarr_extension}"),
+                                                     mode='w',
                                                      shape=(self.num_batches, *axes_lens, max_r_in_runs, num_timesteps),
                                                      chunks=(1, *ax_chunk, 1, num_timesteps), dtype='float')
                         # legacy npz: np.zeros((self.num_batches, *axes_lens, max_r_in_runs, num_timesteps))
@@ -785,7 +806,7 @@ class ExperimentLoader:
                         data[data < 0] = 0
                         r_posy_array[ind] += data
 
-                        if project_version=="Base":
+                        if project_version == "Base":
                             data = res_data[f'quality_res-{pad_to_n_digits(ri + 1, n=3)}']
                             # clean empty strings
                             data = np.array([float(d) if d != "" else 0.0 for d in data])
@@ -807,7 +828,7 @@ class ExperimentLoader:
                         ind = (i,) + tuple(index) + (pid,)
                         r_posx_array[ind] = res_data['posx'][pid, self.t_start:self.t_end:self.undersample]
                         r_posy_array[ind] = res_data['posy'][pid, self.t_start:self.t_end:self.undersample]
-                        if project_version=="Base":
+                        if project_version == "Base":
                             r_qual_array[ind] = res_data['quality'][pid, self.t_start:self.t_end:self.undersample]
                             r_rescleft_array[ind] = res_data['resc_left'][pid, self.t_start:self.t_end:self.undersample]
 
@@ -897,37 +918,44 @@ class ExperimentLoader:
             if extension is not None:
                 # found zarr summary for agent data
                 self.agent_summary = {}
-                self.agent_summary['posx'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_posx{extension}"),
-                                                       mode='r')
+                self.agent_summary['posx'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", f"agent_posx{extension}"),
+                    mode='r')
                 self.chunksize = int(self.agent_summary['posx'].shape[-1])
                 self.num_batches = self.agent_summary['posx'].shape[0]
-                self.agent_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_posy{extension}"),
-                                                       mode='r')
+                self.agent_summary['posy'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", f"agent_posy{extension}"),
+                    mode='r')
                 self.agent_summary['orientation'] = zarr.open(
                     os.path.join(self.experiment_path, "summary", f"agent_ori{extension}"),
                     mode='r')  # self.experiment.agent_summary['orientation']
-                self.agent_summary['mode'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_mode{extension}"),
-                                                       mode='r')  # self.experiment.agent_summary['mode']
-                if self.project_version=="Base":
+                self.agent_summary['mode'] = zarr.open(
+                    os.path.join(self.experiment_path, "summary", f"agent_mode{extension}"),
+                    mode='r')  # self.experiment.agent_summary['mode']
+                if self.project_version == "Base":
                     # u and w are not crucial for replay, so we can skip them if they are not available
                     try:
-                        self.agent_summary['u'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
-                                                               mode='r')
+                        self.agent_summary['u'] = zarr.open(
+                            os.path.join(self.experiment_path, "summary", f"agent_u{extension}"),
+                            mode='r')
                     except zarr.errors.PathNotFoundError:
                         print("No agent_u found!")
                     try:
-                        self.agent_summary['w'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
-                                                            mode='r')
+                        self.agent_summary['w'] = zarr.open(
+                            os.path.join(self.experiment_path, "summary", f"agent_w{extension}"),
+                            mode='r')
                     except zarr.errors.PathNotFoundError:
                         print("No agent_w found!")
-                    self.agent_summary['explpatch'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_explpatch{extension}"),
-                                                        mode='r')
+                    self.agent_summary['explpatch'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", f"agent_explpatch{extension}"),
+                        mode='r')
                     self.agent_summary['collresource'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", f"agent_rew{extension}"),
                         mode='r')
-                elif self.project_version=="CooperativeSignaling":
-                    self.agent_summary['meter'] = zarr.open(os.path.join(self.experiment_path, "summary", f"agent_meter{extension}"),
-                                                           mode='r')
+                elif self.project_version == "CooperativeSignaling":
+                    self.agent_summary['meter'] = zarr.open(
+                        os.path.join(self.experiment_path, "summary", f"agent_meter{extension}"),
+                        mode='r')
                     self.agent_summary['signalling'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", f"agent_sig{extension}"),
                         mode='r')
@@ -952,13 +980,14 @@ class ExperimentLoader:
                                                      mode='r')
                 self.res_summary['posy'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_posy.zarr"),
                                                      mode='r')
-                if self.project_version=="Base":
+                if self.project_version == "Base":
                     self.res_summary['resc_left'] = zarr.open(
                         os.path.join(self.experiment_path, "summary", "res_rescleft.zarr"),
                         mode='r')
                     try:
-                        self.res_summary['quality'] = zarr.open(os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
-                                                                mode='r')
+                        self.res_summary['quality'] = zarr.open(
+                            os.path.join(self.experiment_path, "summary", "res_qual.zarr"),
+                            mode='r')
                     except zarr.errors.PathNotFoundError:
                         print("No res_qual found!")
 
@@ -1028,7 +1057,7 @@ class ExperimentLoader:
         # print("Using t_closest=", t_closest, "for t_real=", t_real)
         max_dist = (self.env.get("ENV_WIDTH") ** 2 + self.env.get("ENV_HEIGHT") ** 2) ** 0.5 / 2
         niidm = self.iid_matrix[condition_idx + tuple([slice(None), slice(None), t_closest])]  # /max_dist
-        niidm = np.abs(np.median(niidm)-niidm) / max_dist
+        niidm = np.abs(np.median(niidm) - niidm) / max_dist
         # niidm = (niidm - mean_iidm) / std_iidm
         # niidm = (niidm - np.mean(niidm)) / max_dist
         # # punishing large distances more
@@ -1037,7 +1066,7 @@ class ExperimentLoader:
         niidm = niidm + niidm.T
 
         if pm is None:
-            pm = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, int(t_closest*undersample))
+            pm = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, int(t_closest * undersample))
 
         # standardizing pm and normiidm so that their mean is 0 and their std is 1
         # todo: here we normalize with the mean and std of the slice and not the whole matrix
@@ -1051,11 +1080,220 @@ class ExperimentLoader:
 
         return niidm, dist_pm, dist
 
-    def return_dendogram_data(self, linkage, labels, thr=1, show_leaf_counts=True, no_plot=True):
+    def return_dendogram_data(self, linkage, labels, thr=0.275, show_leaf_counts=True, no_plot=True):
         """Returning the clustering data according to the linkage matrix"""
         ret = dendrogram(linkage, color_threshold=thr, labels=labels,
                          show_leaf_counts=show_leaf_counts, no_plot=no_plot)
         return ret
+
+
+    def plot_convex_hull_in_current_t(self, idx, agposx=None, agposy=None, with_plotting=True, on_torus=False,
+                                      calc_longest_d=False, calc_orthogonal=False):
+        """Plotting the estimated convex hull in a given time step"""
+
+        # positions are not passed, we read it according to the passed index
+        if agposx is None or agposy is None:
+            if idx is not None:
+                num_agents = int(self.env.get("N"))
+                # The shape will depend on the IID matrix which is costly.
+                # If we use undersample there, we also use undersample here
+                num_timesteps_orig = self.env.get("T")
+                num_timesteps = self.agent_summary["posx"].shape[-1]
+                undersample = int(num_timesteps_orig // num_timesteps)
+                print(f"Num varying params: {len(self.varying_params)}")
+                num_varying_params = len(self.varying_params)
+
+                condition_idx = idx[0:-1]
+                t = idx[-1]
+
+                t_closest = int(t / undersample)
+                agposx = self.agent_summary["posx"][condition_idx + tuple([slice(None), t_closest])]
+                agposy = self.agent_summary["posy"][condition_idx + tuple([slice(None), t_closest])]
+            else:
+                raise ValueError("If no positions are passed, idx must be passed!")
+        else:
+            num_agents = agposx.shape[0]
+
+        if with_plotting:
+            plt.figure()
+            # plt.scatter(agposy, agposx)
+            # draw arena as a black rectangle
+            plt.plot([0, 0, self.env.get("ENV_HEIGHT"), self.env.get("ENV_HEIGHT"), 0],
+                     [0, self.env.get("ENV_WIDTH"), self.env.get("ENV_WIDTH"), 0, 0], 'k-', label="Arena")
+            # restricting the plot from -arena size to + arena size
+            plt.xlim(-self.env.get("ENV_HEIGHT"), 2 * self.env.get("ENV_HEIGHT"))
+            plt.ylim(-self.env.get("ENV_WIDTH"), 2 * self.env.get("ENV_WIDTH"))
+
+        if on_torus:
+            # plotting agent copies
+            # defining 9 colors for different copy sets
+            agent_copies = np.zeros((num_agents, 2, 9))
+            colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', 'yellow', 'orange']
+
+            # doing the same with list iteration
+            for i, (wh, hh) in enumerate(itertools.product([-1, 0, 1], repeat=2)):
+                agent_copies[:, 0, i] = agposx + wh * self.env.get("ENV_HEIGHT")
+                agent_copies[:, 1, i] = agposy + hh * self.env.get("ENV_WIDTH")
+                if with_plotting:
+                    color = colors.pop(0)
+                    if i == 0:
+                        plt.scatter(agent_copies[:, 0, i], agent_copies[:, 1, i], c=color, label=f"Agent Copies")
+                    else:
+                        plt.scatter(agent_copies[:, 0, i], agent_copies[:, 1, i], c=color)
+
+            agent_pos = np.zeros((num_agents, 2))
+            for agi in range(num_agents):
+                # print(f"Finding closest agent copy on torus tiling for agent {agi}")
+                # if first agent we take the real coordinates
+                if agi == 0:
+                    agent_pos[agi, 0] = agposx[agi]
+                    agent_pos[agi, 1] = agposy[agi]
+                # now we loop through the agents and we select the closest copy of the agent for every timestep
+                else:
+                    prev_ag_posx = agent_pos[0, 0]
+                    prev_ag_posy = agent_pos[0, 1]
+
+                    # Vectorized distance calculation
+                    differences_x = agent_copies[agi, 0, :] - prev_ag_posx
+                    differences_y = agent_copies[agi, 1, :] - prev_ag_posy
+                    distances = np.sqrt(differences_x ** 2 + differences_y ** 2)
+
+                    # Find the index of the closest copy
+                    closest_copy = np.argmin(distances)
+
+                    agent_pos[agi, 0] = agent_copies[agi, 0, closest_copy]
+                    agent_pos[agi, 1] = agent_copies[agi, 1, closest_copy]
+
+                    # plotting line from previous point to new one with light grey
+                    if with_plotting:
+                        if agi == 1:
+                            plt.plot([prev_ag_posx, agent_pos[agi, 0]], [prev_ag_posy, agent_pos[agi, 1]], 'lightgrey', label="connection route")
+                        else:
+                            plt.plot([prev_ag_posx, agent_pos[agi, 0]], [prev_ag_posy, agent_pos[agi, 1]], 'lightgrey')
+
+        else:
+            agent_pos = np.zeros((num_agents, 2))
+            agent_pos[:, 0] = agposx
+            agent_pos[:, 1] = agposy
+
+        # calculating the convex hull
+        hull = ConvexHull(agent_pos)
+
+        if with_plotting:
+            # plotting the convex hull
+            plt.scatter(hull.points[:, 0], hull.points[:, 1], c='k')
+            # plotting agent_pos with x markers to see if this is correct
+            plt.scatter(agent_pos[:, 0], agent_pos[:, 1], c='r', marker='x')
+            for si, simplex in enumerate(hull.simplices):
+                if si == 0:
+                    plt.plot(agent_pos[simplex, 0], agent_pos[simplex, 1], 'k--', label="Convex hull")
+                else:
+                    plt.plot(agent_pos[simplex, 0], agent_pos[simplex, 1], 'k--')
+
+        if calc_longest_d:
+            hull_points = hull.points[hull.vertices]
+            differences = hull_points[:, np.newaxis, :] - hull_points[np.newaxis, :, :]
+            distances = np.sqrt(np.sum(differences ** 2, axis=-1))
+            # forbidding consecutive indices, i.e. (i, i+1) indices should be 0
+            distances[[i for i in range(len(hull_points) - 1)], [i + 1 for i in range(len(hull_points) - 1)]] = 0
+            # forbidding other way around
+            distances[[i + 1 for i in range(len(hull_points) - 1)], [i for i in range(len(hull_points) - 1)]] = 0
+            # finding the index of the longest radius from distances
+            max_inds = np.unravel_index(np.argmax(distances), distances.shape)
+            # calculate distance between max inds
+            max_dist = distances[max_inds]
+
+            if calc_orthogonal:
+                # angles of new radii to longest one
+                angles = []
+                shifts = []
+                if len(hull_points)==4:
+                    min_inds = []
+                    # we simply take the 2 indices which are not in max_inds
+                    for i in range(len(hull_points)):
+                        if i not in max_inds:
+                            min_inds.append(i)
+                    min_inds = tuple(min_inds)
+                else:
+                    for hi in range(int(len(hull_points))):
+                        for ki in range(int(len(hull_points))):
+                            hii = (max_inds[0] + hi) % len(hull_points)
+                            kii = (max_inds[1] + ki) % len(hull_points)
+                            if len(hull_points) > 3:
+                                forbidden_indices = (np.abs(hii - kii) != 1  # not consecutive
+                                                     and np.abs(hii - kii) != len(hull_points) - 1  # not consecutive on circle
+                                                     and hii not in [max_inds[0], max_inds[1]]  # not the same as max_inds
+                                                     and kii not in [max_inds[0], max_inds[1]])
+                            else:
+                                forbidden_indices = True  # if the hull is a triangle we take any 2 points that is most orthogonal
+
+                            if forbidden_indices:
+                                # calculating a gle between line created with points max_inds and new shifted lines
+                                new_indices = hii, kii
+                                # calculating angle defined by 2 set of points
+                                longest_radius_vector = hull_points[max_inds[1]] - hull_points[max_inds[0]]
+                                new_radius_vector = hull_points[new_indices[1]] - hull_points[new_indices[0]]
+                                angle = angle_between(longest_radius_vector, new_radius_vector)
+                                if not np.isnan(angle):
+                                    shifts.append((hii, kii))
+                                    angles.append(np.abs(angle))
+
+                    # finding index of angles where item is closest to 90 degrees
+                    if len(angles) > 0:
+                        best_shift_index = np.argmin(np.abs(np.array(angles) - np.pi / 2))
+                        best_shift = shifts[best_shift_index]
+                    else:
+                        best_shift = max_inds
+                        print("No orthogonal radius found, taking longest radius as orthogonal radius")
+                        plt.figure()
+                        plt.scatter(hull_points[:, 0], hull_points[:, 1])
+                        plt.show()
+
+                    # print("Best shift: ", best_shift)
+
+                    min_inds = best_shift
+
+                min_dist = distances[min_inds]
+            else:
+                min_inds = None
+                min_dist = None
+        else:
+            max_inds = None
+            max_dist = None
+            min_inds = None
+            min_dist = None
+
+        # print(max_inds, min_inds, min_dist, max_inds, max_dist)
+
+        # plotting the shortest/longest radius
+        if with_plotting:
+            if calc_longest_d:
+                plt.plot([hull_points[max_inds[0], 0], hull_points[max_inds[1], 0]],
+                         [hull_points[max_inds[0], 1], hull_points[max_inds[1], 1]], 'r-', label="Longest diameter")
+                # draw circle around longest diameter
+                circle = plt.Circle(((hull_points[max_inds[0], 0] + hull_points[max_inds[1], 0]) / 2,
+                                     (hull_points[max_inds[0], 1] + hull_points[max_inds[1], 1]) / 2),
+                                    max_dist / 2, color='r', fill=False, label="Circle around longest diameter")
+                plt.gca().add_artist(circle)
+
+            if calc_orthogonal:
+                plt.plot([hull_points[min_inds[0], 0], hull_points[min_inds[1], 0]],
+                         [hull_points[min_inds[0], 1], hull_points[min_inds[1], 1]], 'b-', label="approx. 'Orthogonal' diameter")
+            # setting axis to preserve aspect ratio
+            plt.axis('equal')
+            # reversing y axis
+            plt.gca().invert_yaxis()
+            plt.legend()
+            plt.xlabel("Virtual X with tiling")
+            plt.ylabel("Virtual Y with tiling")
+            plt.title(f"Convex Hull and Longest Diameter at t={t_closest} on torus tiling")
+            if calc_longest_d:
+                # adding text with hull area
+                plt.text(0, 0, f"Hull Area: {hull.volume:.2f}\nCircle Area: {np.pi * (max_dist / 2) ** 2:.2f},\nRatio: {hull.volume / (np.pi * (max_dist / 2) ** 2):.2f}",
+                         fontsize=12, verticalalignment='bottom', horizontalalignment='right')
+            plt.show()
+
+        return hull, max_inds, max_dist, min_inds, min_dist
 
     def plot_clustering_in_current_t(self, idx, with_plotting=True):
         """Calculating clustering in a given time step
@@ -1105,8 +1343,6 @@ class ExperimentLoader:
         ax[1].set_title("Interindividual distance")
         plt.show()
 
-
-
     def calculate_clustering(self):
         """Using hierarhical clustering according to inter-individual distance and order scores to get number of
         subgroups"""
@@ -1139,25 +1375,22 @@ class ExperimentLoader:
         clustering_dict['num_subgroups'] = []
         print(f"Num varying params: {len(self.varying_params)}")
         num_varying_params = len(self.varying_params)
-        clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
-        largest_clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_timesteps]))
-        clustering_ids = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params+1])+[num_agents, num_timesteps]))
+        clustering_data = np.zeros(tuple(list(self.iid_matrix.shape[:num_varying_params + 1]) + [num_timesteps]))
+        largest_clustering_data = np.zeros(
+            tuple(list(self.iid_matrix.shape[:num_varying_params + 1]) + [num_timesteps]))
+        clustering_ids = np.zeros(
+            tuple(list(self.iid_matrix.shape[:num_varying_params + 1]) + [num_agents, num_timesteps]))
         # calculating the number of parameter combinations along iidm.shape[:num_varying_params+1]
-        num_combinations = np.prod(self.iid_matrix.shape[:num_varying_params+1])
+        num_combinations = np.prod(self.iid_matrix.shape[:num_varying_params + 1])
         curr_param_comb = 0
         print("Calculating polarizations first")
         t_slice = slice(0, num_timesteps_orig, undersample)
 
-
         for batchi in range(self.agent_summary["orientation"].shape[0]):
             print("Batchi: ", batchi)
-            # if batchi < 3:
-            #     pass
-            # else:
-            #     break
             condition_idx = (batchi, slice(None), slice(None), slice(None))
             pol_m_large = self.calculate_pairwise_pol_matrix_vectorized(condition_idx, t_slice)
-            for idx_base_ in np.ndindex(*self.iid_matrix.shape[1:num_varying_params+1]):
+            for idx_base_ in np.ndindex(*self.iid_matrix.shape[1:num_varying_params + 1]):
                 print("Progress: ", curr_param_comb, "/", num_combinations)
                 idx_base = tuple([batchi] + list(idx_base_))
                 for t in range(num_timesteps):
@@ -1165,7 +1398,8 @@ class ExperimentLoader:
                     idx_ = tuple(list(idx_base_) + [slice(None), slice(None), t])
 
                     # calculating the clustering distance
-                    normiidm, dist_pm, dist = self.return_clustering_distnace(idx_base, t*undersample, undersample, pm=pol_m_large[idx_])
+                    normiidm, dist_pm, dist = self.return_clustering_distnace(idx_base, t * undersample, undersample,
+                                                                              pm=pol_m_large[idx_])
 
                     if idx_base == (0, 0, 0, 0) and 5 < t < 3:
                         with_plotting = True
@@ -1176,7 +1410,8 @@ class ExperimentLoader:
 
                     # clustering
                     linkage_matrix = linkage(dist, "ward")
-                    ret = self.return_dendogram_data(linkage_matrix, [i for i in range(num_agents)], no_plot=not with_plotting)
+                    ret = self.return_dendogram_data(linkage_matrix, [i for i in range(num_agents)],
+                                                     no_plot=not with_plotting)
                     colors = [color for _, color in sorted(zip(ret['leaves'], ret['leaves_color_list']))]
                     group_ids = np.array([int(a.split("C")[1]) for a in colors])
                     for i, gid in enumerate(group_ids):
@@ -1187,7 +1422,8 @@ class ExperimentLoader:
 
                     group_ids -= 1
                     clustering_data[tuple(list(idx_base) + [t])] = len(list(set(group_ids)))
-                    largest_clustering_data[tuple(list(idx_base) + [t])] = self.calculate_largest_subcluster_size(group_ids)
+                    largest_clustering_data[tuple(list(idx_base) + [t])] = self.calculate_largest_subcluster_size(
+                        group_ids)
                     clustering_ids[tuple(list(idx_base) + [slice(None), t])] = group_ids
                     if with_plotting:
                         plt.show()
@@ -1211,6 +1447,84 @@ class ExperimentLoader:
         for cluster_id in set(cluster_id_list):
             cluster_sizes.append(np.sum(cluster_id_list == cluster_id))
         return np.max(cluster_sizes)
+
+
+    def plot_elongation(self):
+        """Method to plot elongation of the agents in the environment"""
+        cbar = None
+        T = self.agent_summary["posx"].shape[-1]
+        if T > 1000:
+            undersample = int(T / 1000)
+        else:
+            undersample = 1
+        self.calculate_group_elongation(undersample=undersample)
+        min_data = np.min(self.mean_elong)
+        max_data = np.max(self.mean_elong)
+
+        batch_dim = 0
+        num_var_params = len(list(self.varying_params.keys()))
+        agent_dim = batch_dim + num_var_params + 1
+        time_dim = agent_dim + 1
+
+        if num_var_params == 1:
+            # fig, ax = plt.subplots(1, 1)
+            # plt.title("Number of Subclusters")
+            # plt.plot(self.mean_clusters)
+            # for run_i in range(self.efficiency.shape[0]):
+            #     plt.plot(np.mean(self.efficiency, axis=agent_dim)[run_i, ...], marker=".", linestyle='None')
+            # ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))
+            # ax.set_xticklabels(self.varying_params[list(self.varying_params.keys())[0]])
+            # plt.xlabel(list(self.varying_params.keys())[0])
+            pass
+
+        elif num_var_params == 2:
+            fig, ax = plt.subplots(1, 1)
+            keys = sorted(list(self.varying_params.keys()))
+            im = ax.imshow(self.mean_elong)
+
+            ax.set_yticks(range(len(self.varying_params[keys[0]])))
+            ax.set_yticklabels(self.varying_params[keys[0]])
+            ax.set_ylabel(keys[0])
+
+            ax.set_xticks(range(len(self.varying_params[keys[1]])))
+            ax.set_xticklabels(self.varying_params[keys[1]])
+            ax.set_xlabel(keys[1])
+
+        elif num_var_params == 3 or num_var_params == 4:
+            if len(self.mean_elong.shape) == 4:
+                # reducing the number of variables to 3 by connecting 2 of the dimensions
+                self.new_mean_elong = np.zeros((self.mean_elong.shape[0:3]))
+                print(self.new_mean_elong.shape)
+                for j in range(self.mean_elong.shape[0]):
+                    for i in range(self.mean_elong.shape[1]):
+                        self.new_mean_elong[j, i, :] = self.mean_elong[j, i, :, i]
+                self.mean_elong = self.new_mean_elong
+            if self.collapse_plot is None:
+                num_plots = self.mean_elong.shape[0]
+                fig, ax = plt.subplots(1, num_plots, sharex=True, sharey=True)
+                keys = sorted(list(self.varying_params.keys()))
+                for i in range(num_plots):
+                    img = ax[i].imshow(self.mean_elong[i, :, :], vmin=min_data, vmax=max_data)
+                    ax[i].set_title(f"{keys[0]}={self.varying_params[keys[0]][i]}")
+
+                    if i == 0:
+                        ax[i].set_yticks(range(len(self.varying_params[keys[1]])))
+                        ax[i].set_yticklabels(self.varying_params[keys[1]])
+                        ax[i].set_ylabel(keys[1])
+
+                    ax[i].set_xticks(range(len(self.varying_params[keys[2]])))
+                    ax[i].set_xticklabels(self.varying_params[keys[2]])
+                    ax[i].set_xlabel(keys[2])
+
+                fig.subplots_adjust(right=0.8)
+                cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+                cbar = fig.colorbar(img, cax=cbar_ax)
+
+        num_agents = self.agent_summary["orientation"].shape[agent_dim]
+        description_text = ""
+        self.add_plot_interaction(description_text, fig, ax, show=True)
+        return fig, ax, cbar
+
 
     def plot_largest_subclusters(self):
         """Method to plot size of largest subclusters irrespectively of how many parameters have been tuned during the
@@ -1285,7 +1599,6 @@ class ExperimentLoader:
         self.add_plot_interaction(description_text, fig, ax, show=True)
         return fig, ax, cbar
 
-
     def plot_clustering(self):
         """Method to plot clustering irrespectively of how many parameters have been tuned during the
                 experiments."""
@@ -1359,7 +1672,6 @@ class ExperimentLoader:
         self.add_plot_interaction(description_text, fig, ax, show=True)
         return fig, ax, cbar
 
-
     def calculate_search_efficiency(self, t_start_plot=0, t_end_plot=-1, used_batches=None):
         """Method to calculate search efficiency throughout the experiments as the sum of collected resorces normalized
         with the travelled distance. The timestep in which the efficiency is calculated. This might mismatch from
@@ -1432,6 +1744,131 @@ class ExperimentLoader:
                 j = (i + agi) % num_agents
                 iid[i, j] = distance[i]
         return iid
+
+    def calculate_group_elongation(self, undersample=1, avg_over_time=False):
+        """Calculating the group elongation as the effective radius of the surrounding polygon of agents"""
+        # reloading data if already calculated
+        summary_path = os.path.join(self.experiment_path, "summary")
+        elongpath = os.path.join(summary_path, "elong.npy")
+        meanelong_path = os.path.join(summary_path, "meanelong.npy")
+        hullpoints_path = os.path.join(summary_path, "hullpoints.npy")
+        # First we only implement on torus
+        if os.path.isfile(elongpath):
+            print("Found saved Elongation array in summary, reloading it...")
+            self.elong_matrix = np.load(elongpath)
+            self.mean_elong = np.load(meanelong_path)
+            print("Found saved hull points array in summary, reloading it...")
+            self.hull_points_array = np.load(hullpoints_path)
+        else:
+            # calculating elongation by tiling the arena and finding agent copies that are closest to previous
+            # agent/or copy.
+            # Method Summary: Start with Agent 1: Select the original position of the first agent as the starting point.
+            # Iterate Over Agents: For each subsequent agent: Consider all possible copies of this agent within the 3x3
+            # duplicated arena space (including the original position and the positions shifted by the arena's width
+            # and/or height in all directions). Calculate the Euclidean distance from this agent's copies to the
+            # previously selected agent (or agent copy). Select the copy that minimizes this distance.
+            # Construct Final List: Compile the selected positions into a final list that represents all agents in a
+            # modified Euclidean space that accounts for the toroidal wrapping. Apply Euclidean Metrics: Now that you've
+            # effectively translated the problem into a Euclidean space, you can apply standard geometrical or
+            # statistical analyses, such as calculating the convex hull to determine the group's elongation or the
+            # effective radius of the surrounding polygon.
+
+            agposx = self.agent_summary['posx']
+            agposy = self.agent_summary['posy']
+
+            t_idx = -1
+            num_batches = agposx.shape[0]
+            num_agents = agposx.shape[-2]
+
+            new_shape = list(agposx.shape)
+
+            # collapsing shape along agent dimension as we will calculate 1 number per timestep and not per agent
+            if avg_over_time:
+                # collapsing along time dimension as we will average here
+                new_shape[t_idx] = 1
+            else:
+                new_shape[t_idx] = int(new_shape[t_idx] / undersample)
+
+            new_shape.pop(-2)
+            new_shape = tuple(new_shape)
+
+            # ## ----Elongation matrix---- will have dim (num_batches, *[dim of varying params], time): and
+            # includes the elongation of the group at time t at the index: elong[..., t] where the first
+            # dimensions will be the same as in our convention according to varying parameters. As an example if
+            # we changed the parameter1 along 3 different cases and parameter2 along 5 different cases,
+            # and we had 20 batches with 10 agents we can get the elongation at time 100 as elong[...,
+            # 100] which has the shape of (20, 3, 5)
+
+            elong = np.zeros(new_shape)
+            elong_rs = elong.reshape((elong.shape[0], -1, elong.shape[-1]))
+
+            hull_points_array = np.zeros(elong_rs.shape[0:2] + (num_agents, 2, elong.shape[-1]))
+            hull_points_array[:] = np.nan
+
+            for batchi in range(num_batches):
+                if self.env.get("BOUNDARY") == "infinite":
+                    on_torus = True
+                else:
+                    on_torus = False
+                print(f"Calculating group elongation for batch {batchi}, torus={on_torus}...")
+                agposx_rs = np.array(agposx[batchi, ..., ::undersample]).reshape((-1, agposx.shape[-2], elong.shape[-1]))
+                agposy_rs = np.array(agposy[batchi, ..., ::undersample]).reshape((-1, agposy.shape[-2], elong.shape[-1]))
+                for i in range(agposx_rs.shape[0]):
+                    print(f"Batch {batchi}/{num_batches} : {i/agposx_rs.shape[0]*100:.2f}%", end="\r")
+                    for t in range(agposx_rs.shape[-1]):
+                        posx = agposx_rs[i, :, t]
+                        posy = agposy_rs[i, :, t]
+                        try:
+                            hull, max_inds, max_dist, min_inds, min_dist = self.plot_convex_hull_in_current_t(None, agposx=posx,
+                                                                                          agposy=posy,
+                                                                                          with_plotting=False,
+                                                                                          on_torus=on_torus,
+                                                                                          calc_longest_d=True,
+                                                                                          calc_orthogonal=False)
+                        except:
+                            print("Error in convex hull calculation! Noting with None in the elongation matrix.")
+                            max_dist = None
+                            elong_rs[batchi, i, t] = max_dist
+                            continue
+                        else:
+                            pass
+
+                        # calculating circle area diameter max_dist
+                        if max_dist is not None:
+                            circle_area = np.pi * (max_dist / 2) ** 2
+
+                            # calculating the elongation as the ratio of the convex hull area to the circle area
+                            elong_rs[batchi, i, t] = hull.volume / circle_area
+                        else:
+                            elong_rs[batchi, i, t] = None
+
+                        # saving convex hull into hull_points_array
+                        hull_points = hull.points[hull.vertices]
+                        for agi in range(num_agents):
+                            if agi < len(hull_points):
+                                hull_points_array[batchi, i, agi, :, t] = hull_points[agi]
+                            else:
+                                # concatenating None until the array is filled
+                                hull_points_array[batchi, i, agi, :, t] = np.array([None, None])
+
+            # reshaping back to original
+            self.elong_matrix = elong_rs.reshape(elong.shape)
+            print("Saving elongation arrays into summary!")
+            np.save(elongpath, self.elong_matrix)
+
+            # calculating mean elongation and saving it
+            self.mean_elong = np.nanmean(np.nanmean(self.elong_matrix, axis=-1), axis=0)
+            print("Saving mean elongation arrays into summary!")
+            np.save(meanelong_path, self.mean_elong)
+
+            # saving hull points array
+            # as the new shape we take the shape of the elong until the last dimension, then we add the number of
+            # agents and the number of spatial dimensions (x, y) and the time dimension
+            hull_points_array = hull_points_array.reshape(elong.shape[:-1] + (num_agents, 2, elong.shape[-1]))
+            self.hull_points_array = hull_points_array
+            print("Saving hull points arrays into summary!")
+            np.save(hullpoints_path, self.hull_points_array)
+
 
     def calculate_interindividual_distance(self, undersample=1, avg_over_time=False, periodic_boundary=False):
         """Method to calculate inter-individual distance array from posx and posy arrays of agents. The final
@@ -1557,7 +1994,6 @@ class ExperimentLoader:
         print("Saving mean NNd array under ", meanNNd_path)
         np.save(meanNNd_path, self.mean_nn_dist)
 
-
     def plot_mean_rotational_order(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot rotational order irrespectively of how many parameters have been tuned during the
         experiments."""
@@ -1655,7 +2091,6 @@ class ExperimentLoader:
         description_text = ""
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
         return fig, ax, cbar
-
 
     def plot_mean_polarization(self, t_start=0, t_end=-1, from_script=False, used_batches=None):
         """Method to plot polarization irrespectively of how many parameters have been tuned during the
@@ -1957,9 +2392,9 @@ class ExperimentLoader:
             self.rotord_std = np.nanmean(np.nanstd(self.rotord_matrix, axis=batch_dim), axis=-1)
         else:
             num_agents = self.agent_summary["orientation"].shape[agent_dim]
-            num_timesteps = self.agent_summary["orientation"].shape[time_dim]/undersample
+            num_timesteps = self.agent_summary["orientation"].shape[time_dim] / undersample
             ori_shape = list(self.agent_summary["orientation"].shape)
-            new_shape = ori_shape[0:num_var_params+1] + [int(num_timesteps/undersample)]
+            new_shape = ori_shape[0:num_var_params + 1] + [int(num_timesteps / undersample)]
 
             self.rotord_matrix = np.zeros(new_shape)
             unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, int(num_timesteps / undersample)]
@@ -2012,7 +2447,6 @@ class ExperimentLoader:
 
         return self.rotord_matrix, self.mean_rotord
 
-
     def calculate_polarization(self, undersample=1, filtered_by_wallcoll=0, filtering_window=50):
         """Calculating polarization of agents in the environment used to
         quantify e.g. flocking models"""
@@ -2036,12 +2470,12 @@ class ExperimentLoader:
 
         else:
             num_agents = self.agent_summary["orientation"].shape[agent_dim]
-            num_timesteps = self.agent_summary["orientation"].shape[time_dim]/undersample
+            num_timesteps = self.agent_summary["orientation"].shape[time_dim] / undersample
             ori_shape = list(self.agent_summary["orientation"].shape)
-            new_shape = ori_shape[0:num_var_params+1] + [int(num_timesteps/undersample)]
+            new_shape = ori_shape[0:num_var_params + 1] + [int(num_timesteps / undersample)]
 
             self.pol_matrix = np.zeros(new_shape)
-            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, int(num_timesteps/undersample)]
+            unitvec_shape = ori_shape[1:-2] + [2] + [num_agents, int(num_timesteps / undersample)]
 
             for runi in range(self.num_batches):
                 print(f"Calculating polarization for batch {runi}")
@@ -2060,7 +2494,7 @@ class ExperimentLoader:
                     for wi in range(filtering_window):
                         print(wi)
                         new_times = wrefs[-1] + 1
-                        new_times[new_times>self.env["T"]-1]=self.env["T"]-1
+                        new_times[new_times > self.env["T"] - 1] = self.env["T"] - 1
                         wrefs[-1] = new_times
                         new_wrefs = tuple(wrefs)
                         orif[new_wrefs] = np.nan
@@ -2107,12 +2541,16 @@ class ExperimentLoader:
             aacoll = np.zeros(list(self.agent_summary['orientation'].shape)[0:-2])
             num_timesteps = self.iid_matrix.shape[-1]
             if self.iid_matrix.shape[-1] < 1000:
-                raise Exception(f"The IID matrix has been collapsed on the time axis to len {self.iid_matrix.shape[-1]} when was calculated, can not"
-                                " calculate collision matrix. Please delete iid.npy from the summary folder and"
-                                "try again!")
+                raise Exception(
+                    f"The IID matrix has been collapsed on the time axis to len {self.iid_matrix.shape[-1]} when was calculated, can not"
+                    " calculate collision matrix. Please delete iid.npy from the summary folder and"
+                    "try again!")
             else:
-                iid_individual_coll = np.any(self.iid_matrix < (2*self.env["RADIUS_AGENT"]), axis=-2)  # containing info about which agent has been collided
-                iid_sum_coll = np.any(np.logical_and(self.iid_matrix > 0, self.iid_matrix < (2*self.env["RADIUS_AGENT"])), axis=-2)  # is there collision or not in every timestep
+                iid_individual_coll = np.any(self.iid_matrix < (2 * self.env["RADIUS_AGENT"]),
+                                             axis=-2)  # containing info about which agent has been collided
+                iid_sum_coll = np.any(
+                    np.logical_and(self.iid_matrix > 0, self.iid_matrix < (2 * self.env["RADIUS_AGENT"])),
+                    axis=-2)  # is there collision or not in every timestep
                 aacoll = np.count_nonzero(iid_sum_coll, axis=-1) / num_timesteps
                 self.aacoll_matrix = aacoll
 
@@ -2141,19 +2579,16 @@ class ExperimentLoader:
                 agposy = self.agent_summary['posy'][bi, ...]
 
                 wrefs = np.array(np.where(np.logical_or(np.logical_or(
-                                 agposx < boundaries_x[0] - self.env.get("RADIUS_AGENT"),
-                                 agposx > boundaries_x[1] - self.env.get("RADIUS_AGENT")),
-                                                    np.logical_or(
-                                 agposy < boundaries_y[0] - self.env.get("RADIUS_AGENT"),
-                                 agposy > boundaries_y[1] - self.env.get("RADIUS_AGENT")))))
+                    agposx < boundaries_x[0] - self.env.get("RADIUS_AGENT"),
+                    agposx > boundaries_x[1] - self.env.get("RADIUS_AGENT")),
+                    np.logical_or(
+                        agposy < boundaries_y[0] - self.env.get("RADIUS_AGENT"),
+                        agposy > boundaries_y[1] - self.env.get("RADIUS_AGENT")))))
 
                 wrefszarr = zarr.open(wrefpaths[bi], mode='w',
-                            shape=wrefs.shape, dtype='int')
+                                      shape=wrefs.shape, dtype='int')
                 wrefszarr[...] = wrefs[...]
                 self.wrefs[bi] = wrefszarr
-
-
-
 
     def calculate_relocation_time(self, undersample=1):
         """Calculating relocation time matrix over the given data"""
@@ -2306,7 +2741,6 @@ class ExperimentLoader:
                            f"of inter-individual distance between agents.\n"
         self.add_plot_interaction(description_text, fig, ax, show=True, from_script=from_script)
         return fig, ax, cbar
-
 
     def plot_mean_iid(self, from_script=False, undersample=1):
         """Method to plot mean inter-individual distance irrespectively of how many parameters have been tuned during the

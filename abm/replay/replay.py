@@ -18,8 +18,8 @@ import shutil
 import cv2
 from matplotlib import cm as colmaps
 
-
 root_abm_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 
 class ExperimentReplay:
     def __init__(self, data_folder_path, undersample=1, t_start=None, t_end=None, collapse=None):
@@ -27,7 +27,7 @@ class ExperimentReplay:
         available for the experiment it will be summarized first
         the undersample parameter only matters if the data is not yet summarized, otherwise it is automatically
         read from the env file"""
-        self.image_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR) # path from collect screenshots
+        self.image_save_path = os.path.join(root_abm_dir, pgt.VIDEO_SAVE_DIR)  # path from collect screenshots
         if os.path.isdir(self.image_save_path):
             shutil.rmtree(self.image_save_path)
         os.makedirs(self.image_save_path, exist_ok=True)
@@ -66,11 +66,11 @@ class ExperimentReplay:
         self.res_pos_x_z = self.experiment.res_summary['posx']
         self.res_pos_y_z = self.experiment.res_summary['posy']
 
-        if self.project_version=="Base":
+        if self.project_version == "Base":
             self.coll_resc_z = self.experiment.agent_summary['collresource']
             self.resc_left_z = self.experiment.res_summary['resc_left']
             self.resc_quality_z = self.experiment.res_summary.get('quality', None)
-        elif self.project_version=="CooperativeSignaling":
+        elif self.project_version == "CooperativeSignaling":
             self.meter_z = self.experiment.agent_summary['meter']
             self.sig_z = self.experiment.agent_summary['signalling']
             self.coll_resc_z = self.experiment.agent_summary['collresource']
@@ -222,13 +222,12 @@ class ExperimentReplay:
             borderThickness=1
         )
         tb_start = self.button_start_x_2 + int(self.slider_width / 2)
-        small_textb_width = int(self.slider_width/2)
+        small_textb_width = int(self.slider_width / 2)
         self.path_l_desc_tb = TextBox(self.screen, tb_start, button_start_y, small_textb_width,
-                                 self.button_height/2, fontSize=int(self.button_height / 3), borderThickness=1)
+                                      self.button_height / 2, fontSize=int(self.button_height / 3), borderThickness=1)
         self.path_l_desc_tb.setText(f"path len.:")
-        self.path_l_tb = TextBox(self.screen, tb_start, button_start_y + self.button_height/2, small_textb_width,
-                                self.button_height/2, fontSize=int(self.button_height / 3), borderThickness=1)
-
+        self.path_l_tb = TextBox(self.screen, tb_start, button_start_y + self.button_height / 2, small_textb_width,
+                                 self.button_height / 2, fontSize=int(self.button_height / 3), borderThickness=1)
 
         button_start_y += self.button_height
         self.plot_iid_b = Button(
@@ -282,7 +281,6 @@ class ExperimentReplay:
         if self.project_version in ["Base", "CooperativeSignaling"]:
             self.NNdist_b.disable()
             self.NNdist_b.hide()
-
 
         # Plotting Button Line
         button_start_y += self.button_height
@@ -419,10 +417,29 @@ class ExperimentReplay:
                     onClick=lambda: self.experiment.plot_largest_subclusters(),  # Function to call when clicked on
                     borderThickness=1
                 )
-                self.dendogram_b = Button(
+                self.plot_elongation_b = Button(
                     # Mandatory Parameters
                     self.screen,  # Surface to place button on
                     self.button_start_x_2 + int(self.slider_width / 2),  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Plot Elongation',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_elongation(),  # Function to call when clicked on
+                    borderThickness=1
+                )
+
+                # adding new row of buttons for current slice operations (e.g. current timestep)
+                button_start_y += self.button_height
+                self.dendogram_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.button_start_x_2,  # X-coordinate of top left corner
                     button_start_y,  # Y-coordinate of top left corner
                     int(self.slider_width / 2),  # Width
                     self.button_height,  # Height
@@ -432,9 +449,30 @@ class ExperimentReplay:
                     fontSize=20,  # Size of font
                     margin=20,  # Minimum distance between text/image and edge of button
                     inactiveColour=colors.GREY,
-                    onClick=lambda: self.experiment.plot_clustering_in_current_t(self.index + tuple([self.t])),  # Function to call when clicked on
+                    onClick=lambda: self.experiment.plot_clustering_in_current_t(self.index + tuple([self.t])),
+                    # Function to call when clicked on
                     borderThickness=1
                 )
+                self.plot_convex_hull_b = Button(
+                    # Mandatory Parameters
+                    self.screen,  # Surface to place button on
+                    self.slider_start_x,  # X-coordinate of top left corner
+                    button_start_y,  # Y-coordinate of top left corner
+                    int(self.slider_width / 2),  # Width
+                    self.button_height,  # Height
+
+                    # Optional Parameters
+                    text='Convex Hull',  # Text to display
+                    fontSize=20,  # Size of font
+                    margin=20,  # Minimum distance between text/image and edge of button
+                    inactiveColour=colors.GREY,
+                    onClick=lambda: self.experiment.plot_convex_hull_in_current_t(self.index + tuple([self.t]),
+                                                                                  calc_longest_d=True,
+                                                                                  on_torus=self.experiment.env.get("BOUNDARY")=="infinite"),
+                    # Function to call when clicked on
+                    borderThickness=1
+                )
+
 
         # Plotting Details Button Line
         button_start_y += self.button_height
@@ -596,14 +634,14 @@ class ExperimentReplay:
         self.radius = self.env["RADIUS_AGENT"]
         self.res_pos_x = self.res_pos_x_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
         self.res_pos_y = self.res_pos_y_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
-        if self.project_version=="Base":
+        if self.project_version == "Base":
             self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             self.resc_left = self.resc_left_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             if self.resc_quality_z is not None:
                 self.resc_quality = self.resc_quality_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             else:
                 self.resc_quality = None
-        elif self.project_version=="CooperativeSignaling":
+        elif self.project_version == "CooperativeSignaling":
             self.meter = self.meter_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             self.sig = self.sig_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
             self.coll_resc = self.coll_resc_z[self.index][:, (self.t_slice) * cs:(self.t_slice + 1) * cs]
@@ -628,7 +666,8 @@ class ExperimentReplay:
             t_end = self.t_end
         if self.T > 1000:
             undersample = int(self.T / 1000)
-            print(f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
+            print(
+                f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
         else:
             undersample = 1
         fig, ax, cbar = self.experiment.plot_mean_collision_time(t_start=t_start, t_end=t_end,
@@ -667,8 +706,8 @@ class ExperimentReplay:
         else:
             t_end = self.t_end
         fig, ax, cbar = self.experiment.plot_mean_rotational_order(t_start=t_start, t_end=t_end,
-                                                               from_script=self.from_script,
-                                                               used_batches=used_batches)
+                                                                   from_script=self.from_script,
+                                                                   used_batches=used_batches)
         return fig, ax, cbar
 
     def on_print_efficiency(self, with_read_collapse_param=True, used_batches=None):
@@ -696,7 +735,8 @@ class ExperimentReplay:
                 self.experiment.set_collapse_param(self.collapse_dropdown.getSelected())
         if self.T > 1000:
             undersample = int(self.T / 1000)
-            print(f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
+            print(
+                f"Experiment longer than 1000 timesteps! To calculate iid reducing timesteps to 1000 with undersampling rate {undersample}.")
         else:
             undersample = 1
         fig, ax, cbar = self.experiment.plot_mean_iid(from_script=self.from_script, undersample=undersample)
@@ -932,7 +972,6 @@ class ExperimentReplay:
             resc_left = [0 for i in range(len(posx))]
             resc_quality = [0 for i in range(len(posx))]
 
-
         res_unit = self.env["MIN_RESOURCE_PER_PATCH"]
         if res_unit == "----TUNED----":
             var_keys = sorted(list(self.varying_params.keys()))
@@ -972,31 +1011,48 @@ class ExperimentReplay:
         else:
             self.current_fov = float(self.env["AGENT_FOV"])
 
-
-        if self.project_version=="Base":
+        if self.project_version == "Base":
             self.draw_resources(res_posx, res_posy, max_units, resc_left, resc_quality, res_radius)
-        elif self.project_version=="CooperativeSignaling":
+        elif self.project_version == "CooperativeSignaling":
             self.draw_resources(res_posx, res_posy, [1], [1], [1], res_radius)
         if self.show_paths:
             if self.experiment.env.get("APP_VERSION", "") == "VisualFlocking":
                 self.draw_agent_paths_vf(self.posx[:, max(0, t_ind - self.path_length):t_ind],
-                                      self.posy[:, max(0, t_ind - self.path_length):t_ind],
-                                      radius,
-                                      self.orientation[:, max(0, t_ind - self.path_length):t_ind])
+                                         self.posy[:, max(0, t_ind - self.path_length):t_ind],
+                                         radius,
+                                         self.orientation[:, max(0, t_ind - self.path_length):t_ind])
             else:
                 self.draw_agent_paths(self.posx[:, max(0, t_ind - self.path_length):t_ind],
                                       self.posy[:, max(0, t_ind - self.path_length):t_ind],
                                       radius,
                                       modes=self.agmodes[:, max(0, t_ind - self.path_length):t_ind])
         if self.experiment.clustering_data is not None:
-            t_ind_cl = int(t_ind / 25)
+            # calculating undersample ratio to get 1000 datapoints from the t axis
+            if self.T > 1000:
+                undersample = int(self.T / 1000)
+            else:
+                undersample = 1
+            t_ind_cl = int(t_ind / undersample)
             clusters_idx = tuple(list(self.index) + [slice(None), t_ind_cl])
             clusters = self.experiment.clustering_ids[clusters_idx]
         else:
             clusters = None
 
+        # showing convex hull if calculated
+        if self.experiment.hull_points_array is not None:
+            # calculating undersample ratio to get 1000 datapoints from the t axis
+            if self.T > 1000:
+                undersample = int(self.T / 1000)
+            else:
+                undersample = 1
+            t_ind_cl = int(t_ind / undersample)
+            hull_idx = tuple(list(self.index) + [slice(None), slice(None), t_ind_cl])
+            hull_points = self.experiment.hull_points_array[hull_idx]
+            # adding agent radius to hull points to visualize in the middle of agents
+            hull_points
+            self.draw_convex_hull(hull_points + radius)
 
-        if self.project_version=="Base":
+        if self.project_version == "Base":
             self.draw_agents(posx, posy, orientation, mode, coll_resc, radius)
         elif self.project_version == "CooperativeSignaling":
             self.draw_agents(posx, posy, orientation, mode, [0 for i in range(len(posx))], radius)
@@ -1024,30 +1080,138 @@ class ExperimentReplay:
             if self.project_version == "Base":
                 self.draw_resource_stat_summary(posx, posy, max_units, resc_left, resc_quality, end_pos)
 
+    def draw_convex_hull(self, hull_points):
+        """"Drowing a convex hull in pygame with light gray dotted lines according to the passed hull_points.
+        In case of a torus environment, if the line would go through the limites of the environment, 2 separate hull
+        is created, one stopping at the border, the other starting at the opposite border."""
+        if hull_points is not None:
+            if len(hull_points) > 0:
+                for point in hull_points:
+                    if not np.isnan(point[0]):
+                        pygame.draw.circle(self.screen, colors.LIGHT_BLUE, (point[0], point[1]), 1)
+                    else:
+                        # this part of the hull points array is empty might be only partially calculated
+                        continue
+                if len(hull_points) > 2:
+                    # filtering nans
+                    not_nan_hull_points = hull_points[~np.isnan(hull_points).any(axis=1)]
+                    # we draw the outside hull
+                    if len(not_nan_hull_points) > 2:
+                        # in_hull, out_hull = self.split_convex_hull(not_nan_hull_points)
+                        # if in_hull is not None:
+                        #     pygame.draw.polygon(self.screen, colors.LIGHT_BLUE, in_hull, 2)
+                        # if out_hull is not None:
+                        #     pygame.draw.polygon(self.screen, colors.LIGHT_BLUE, out_hull, 2)
+                        pygame.draw.polygon(self.screen, colors.LIGHT_BLUE, not_nan_hull_points, 2)
+
+    def split_convex_hull(self, hull_points):
+        """Splitting a single convex hull according to the arena geometry and the torus placement. The hull might get through
+        the arena borders because we calculated the convex hull by tiling the agents in all directions as copies, then finding
+        the convex hull on the copies. The hull might get through the borders of the arena, so we need to split it into
+        separate hulls if it is the case. To do so, we:
+            1.) loop through the points of the hull
+            2.) we calculate if the line between the current point and the next point crosses the border
+            3.) if it does, we split the hull into 2 separate hulls.
+            4.) in the first hull we collect the points from the start to the border.
+            5.) in the second hull we collect the points from the border and continue iterating
+            6.) if we get back to inside the walls we calculate the intersection point with the wall.
+            7.) we add the intersection point to the both the first and the second hulls
+            8.) we continue iterating until we reach the starting point again."""
+        in_hull, out_hull = [], []
+        for i in range(len(hull_points)):
+            point1 = hull_points[i]
+            if i == len(hull_points) - 1:
+                point2 = hull_points[0]
+            else:
+                point2 = hull_points[i + 1]
+            # deciding if we are in or out from the arena with point 1
+            if self.is_inside_arena(point1, self.WIDTH, self.HEIGHT):
+                in_hull.append(point1)
+            else:
+                out_hull.append(point1)
+            if self.is_crossing_border(point1, point2):
+                intersection = self.calculate_intersection_point(point1, point2)
+                in_hull.append(intersection)
+                out_hull.append(intersection)
+
+        if len(out_hull) == 0:
+            return in_hull, None
+
+        return in_hull, out_hull
+
+    def is_inside_arena(self, point, width, height):
+        """Checking if the point is inside the arena"""
+        if self.window_pad < point[0] < width and self.window_pad < point[1] < height:
+            return True
+        return False
+
+    def is_crossing_border(self, point1, point2):
+        """Checking if the line between the points crosses the border of the arena"""
+        # checking if the line between the points crosses the border
+        if (point1[0] < self.window_pad < point2[0]) or \
+                (point1[0] > self.window_pad > point2[0]) or \
+                (point1[0] < self.WIDTH < point2[0]) or \
+                (point1[0] > self.WIDTH > point2[0]) or \
+                (point1[1] < self.window_pad < point2[1]) or \
+                (point1[1] > self.window_pad > point2[1]) or \
+                (point1[1] < self.HEIGHT < point2[1]) or \
+                (point1[1] > self.HEIGHT > point2[1]):
+            return True
+        return False
+
+    def calculate_intersection_point(self, point1, point2):
+        """Calculate intersection point between 2 points and the border of the arena"""
+        # calculating the intersection point with the wall
+        if point1[0] < self.window_pad < point2[0]:
+            # intersection with the left wall
+            intersection = [self.window_pad, int(point1[1] + (point2[1] - point1[1]) * (self.window_pad - point1[0]) / (point2[0] - point1[0]))]
+        elif point1[0] > self.window_pad > point2[0]:
+            # intersection with the left wall
+            intersection = [self.window_pad, int(point1[1] + (point2[1] - point1[1]) * (self.window_pad - point1[0]) / (point2[0] - point1[0]))]
+        elif point1[0] < self.WIDTH < point2[0]:
+            # intersection with the right wall
+            intersection = [self.WIDTH, int(point1[1] + (point2[1] - point1[1]) * (self.WIDTH - point1[0]) / (point2[0] - point1[0]))]
+        elif point1[0] > self.WIDTH > point2[0]:
+            # intersection with the right wall
+            intersection = [self.WIDTH, int(point1[1] + (point2[1] - point1[1]) * (self.WIDTH - point1[0]) / (point2[0] - point1[0]))]
+        elif point1[1] < self.window_pad < point2[1]:
+            # intersection with the top wall
+            intersection = [int(point1[0] + (point2[0] - point1[0]) * (0 - point1[1]) / (point2[1] - point1[1])), self.window_pad]
+        elif point1[1] > self.window_pad > point2[1]:
+            # intersection with the top wall
+            intersection = [int(point1[0] + (point2[0] - point1[0]) * (0 - point1[1]) / (point2[1] - point1[1])), self.window_pad]
+        elif point1[1] < self.HEIGHT < point2[1]:
+            # intersection with the bottom wall
+            intersection = [int(point1[0] + (point2[0] - point1[0]) * (self.HEIGHT - point1[1]) / (point2[1] - point1[1])), self.HEIGHT]
+        elif point1[1] > self.HEIGHT > point2[1]:
+            # intersection with the bottom wall
+            intersection = [int(point1[0] + (point2[0] - point1[0]) * (self.HEIGHT - point1[1]) / (point2[1] - point1[1])), self.HEIGHT]
+        return intersection
+
     def draw_agent_paths_vf(self, posx, posy, radius, orientations):
         num_agents = posx.shape[0]
         path_length = posx.shape[1]
         cmap = colmaps.get_cmap('jet')
         transparency = 0.5
         transparency = int(transparency * 255)
-        big_colors = cmap(orientations/(2 * np.pi))*255
+        big_colors = cmap(orientations / (2 * np.pi)) * 255
         # setting alpha
-        surface = pygame.Surface((self.WIDTH+self.window_pad, self.HEIGHT+self.window_pad))
+        surface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
         surface.fill(colors.BACKGROUND)
         surface.set_colorkey(colors.WHITE)
         surface.set_alpha(255)
         try:
             for ai in range(num_agents):
-                subsurface = pygame.Surface((self.WIDTH+self.window_pad, self.HEIGHT+self.window_pad))
+                subsurface = pygame.Surface((self.WIDTH + self.window_pad, self.HEIGHT + self.window_pad))
                 subsurface.fill(colors.BACKGROUND)
                 subsurface.set_colorkey(colors.WHITE)
                 subsurface.set_alpha(transparency)
                 for t in range(1, path_length, 1):
-                    #point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
+                    # point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     color = big_colors[ai, t]
                     # pygame.draw.line(surface1, color, point1, point2, 4)
-                    pygame.draw.circle(subsurface, color, point2, int(self.radius/2))
+                    pygame.draw.circle(subsurface, color, point2, 10)
                 surface.blit(subsurface, (0, 0))
             self.screen.blit(surface, (0, 0))
         except IndexError as e:
@@ -1063,7 +1227,7 @@ class ExperimentReplay:
                     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
                     point2 = (posx[ai, t] + radius, posy[ai, t] + radius)
                     color = path_cols[int(modes[ai, t])]
-                    #pygame.draw.line(self.screen, color, point1, point2, 4)
+                    # pygame.draw.line(self.screen, color, point1, point2, 4)
                     pygame.draw.circle(self.screen, color, point2, 5)
                 # for t in range(1, path_length):
                 #     point1 = (posx[ai, t - 1] + radius, posy[ai, t - 1] + radius)
@@ -1246,7 +1410,7 @@ class ExperimentReplay:
         image = pygame.Surface([radius * 2, radius * 2])
         image.fill(colors.BACKGROUND)
         image.set_colorkey(colors.BACKGROUND)
-        pygame.gfxdraw.filled_circle(image, radius, radius, radius-1, agent_color)
+        pygame.gfxdraw.filled_circle(image, radius, radius, radius - 1, agent_color)
         pygame.gfxdraw.aacircle(image, radius, radius, radius - 1, colors.BLACK)
 
         # Showing agent orientation with a line towards agent orientation

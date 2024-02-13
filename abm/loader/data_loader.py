@@ -121,7 +121,6 @@ class DataLoader:
         self.load_files()
         self.preprocess_data()
 
-
     def agent_json_to_csv_format(self):
         """transforming a read in json format dictionary to the standard data structure we use when read in a csv file"""
         new_dict = {}

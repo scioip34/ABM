@@ -11,20 +11,18 @@ import abm.projects.madrl_foraging.madrl_contrib.madrl_learning_params as learni
 
 
 class LSTM_DQNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
-        super(DQNetwork, self).__init__()
-        # convolutional layer ?
-        self.lstm_layer = nn.LSTM(input_size=input_size, hidden_size=128)
+        def __init__(self, input_size, output_size):
+            super(LSTM_DQNetwork, self).__init__()
+            self.lstm = nn.LSTM(input_size, 128)
+            self.layer2 = nn.Linear(128, 128)
 
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, output_size)
+            self.layer3 = nn.Linear(128, output_size)
 
-
-    def forward(self, state):
-        x = F.relu(self.layer1(state))
-        x = F.relu(self.layer2(x))
-        output = self.layer3(x)
-        return output
+        def forward(self, x):
+            lstm_out, _ = self.lstm(x)
+            x = torch.relu(self.layer2(lstm_out))
+            x = self.layer3(x)
+            return x
 
 class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
@@ -77,7 +75,10 @@ class DQNAgent:
             self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
         #self.target_q_network.eval()  # Set target network to evaluation mode
         else:
-            raise ValueError("Brain type not supported")
+            print("Using LSTM")
+            self.q_network = LSTM_DQNetwork(state_size, action_size)
+            self.target_q_network = LSTM_DQNetwork(state_size, action_size)
+            self.target_q_network.load_state_dict(self.q_network.state_dict())  #
 
         # Optimizer
         if learning_params.optimizer=="Adam":
@@ -94,15 +95,7 @@ class DQNAgent:
 
 
 
-    def select_action(self, state):
-        legal_actions = [0]
-
-        soc_v_field = state[0][:-1]
-        env_status = state[0][-1]
-        if env_status != -1 and env_status != 0:
-            legal_actions.append(1)
-        if soc_v_field.sum() != 0:
-            legal_actions.append(2)
+    def select_action(self, state, legal_actions):
 
         # Epsilon-greedy exploration
         eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
@@ -122,6 +115,7 @@ class DQNAgent:
 
 
         self.action_tensor=torch.LongTensor([[action]])
+
         return self.action_tensor
 
     '''

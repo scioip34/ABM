@@ -103,10 +103,10 @@ class MADRLSimulation(Simulation):
                 self.agents.add(agent)
                 agent_proven = True
 
-    def agent2resource_interaction(self, collided_agents):
+    def agent_resource_overlap(self, agents):
         collision_group_ar = pygame.sprite.groupcollide(
             self.rescources,
-            self.agents,
+            agents,
             False,
             False,
             pygame.sprite.collide_circle
@@ -115,51 +115,60 @@ class MADRLSimulation(Simulation):
         # refine collision group according to point-like pooling in center of agents
         collision_group_ar = refine_ar_overlap_group(collision_group_ar)
 
+        return collision_group_ar
+
+
+    def agent2resource_interaction(self,  collided_agents):
+        collision_group_ar = self.agent_resource_overlap(self.agents)
+
         # collecting agents that are on resource patch
         agents_on_rescs = []
 
+
         # Notifying agents about resource if pooling is successful + exploitation dynamics
         for resc, agents in collision_group_ar.items():  # looping through patches
-            destroy_resc = 0  # if we destroy a patch it is 1
-            for agent in agents:  # looping through all agents on patches
-                # Turn agent towards patch center
-                self.bias_agent_towards_res_center(agent, resc)
 
-                # One of previous agents on patch consumed the last unit
+                destroy_resc = 0  # if we destroy a patch it is 1
+                for agent in agents:  # looping through all agents on patches
+                    # Turn agent towards patch center
+
+                    self.bias_agent_towards_res_center(agent, resc)
+
+                    # One of previous agents on patch consumed the last unit
+                    if destroy_resc:
+                        notify_agent(agent, -1)
+                    else:
+                        # Agent finished pooling on a resource patch
+
+                        if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
+                                or agent.pooling_time == 0:
+                            # Notify about the patch
+                            notify_agent(agent, 1, resc.id)
+                            # Teleport agent to the middle of the patch if needed
+                            if self.teleport_exploit:
+                                agent.position = resc.position + resc.radius - agent.radius
+
+                        # Agent is exploiting this patch
+                        if agent.get_mode() == "exploit":
+                            # continue depleting the patch
+                            depl_units, destroy_resc = resc.deplete(agent.consumption)
+                            agent.collected_r_before = agent.collected_r  # rolling resource memory
+                            agent.collected_r += depl_units  # and increasing it's collected rescources
+                            if destroy_resc:  # consumed unit was the last in the patch
+                                # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
+                                #       f"there are no more units before the next timestep, otherwise they stop"
+                                #       f"exploiting with delays")
+                                for agent_tob_notified in agents:
+                                    # print("C notify agent NO res ", agent_tob_notified.id)
+                                    notify_agent(agent_tob_notified, -1)
+
+                    # Collect all agents on resource patches
+                    agents_on_rescs.append(agent)
+
+                # Patch is fully depleted
                 if destroy_resc:
-                    notify_agent(agent, -1)
-                else:
-                    # Agent finished pooling on a resource patch
-
-                    if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
-                            or agent.pooling_time == 0:
-                        # Notify about the patch
-                        notify_agent(agent, 1, resc.id)
-                        # Teleport agent to the middle of the patch if needed
-                        if self.teleport_exploit:
-                            agent.position = resc.position + resc.radius - agent.radius
-
-                    # Agent was already exploiting this patch
-                    if agent.get_mode() == "exploit":
-                        # continue depleting the patch
-                        depl_units, destroy_resc = resc.deplete(agent.consumption)
-                        agent.collected_r_before = agent.collected_r  # rolling resource memory
-                        agent.collected_r += depl_units  # and increasing it's collected rescources
-                        if destroy_resc:  # consumed unit was the last in the patch
-                            # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
-                            #       f"there are no more units before the next timestep, otherwise they stop"
-                            #       f"exploiting with delays")
-                            for agent_tob_notified in agents:
-                                # print("C notify agent NO res ", agent_tob_notified.id)
-                                notify_agent(agent_tob_notified, -1)
-
-                # Collect all agents on resource patches
-                agents_on_rescs.append(agent)
-
-            # Patch is fully depleted
-            if destroy_resc:
-                # we clear it from the memory and regenerate it somewhere else if needed
-                self.kill_resource(resc)
+                    # we clear it from the memory and regenerate it somewhere else if needed
+                    self.kill_resource(resc)
 
         # Notifying other agents that there is no resource patch in current position (they are not on patch)
         for agent in self.agents.sprites():
@@ -176,10 +185,13 @@ class MADRLSimulation(Simulation):
         self.rescources.update()
 
     def step(self,turned_on_vfield):
+        # order the agents by id to ensure that agent 0 has priority over agent 1 and agent 1 over agent 2
+
 
         # TODO: How are depleted patches handled
-        # Execute actions for each agent
+        # Update internal states of the agents and their positions
         self.agents.update(self.agents)
+
         # Check for agent-agent collisions
         # collided_agents = self.agent2agent_interaction()
         collided_agents = []
@@ -207,7 +219,7 @@ class MADRLSimulation(Simulation):
         return collective_se
 
     def start_madqn_eval(self):
-        """Main simulation loop for training the agents with MADQN"""
+        '''Main simulation loop for training the agents with MADQN'''
 
         # Start time of the simulation
         start_time = datetime.now()
@@ -239,13 +251,7 @@ class MADRLSimulation(Simulation):
         turned_on_vfield = 0
 
         # Initialize the social visual fields for each agent
-        for ag in self.agents:
-            ag.calc_social_V_proj(self.agents)
-            # Concatenate the resource signal array for the state tensor (The social visual field (1D array )+ the
-            # environment status (Scalar))
-
-            ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [ag.env_status]).unsqueeze(
-                0)
+        self.initialize_environment()
 
         print(f"Starting main simulation loop in MADQN evaluation mode with {len(self.agents)} agents and {len(self.rescources)} resources !")
 
@@ -258,9 +264,14 @@ class MADRLSimulation(Simulation):
 
             # Agent 0 always has riority over agent 1 and agent 1 over agent 2
             # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
+            exploiting_agents= []
             for ag in self.agents:
                 # Select an action
-                _ = ag.policy_network.select_action(ag.policy_network.state_tensor)
+                state = ag.policy_network.state_tensor
+                legal_actions = self.get_legal_actions(state)
+
+                _ = ag.policy_network.select_action(state,legal_actions)
+
 
             collective_se = self.step(turned_on_vfield)
             collective_se_list.append(collective_se)
@@ -269,11 +280,19 @@ class MADRLSimulation(Simulation):
 
                 if done:
                     ag.policy_network.next_state_tensor = None
-
                 else:
                     # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
-                    ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [ag.env_status]).unsqueeze(0)
+                    if ag.env_status == 1:
+                        #calculate number of resources left in the patch
+                        ag_resc_overlap = self.agent_resource_overlap([ag])
+                        resc= list(ag_resc_overlap.keys())[0]
 
+
+                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/200]).unsqueeze(0)
+                    else:
+
+
+                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
                 # Calculate the reward as a weighted sum of the individual and collective search efficiency
                 reward = 1.0*ag.search_efficiency + 0.0*collective_se
@@ -328,6 +347,44 @@ class MADRLSimulation(Simulation):
 
         return avg_search_efficiency
 
+    def get_legal_actions(self,state):
+        soc_v_field = state[0][:-1]
+        env_status = state[0][-1]
+        legal_actions = [0]
+        if env_status > 0.0 :
+            legal_actions.append(1)
+        if soc_v_field.sum() != 0:
+            legal_actions.append(2)
+        return legal_actions
+
+    def initialize_environment(self):
+        for ag in self.agents:
+            # Check for agent-agent collisions
+            # collided_agents = self.agent2agent_interaction()
+            collided_agents = []
+            # Check for agent-resource interactions and update the resource patches
+            ag_resc_overlap = self.agent_resource_overlap([ag])
+            if len(ag_resc_overlap) > 0:
+                ag.env_status = 1
+
+            ag.calc_social_V_proj(self.agents)
+            # Concatenate the resource signal array for the state tensor (The social visual field (1D array )+ the
+            # environment status (Scalar))
+            if ag.env_status == 1:
+                # calculate number of resources left in the patch
+
+                resc = list(ag_resc_overlap.keys())[0]
+                ag.policy_network.state_tensor = torch.FloatTensor(
+                    ag.soc_v_field.tolist() + [ag.env_status, resc.resc_left / 200]).unsqueeze(0)
+
+            else:
+                ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0, 0.0]).unsqueeze(0)
+
+
+        if self.with_visualization:
+            self.draw_frame(self.stats, self.stats_pos)
+            pygame.display.flip()
+
     def start_madqn_train(self):
         """Main simulation loop for training the agents with MADQN"""
 
@@ -360,14 +417,9 @@ class MADRLSimulation(Simulation):
                         0)
         turned_on_vfield = 0
 
-        # Initialize the social visual fields for each agent
-        for ag in self.agents:
-            ag.calc_social_V_proj(self.agents)
-            # Concatenate the resource signal array for the state tensor (The social visual field (1D array )+ the
-            # environment status (Scalar))
+        # Initialize the social visual fields for each agent and draw the environment
+        self.initialize_environment()
 
-            ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [ag.env_status]).unsqueeze(
-                0)
 
         print(f"Starting main simulation loop in MADQN training mode with {len(self.agents)} agents and {len(self.rescources)} resources !")
 
@@ -380,20 +432,40 @@ class MADRLSimulation(Simulation):
 
             # Agent 0 always has riority over agent 1 and agent 1 over agent 2
             # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
+            # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed
+            # to deplete the patch, followed by agent 1, then agent 2
+            # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
+            exploiting_agents= []
             for ag in self.agents:
                 # Select an action
-                _ = ag.policy_network.select_action(ag.policy_network.state_tensor)
+                state = ag.policy_network.state_tensor
+                legal_actions = self.get_legal_actions(state)
+
+                action = ag.policy_network.select_action(state,legal_actions)
+
 
             collective_se = self.step(turned_on_vfield)
+
             collective_se_list.append(collective_se)
             # Train the agents
             for ag in self.agents:
+
+
 
                 if done:
                     ag.policy_network.next_state_tensor = None
                 else:
                     # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
-                    ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [ag.env_status]).unsqueeze(0)
+                    if ag.env_status == 1:
+                        #calculate number of resources left in the patch
+                        ag_resc_overlap = self.agent_resource_overlap([ag])
+                        resc= list(ag_resc_overlap.keys())[0]
+
+
+                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/200]).unsqueeze(0)
+                    else:
+                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
+
 
 
                 # Calculate the reward as a weighted sum of the individual and collective search efficiency

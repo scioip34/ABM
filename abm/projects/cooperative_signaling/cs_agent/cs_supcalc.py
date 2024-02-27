@@ -167,15 +167,18 @@ def signaling(meter, is_signaling, signaling_cost,
         return True if rand_value < probability_of_starting_signaling else False
 
 
-def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
-                   crowd_density_threshold=0.5):
+def agent_decision(meter, max_signal_of_other_agents, agent_state, agent_distances, visual_field,
+                   flocking_probability=0.1, flocking_from_distance=100, flocking_to_distance=30):
     """
     Decision tree for the agent's behavior
     :param meter: current meter (detector) value between 0 and 1
     :param max_signal_of_other_agents: meter value between 0 and 1
-    :param max_crowd_density: density of the crowd between 0 and 1
-    :param crowd_density_threshold: threshold when the crowd density is high
-    enough to draw agent's attention
+    :param agent_state: current state of the agent: exploration, taxis, relocation or flocking
+    :param agent_distances: distances to other agents
+    :param visual_field: visual projection field of the agent
+    :param flocking_probability: probability of flocking in every time step where possible, should be small
+    :param flocking_from_distance: distance from which the agent starts flocking
+    :param flocking_to_distance: distance until agents flock
     :return: agent_state: exploration, taxis, relocation or flocking
     """
 
@@ -185,12 +188,29 @@ def agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
         if max_signal_of_other_agents > 0:
             # if there is a signal from other agents, relocate
             return 'relocation'
-        elif max_crowd_density > crowd_density_threshold:
-            # if the crowd density is high enough, the agent will relocate
-            return 'flocking'
         else:
-            # if there is no signal from other agents, explore
-            return 'exploration'
+            # if there is no signal from other agents, and we are not yet in flocking mode,
+            # explore or with small probability flock to nearby agents
+            if agent_state != 'flocking':
+                drawn_number = np.random.rand()
+                if drawn_number < flocking_probability and \
+                        np.min(agent_distances) > flocking_from_distance and \
+                        np.mean(visual_field) > 0:
+                    return 'flocking'
+                else:
+                    return 'exploration'
+            # if the agent is already in flocking mode, stay in flocking until gets near to any other agent
+            else:
+                # we break flocking behavior if no others are in the visual field
+                if np.mean(visual_field) == 0:
+                    return 'exploration'
+                # we break flocking behavior if we get close to any of the agents
+                elif np.min(agent_distances) < flocking_to_distance:
+                    return 'exploration'
+                # we keep flocking if we are still far from other agents that are visible
+                else:
+                    return 'flocking'
+
     elif meter > 0:
         # meter value, agent performs taxis or relocation
         if max_signal_of_other_agents > meter:

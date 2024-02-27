@@ -135,8 +135,7 @@ def test_signaling(meter, is_signaling, signaling_cost,
 )
 def test_agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
                         crowd_density_threshold, agent_state):
-    state = agent_decision(meter, max_signal_of_other_agents, max_crowd_density,
-                           crowd_density_threshold)
+    state = agent_decision(meter, max_signal_of_other_agents, agent_state)
     assert state == agent_state
 
 

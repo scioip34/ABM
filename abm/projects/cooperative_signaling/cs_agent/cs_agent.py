@@ -6,6 +6,7 @@ import pygame
 from abm.projects.cooperative_signaling.cs_agent.cs_supcalc import \
     reflection_from_circular_wall, random_walk, f_reloc_lr, phototaxis, \
     signaling, agent_decision, projection_field
+from abm.agent.supcalc import distance
 from abm.projects.cooperative_signaling.cs_contrib import cs_params
 from abm.agent.agent import Agent
 from abm.contrib import colors
@@ -40,6 +41,13 @@ class CSAgent(Agent):
             probability_of_starting_signaling
         self.signaling_rand_event = False
         self.signaling_rand_value = random()
+
+        # flocking
+        self.flocking_probability = 0.01
+        # start flocking if all agents are farther than
+        self.flocking_from_distance = 100
+        # stop flocking if there is an agent closer than
+        self.flocking_to_distance = 50
 
         # social information: visual field projections
         self.crowd_proj = np.zeros(self.v_field_res)
@@ -79,6 +87,7 @@ class CSAgent(Agent):
         # signalling agents)
         self.crowd_proj = self.calc_crowing_density_proj(agents)
         self.signaling_proj = self.calc_others_signaling_density_proj(agents)
+        self.interagentdistances = [distance(agent, self) for agent in agents if agent is not self]
 
     def calc_crowing_density_proj(self, agents, max_proj_size_percentage=cs_params.max_proj_size_percentage):
         """
@@ -149,8 +158,12 @@ class CSAgent(Agent):
         self.agent_state = agent_decision(
             meter=self.meter,
             max_signal_of_other_agents=self.signaling_proj.max(initial=0),
-            max_crowd_density=self.crowd_proj.max(initial=0),
-            crowd_density_threshold=cs_params.crowd_density_threshold)
+            agent_state=self.agent_state,
+            agent_distances=self.interagentdistances,
+            visual_field=self.crowd_proj,
+            flocking_probability=self.flocking_probability,
+            flocking_from_distance=self.flocking_from_distance,
+            flocking_to_distance=self.flocking_to_distance)
 
     def perform_action(self):
         # update agent color

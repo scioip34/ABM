@@ -910,6 +910,7 @@ class Simulation:
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
                                       save_extracted_vfield=False, pop_num=pop_num)
                 env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=pop_num)
+                print("Saved under: ", self.env_path)
             else:
                 raise Exception("Tried to save simulation data as csv file due to env configuration, "
                                 "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"

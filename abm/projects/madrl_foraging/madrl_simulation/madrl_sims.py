@@ -15,11 +15,10 @@ from torch.utils.tensorboard import SummaryWriter
 
 from abm.monitoring import ifdb, env_saver
 from abm.projects.madrl_foraging.madrl_agent.madrl_agent import MADRLAgent as Agent
-from abm.projects.madrl_foraging.madrl_agent.brain import Experience
 from abm.contrib import colors,ifdb_params as logging_params
 from abm.projects.madrl_foraging.madrl_contrib import madrl_learning_params as learning_params
 from abm.simulation.sims import Simulation, notify_agent, refine_ar_overlap_group
-import os
+
 
 
 from datetime import datetime
@@ -50,21 +49,26 @@ class MADRLSimulation(Simulation):
 
 
         self.train=train
+        self.binary_env_status = learning_params.binary_env_status
+        self.with_tp = learning_params.tp
+        seed = learning_params.seed
         if self.train:
             #TODO: If i am further training pretrained models i should not use the same seed
-            random.seed(0)
-            np.random.seed(0)
-            torch.manual_seed(0)
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
         else:
-            #TODO: Set seeds for evaluation mode (beware that when running batches, we do not want the same seed for all simulations!)
-            random.seed(1)
-            np.random.seed(1)
-            torch.manual_seed(1)
+
+            random.seed(seed)
+            np.random.seed(seed)
+            torch.manual_seed(seed)
             #raise Exception("Evaluation mode not supported for MADRL simulation!")
 
 
 
         self.train_every=train_every
+        #TODO: Add num episodes to learning_params
+        self.num_episodes = 25 #learning_params.num_episodes
 
 
 
@@ -128,10 +132,8 @@ class MADRLSimulation(Simulation):
         # Notifying agents about resource if pooling is successful + exploitation dynamics
         for resc, agents in collision_group_ar.items():  # looping through patches
 
-                destroy_resc = 0  # if we destroy a patch it is 1
+                destroy_resc = False  # if we destroy a patch it is 1
                 for agent in agents:  # looping through all agents on patches
-                    # Turn agent towards patch center
-
                     self.bias_agent_towards_res_center(agent, resc)
 
                     # One of previous agents on patch consumed the last unit
@@ -139,7 +141,6 @@ class MADRLSimulation(Simulation):
                         notify_agent(agent, -1)
                     else:
                         # Agent finished pooling on a resource patch
-
                         if (agent.get_mode() in ["pool", "relocate"] and agent.pool_success) \
                                 or agent.pooling_time == 0:
                             # Notify about the patch
@@ -154,6 +155,7 @@ class MADRLSimulation(Simulation):
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
                             agent.collected_r_before = agent.collected_r  # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
+                            agent.last_exploit_time = self.t  # remember the time of last exploitation
                             if destroy_resc:  # consumed unit was the last in the patch
                                 # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
                                 #       f"there are no more units before the next timestep, otherwise they stop"
@@ -187,14 +189,13 @@ class MADRLSimulation(Simulation):
     def step(self,turned_on_vfield):
         # order the agents by id to ensure that agent 0 has priority over agent 1 and agent 1 over agent 2
 
-
-        # TODO: How are depleted patches handled
         # Update internal states of the agents and their positions
         self.agents.update(self.agents)
 
         # Check for agent-agent collisions
         # collided_agents = self.agent2agent_interaction()
         collided_agents = []
+
         # Check for agent-resource interactions and update the resource patches
         self.agent2resource_interaction(collided_agents)
 
@@ -215,8 +216,39 @@ class MADRLSimulation(Simulation):
             pygame.display.flip()
 
         # TODO: Should this be placed right after the visualization?
-        self.clock.tick(self.framerate)
         return collective_se
+    def compute_reward(self,ag,collective_se):
+
+        #sparse and egoistical rewards
+        '''time_penalty= 1
+        if self.with_tp:
+            if self.t != ag.last_exploit_time :
+                time_penalty = self.t - ag.last_exploit_time
+
+        if ag.get_mode()=="exploit" and ag.collected_r>ag.collected_r_before:
+            reward=1/time_penalty
+
+        else:
+            reward=0
+        '''
+        '''            
+        if self.with_tp and self.t != ag.last_exploit_time :
+                time_penalty = self.t - ag.last_exploit_time
+            else:
+                time_penalty = 1
+
+            reward = (ag.ise_w * ag.search_efficiency + ag.cse_w * collective_se) / time_penalty
+        '''
+        '''
+        reward = 0
+        if ag.get_mode()=="exploit":
+            reward = (ag.ise_w * ag.search_efficiency + ag.cse_w * collective_se)
+        '''
+        reward = 0
+
+        if ag.get_mode()=="exploit":
+            reward = collective_se
+        return reward
 
     def start_madqn_eval(self):
         '''Main simulation loop for training the agents with MADQN'''
@@ -240,7 +272,7 @@ class MADRLSimulation(Simulation):
         # Create a directory to save the training data (models and tensorboard logs)
 
         eval_save_dir = logging_params.TIMESTAMP_SAVE_DIR
-        print(f"Saving training data to {eval_save_dir}!")
+        print(f"Saving evaluation data to {eval_save_dir}!")
 
         # Create a tensorboard writer to save the training logs
         writer = SummaryWriter(eval_save_dir)
@@ -248,13 +280,15 @@ class MADRLSimulation(Simulation):
                         f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, \n Epsilon End: {learning_params.epsilon_end}, \n'
                         f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning Rate: {learning_params.lr}',
                         0)
+        writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
+
+
         turned_on_vfield = 0
 
         # Initialize the social visual fields for each agent
         self.initialize_environment()
 
         print(f"Starting main simulation loop in MADQN evaluation mode with {len(self.agents)} agents and {len(self.rescources)} resources !")
-
         while self.t < self.T:
 
             # Indicate that the simulation is not done
@@ -264,50 +298,66 @@ class MADRLSimulation(Simulation):
 
             # Agent 0 always has riority over agent 1 and agent 1 over agent 2
             # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-            exploiting_agents= []
+
             for ag in self.agents:
                 # Select an action
                 state = ag.policy_network.state_tensor
-                legal_actions = self.get_legal_actions(state)
 
-                _ = ag.policy_network.select_action(state,legal_actions)
+                _ = ag.policy_network.select_action(state)
 
 
             collective_se = self.step(turned_on_vfield)
             collective_se_list.append(collective_se)
             # Train the agents
+
+
             for ag in self.agents:
+
+                reward = self.compute_reward(ag,collective_se)
 
                 if done:
                     ag.policy_network.next_state_tensor = None
                 else:
                     # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
                     if ag.env_status == 1:
-                        #calculate number of resources left in the patch
-                        ag_resc_overlap = self.agent_resource_overlap([ag])
-                        resc= list(ag_resc_overlap.keys())[0]
+                            # calculate number of resources left in the patch
+                            ag_resc_overlap = self.agent_resource_overlap([ag])
+                            resc = list(ag_resc_overlap.keys())[0]
 
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(
+                                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0)
 
-                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/200]).unsqueeze(0)
                     else:
 
+                        ag.policy_network.next_state_tensor = torch.FloatTensor(
+                            ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
-                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
+                    # Calculate the reward as a weighted sum of the individual and collective search efficiency
+                if ag.policy_network.last_action == 0 and ag.get_mode() == "exploit":
+                    ag.total_discov += 1
+                if ag.policy_network.last_action == 2 and ag.get_mode() == "exploit":
+                    ag.total_reloc += 1
 
-                # Calculate the reward as a weighted sum of the individual and collective search efficiency
-                reward = 1.0*ag.search_efficiency + 0.0*collective_se
+
                 ag.policy_network.reward_tensor = torch.FloatTensor([reward])
                 ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
+                ag.policy_network.last_action = ag.policy_network.action_tensor.item()
+
+
 
                 if self.t % 100:
                     writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
                                           self.t)
 
+
+
+
                     # Move to the next training step
                     # TODO: Can this be the same as self.t even if the models are not trained at every timestep?
                     ag.policy_network.steps_done += 1
-
-            writer.add_scalar('Collective search efficiency', collective_se, self.t)
+            avg_search_efficiency = sum(collective_se_list) / len(collective_se_list)
+            writer.add_scalar('Average collective search efficiency', avg_search_efficiency, self.t)
+            writer.add_scalar('Final Collective search efficiency', collective_se, self.t)
             # move to next simulation timestep (only when not paused)
             self.t += 1
                 # save the agent and resource data to the ram for later analysis
@@ -315,25 +365,32 @@ class MADRLSimulation(Simulation):
                 ifdb.save_agent_data_RAM(self.agents, self.t)
                 ifdb.save_resource_data_RAM(self.rescources, self.t)
 
-
+            #if self.with_visualization:
+            self.clock.tick(self.framerate)
 
         # Calculate the average collective search efficiency
-        avg_search_efficiency= sum(collective_se_list) / len(collective_se_list)
         # Close the tensorboard writer
+        print("Collective search efficiency", collective_se)
+        for ag in self.agents:
+            writer.add_text('Agent{}/Total discoveries'.format(ag.id), str(ag.total_discov))
+            writer.add_text('Agent{}/Total patch joining'.format(ag.id), str(ag.total_reloc))
         writer.close()
+        print("env path", self.env_path)
+        env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
+
 
         if self.save_csv_files:
             if self.save_in_ifd or self.save_in_ram:
 
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
                                       save_extracted_vfield=False, pop_num=None)
-                env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
+        else:
+            raise Exception("Tried to save simulation data as csv file due to env configuration, "
+                            "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
+                            " or turn off CSV saving feature.")
 
 
-            else:
-                raise Exception("Tried to save simulation data as csv file due to env configuration, "
-                                "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
-                                " or turn off CSV saving feature.")
+
 
 
 
@@ -347,15 +404,7 @@ class MADRLSimulation(Simulation):
 
         return avg_search_efficiency
 
-    def get_legal_actions(self,state):
-        soc_v_field = state[0][:-1]
-        env_status = state[0][-1]
-        legal_actions = [0]
-        if env_status > 0.0 :
-            legal_actions.append(1)
-        if soc_v_field.sum() != 0:
-            legal_actions.append(2)
-        return legal_actions
+
 
     def initialize_environment(self):
         for ag in self.agents:
@@ -372,18 +421,20 @@ class MADRLSimulation(Simulation):
             # environment status (Scalar))
             if ag.env_status == 1:
                 # calculate number of resources left in the patch
+                #if self.binary_env_status==False:
 
                 resc = list(ag_resc_overlap.keys())[0]
                 ag.policy_network.state_tensor = torch.FloatTensor(
-                    ag.soc_v_field.tolist() + [ag.env_status, resc.resc_left / 200]).unsqueeze(0)
+                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0)
+                #else:
+                #    ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0)
 
             else:
-                ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0, 0.0]).unsqueeze(0)
+                ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
-
-        if self.with_visualization:
-            self.draw_frame(self.stats, self.stats_pos)
-            pygame.display.flip()
+        #if self.with_visualization:
+        #    self.draw_frame(self.stats, self.stats_pos)
+        #    pygame.display.flip()
 
     def start_madqn_train(self):
         """Main simulation loop for training the agents with MADQN"""
@@ -399,104 +450,136 @@ class MADRLSimulation(Simulation):
         self.stats, self.stats_pos = self.create_vis_field_graph()
 
         # Create list to store collective search efficiency at each time step
-        collective_se_list = []
 
-        # Create variable to indicate if the simulation is done
-        done= False
+
 
         # Create a directory to save the training data (models and tensorboard logs)
 
         train_save_dir = logging_params.TIMESTAMP_SAVE_DIR
         print(f"Saving training data to {train_save_dir}!")
 
-        # Create a tensorboard writer to save the training logs
         writer = SummaryWriter(train_save_dir)
         writer.add_text('Hyperparameters',
-                        f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, \n Epsilon End: {learning_params.epsilon_end}, \n'
-                        f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning Rate: {learning_params.lr}',
+                        f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, '
+                        f'\n Epsilon End: {learning_params.epsilon_end}, \n'
+                        f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning '
+                        f'Rate: {learning_params.lr}',
                         0)
+        writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
         turned_on_vfield = 0
 
-        # Initialize the social visual fields for each agent and draw the environment
-        self.initialize_environment()
+
 
 
         print(f"Starting main simulation loop in MADQN training mode with {len(self.agents)} agents and {len(self.rescources)} resources !")
+        #print(f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}")
+        for episode in range(self.num_episodes + 1):
+            # Create a variable to indicate if the simulation is done
+            done= False
+            self.initialize_environment()
+            collective_se_list = []
 
-        while self.t < self.T:
-
-            # Indicate that the simulation is not done
-            if self.t==self.T-1:
-                done = True
-
-
-            # Agent 0 always has riority over agent 1 and agent 1 over agent 2
-            # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-            # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed
-            # to deplete the patch, followed by agent 1, then agent 2
-            # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-            exploiting_agents= []
-            for ag in self.agents:
-                # Select an action
-                state = ag.policy_network.state_tensor
-                legal_actions = self.get_legal_actions(state)
-
-                action = ag.policy_network.select_action(state,legal_actions)
+            while self.t < self.T:
 
 
-            collective_se = self.step(turned_on_vfield)
-
-            collective_se_list.append(collective_se)
-            # Train the agents
-            for ag in self.agents:
+                # Indicate that the simulation is not done
+                if self.t==self.T-1:
+                    done = True
 
 
+                # Agent 0 always has riority over agent 1 and agent 1 over agent 2
+                # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
+                # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed
+                # to deplete the patch, followed by agent 1, then agent 2
+                # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
+                exploiting_agents= []
+                for ag in self.agents:
+                    # Select an action
 
-                if done:
-                    ag.policy_network.next_state_tensor = None
-                else:
-                    # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
-                    if ag.env_status == 1:
-                        #calculate number of resources left in the patch
-                        ag_resc_overlap = self.agent_resource_overlap([ag])
-                        resc= list(ag_resc_overlap.keys())[0]
+
+                    _ = ag.policy_network.select_action(ag.policy_network.state_tensor)
 
 
-                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/200]).unsqueeze(0)
+                collective_se = self.step(turned_on_vfield)
+
+                collective_se_list.append(collective_se)
+                # Train the agents
+                for ag in self.agents:
+
+                    if done:
+                        ag.policy_network.next_state_tensor = None
+                        #reward = ag.search_efficiency
                     else:
-                        ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
+                        # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
+                        if ag.env_status == 1:
+                            #if self.binary_env_status==False:
+                                #calculate number of resources left in the patch
+                            ag_resc_overlap = self.agent_resource_overlap([ag])
+                            resc= list(ag_resc_overlap.keys())[0]
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/resc.resc_units]).unsqueeze(0)
 
 
+                            #else:
+                            #    ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0)
 
-                # Calculate the reward as a weighted sum of the individual and collective search efficiency
-                reward = 1.0*ag.search_efficiency + 0.0*collective_se
-                ag.policy_network.reward_tensor = torch.FloatTensor([reward])
-                ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
+                        else:
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
-                if self.t % self.train_every == 0:
+                        # Calculate the reward as a weighted sum of the individual and collective search efficiency
+                        reward = self.compute_reward(ag,collective_se)
+                    ag.policy_network.reward_tensor = torch.FloatTensor([reward])
 
                     # Add the experience to the replay memory and train the agent
-                    ag.policy_network.add_to_replay_memory(Experience(ag.policy_network.state_tensor, ag.policy_network.action_tensor,ag.policy_network.reward_tensor, ag.policy_network.next_state_tensor))
 
-                    loss = ag.policy_network.optimize()
+                    if len(ag.policy_network.legal_actions)>1:
+                        ag.policy_network.replay_memory.push(ag.policy_network.state_tensor,
+                                                             ag.policy_network.action_tensor,
+                                                             ag.policy_network.next_state_tensor,
+                                                             ag.policy_network.reward_tensor)
 
-                    # Update the target network with soft updates
-                    ag.policy_network.update_target_network()
-
-                    writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
-                                          self.t)
-                    if loss is not None:
-                        writer.add_scalar(f'Agent_{ag.id}/Loss', loss, self.t)
+                    if self.t % self.train_every == 0:
 
 
-                    # Move to the next training step
-                    ag.policy_network.steps_done += 1
+                        loss = ag.policy_network.optimize()
+                        # Update the target network with soft updates
+                        ag.policy_network.update_target_network()
 
-            writer.add_scalar('Collective search efficiency', collective_se, self.t)
 
-            # move to next simulation timestep (only when not paused)
-            self.t += 1
+                        if loss is not None:
+                            writer.add_scalar(f'Agent_{ag.id}/Loss', loss, self.t+episode)
 
+
+                        # Move to the next training step
+                        ag.policy_network.steps_done += 1
+                    ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
+                    ag.policy_network.last_action = ag.policy_network.action_tensor.item()
+
+                # move to next simulation timestep (only when not paused)
+                self.t += 1
+
+                if self.save_in_ram:
+                    ifdb.save_agent_data_RAM(self.agents, self.t)
+                    ifdb.save_resource_data_RAM(self.rescources, self.t)
+
+                if done :
+                    for ag in self.agents:
+                        writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
+                                        episode)
+                    writer.add_scalar('Collective search efficiency', collective_se, episode)
+
+                    for ag in self.agents:
+                        ag.reset()
+                    for resc in self.rescources:
+                        self.kill_resource(resc)
+                        #self.create_resources()
+                    self.t=0
+                    break
+
+
+            #for resc in self.rescources:
+            #    self.kill_resource(resc)
+            #self.create_resources()
+            self.t=0
 
 
         # Calculate the average collective search efficiency
@@ -507,9 +590,16 @@ class MADRLSimulation(Simulation):
             torch.save(ag.policy_network.q_network.state_dict(),
                        f'{train_save_dir}/model_{ag.id}.pth')
             print(f"Model {ag.id} saved to {train_save_dir}!")
-        env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
         # Close the tensorboard writer
         writer.close()
+        env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
+
+        if self.save_csv_files:
+            if self.save_in_ifd or self.save_in_ram:
+
+                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
+                                      save_extracted_vfield=False, pop_num=None)
+
 
         # Quit the pygame environment
         pygame.quit()

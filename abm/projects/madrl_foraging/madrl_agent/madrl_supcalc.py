@@ -89,6 +89,7 @@ def F_reloc_LR(vel_now, V_now, v_desired=None):
     D_leftright = left_excitation - right_excitation
     D_theta_max = movement_params.reloc_theta_max
     theta = D_leftright * D_theta_max
+
     return (v_desired - vel_now), theta
 
 

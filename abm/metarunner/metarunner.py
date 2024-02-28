@@ -104,6 +104,7 @@ class MetaProtocol:
         self.tunables = []
         self.tuned_pairs = []
         self.q_tuned_pairs = []
+        self.sum_tuned_pairs = []
         self.experiment_name = experiment_name
         self.num_batches = num_batches
         self.description = description
@@ -133,10 +134,29 @@ class MetaProtocol:
         print("---Added new restrained *quadratic* pair: ")
         tuned_pair.print()
 
+    def add_sum_tuned_pair(self, tuned_pair):
+        self.sum_tuned_pairs.append(tuned_pair)
+        print("---Added new restrained *sum* pair: ")
+        tuned_pair.print()
+
+
     def consider_tuned_pairs(self, combos):
         """removing combinations from a list of combinations where a tuned pair criterion is not met"""
         tunable_names = [t.name for t in self.tunables]
         new_combos = combos.copy()
+        for sum_tuned_pair in self.sum_tuned_pairs:
+            for i, combo in enumerate(combos):
+                print("combo", combo)
+                sum = 0.0
+                for value in combo[:2]:
+
+                        sum += value
+
+                if sum != 1.0:
+                    print("POP")
+                    new_combos.remove(combo)
+        print("new_combos", new_combos)
+
         for tuned_pair in self.tuned_pairs:
             for i, combo in enumerate(combos):
                 print("combo", combo)
@@ -147,7 +167,10 @@ class MetaProtocol:
                         product *= value
                 if product != tuned_pair.product_restrain:
                     print("POP")
-                    new_combos.remove(combo)
+                    try:
+                        new_combos.remove(combo)
+                    except ValueError:
+                        print("combo already removed")
         for tuned_pair in self.q_tuned_pairs:
             for i, combo in enumerate(combos):
                 print("combo", combo)
@@ -247,12 +270,16 @@ class MetaProtocol:
         import abm.contrib.ifdb_params as ifdbp
         importlib.reload(ifdbp)
 
+
         # here we run the simulation
         if project == "Base":
             app.start(parallel=self.parallel_run, headless=self.headless)
         if project == "MADRLForaging":
-
             from abm import app_madrl_foraging
+            import abm.projects.madrl_foraging.madrl_contrib.madrl_learning_params as madrlp
+            importlib.reload(madrlp)
+            print("Running MADRLForaging")
+
             app_madrl_foraging .start(parallel=self.parallel_run, headless=self.headless)
         elif project == "CoopSignaling":
             from abm import app_collective_signaling

@@ -1,17 +1,11 @@
-import importlib
-import json
 import shutil
 from contextlib import ExitStack
 from pathlib import Path
-
-
-import optuna as optuna
 
 import os
 # loading env variables from dotenv file
 from dotenv import dotenv_values
 
-import abm
 
 
 def setup_environment():
@@ -81,14 +75,6 @@ def transform_envconf(envconf):
             transformed_dict[new_key] = data_type(envconf[env_key])
 
     return transformed_dict
-
-def start_playground():
-    # changing env file according to playground default parameters before
-    # running any component of the SW
-    save_isims_env(root_abm_dir, EXP_NAME, pgt, envconf)
-    # Start interactive simulation
-    sim = PlaygroundSimulation()
-    sim.start()
 
 
 def start(parallel=True, headless=False):

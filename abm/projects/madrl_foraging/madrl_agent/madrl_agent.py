@@ -9,12 +9,7 @@ import numpy as np
 import torch
 
 from abm.contrib import colors
-from abm.projects.madrl_foraging.madrl_contrib import madrl_movement_params as movement_params
-from abm.agent import supcalc
-from collections import OrderedDict
-import importlib
-#my imports
-import matplotlib
+from abm.projects.madrl_foraging.madrl_agent import madrl_supcalc as supcalc
 import matplotlib.pyplot as plt
 
 #matplotlib.use('agg')
@@ -45,7 +40,7 @@ class MADRLAgent(Agent):
 
 
         # Non-initialisable private attributes
-
+        self.show_stats = True
         self.mode = "explore"  # explore, flock, collide, exploit, pool  # saved
         self.exploit_soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
         self.reloc_soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
@@ -53,6 +48,12 @@ class MADRLAgent(Agent):
         self.train=train
         self.soc_v_field = np.zeros(self.v_field_res)
         self.search_efficiency = 0
+        #self.ise_w = float(learning_params.ise_w)
+        #self.cse_w = float(learning_params.cse_w)
+        self.last_exploit_time = 0
+        self.total_reloc= 0
+        self.total_discov= 0
+
 
 
         #create the policy network
@@ -68,9 +69,10 @@ class MADRLAgent(Agent):
 
 
         if not train:
+            print("Model in evaluation mode")
             self.policy_network.q_network.eval()
-            self.epsilon_start = 0
-            self.epsilon_end = 0
+            self.policy_network.epsilon_start = 0
+            self.policy_network.epsilon_end = 0
             #self.target_q_network.eval()
             #print("Model in evaluation mode")
 
@@ -106,9 +108,10 @@ class MADRLAgent(Agent):
                 vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
             else:
                 print(f"ERROR: Exploiting agent {self.id} is not on a resource patch, will relocate!")
-                vel, theta = supcalc.F_reloc_LR(self.velocity, self.exploit_soc_v_field, v_desired=self.max_exp_vel)
+                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
+
         elif self.get_mode() == "relocate":
-            vel, theta = supcalc.F_reloc_LR(self.velocity, self.exploit_soc_v_field, v_desired=self.max_exp_vel)
+            vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
 
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta
@@ -135,6 +138,8 @@ class MADRLAgent(Agent):
         string for external processes defined in the main simulation thread (such as collision that depends on the
         state of the at and also overrides it as it counts as ana emergency)"""
         return self.mode
+
+
 
     def set_mode(self, mode):
         """setting the behavioral mode of the agent according to some human_readable flag. This can be:
@@ -222,7 +227,7 @@ class MADRLAgent(Agent):
         self.vis_counter += 1
 
 
-    '''    
+
     def reset(self):
             """
             Reset relevant values of the agent after each train episode.
@@ -238,10 +243,6 @@ class MADRLAgent(Agent):
             self.collected_r_before = 0
             self.exploited_patch_id = -1
             self.mode = "explore"
-            self.exploit_soc_v_field = np.zeros(self.v_field_res)
-            self.reloc_soc_v_field = np.zeros(self.v_field_res)
-            self.explore_soc_v_field = np.zeros(self.v_field_res)
-            self.input_soc_v_field = np.zeros((3, self.v_field_res))
             self.vis_field_source_data = {}
             self.vis_counter = 0
 
@@ -253,6 +254,14 @@ class MADRLAgent(Agent):
             self.env_status_before = 0
             self.env_status = 0
             self.pool_success = 0
+
+            self.soc_v_field = np.zeros(self.v_field_res)
+            self.search_efficiency = 0
+
+            self.last_exploit_time = 0
+            self.total_reloc = 0
+            self.total_discov = 0
+            self.policy_network.last_action=-1
 
             # Reset policy network
             #self.policy_network.reset()
@@ -266,7 +275,7 @@ class MADRLAgent(Agent):
                              ((1 + np.cos(self.orientation)) * self.radius,
                               (1 - np.sin(self.orientation)) * self.radius), 3)
             self.mask = pygame.mask.from_surface(self.image)
-    '''
+
     '''
     def move_with_mouse(self, mouse, left_state, right_state):
         """Moving the agent with the mouse cursor, and rotating"""

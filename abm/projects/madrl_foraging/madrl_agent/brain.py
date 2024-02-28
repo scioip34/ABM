@@ -4,25 +4,28 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 import random
-import numpy as np
 from collections import namedtuple, deque
 import abm.projects.madrl_foraging.madrl_contrib.madrl_learning_params as learning_params
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class LSTM_DQNetwork(nn.Module):
-        def __init__(self, input_size, output_size):
-            super(LSTM_DQNetwork, self).__init__()
-            self.lstm = nn.LSTM(input_size, 128)
-            self.layer2 = nn.Linear(128, 128)
+# Define experience tuple for replay memory
+Transition = namedtuple('Transition', ('state', 'action', 'next_state','reward'))
+class ReplayMemory(object):
 
-            self.layer3 = nn.Linear(128, output_size)
+    def __init__(self, capacity):
+        self.memory = deque([], maxlen=capacity)
 
-        def forward(self, x):
-            lstm_out, _ = self.lstm(x)
-            x = torch.relu(self.layer2(lstm_out))
-            x = self.layer3(x)
-            return x
+    def push(self, *args):
+        """Save a transition"""
+        self.memory.append(Transition(*args))
+
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
+
+    def __len__(self):
+        return len(self.memory)
 
 class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
@@ -38,10 +41,6 @@ class DQNetwork(nn.Module):
         x = F.relu(self.layer2(x))
         output = self.layer3(x)
         return output
-
-
-# Define experience tuple for replay memory
-Experience = namedtuple('Experience', ['state', 'action', 'reward', 'next_state'])
 
 # Define the DQN agent with replay memory
 class DQNAgent:
@@ -66,19 +65,13 @@ class DQNAgent:
         self.batch_size = learning_params.batch_size
         self.pretrained = learning_params.pretrained
         self.brain_type = learning_params.brain_type
-
+        self.last_action = -1
 
         # Q-network and target Q-network
         if self.brain_type=="DQN":
             self.q_network = DQNetwork(state_size, action_size)
             self.target_q_network = DQNetwork(state_size, action_size)
             self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
-        #self.target_q_network.eval()  # Set target network to evaluation mode
-        else:
-            print("Using LSTM")
-            self.q_network = LSTM_DQNetwork(state_size, action_size)
-            self.target_q_network = LSTM_DQNetwork(state_size, action_size)
-            self.target_q_network.load_state_dict(self.q_network.state_dict())  #
 
         # Optimizer
         if learning_params.optimizer=="Adam":
@@ -90,98 +83,125 @@ class DQNAgent:
         #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=500, gamma=0.9)
 
         # Replay memory
-        self.replay_memory = deque(maxlen=learning_params.replay_memory_capacity)
+        self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
         #self.writer= SummaryWriter()
+        self.legal_actions = None
 
 
+            #self.target_q_network.eval()
+            #print("Model in evaluation mode")
 
-    def select_action(self, state, legal_actions):
 
-        # Epsilon-greedy exploration
-        eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                        math.exp(-self.steps_done / self.epsilon_decay)
+    def select_action_heuristic(self, legal_actions):
 
-        if random.random() <= eps_threshold:
-            action = random.choice(legal_actions)
-            #print("Random Action", action)
+        if 1 in legal_actions:
+            action = 1
+        elif 2 in legal_actions:
+            action = 2
         else:
-            with torch.no_grad():
-                q_values = self.q_network(state)
-                action = q_values.max(1).indices.view(1, 1)
-
-                while action not in legal_actions:
-                    q_values[0][action] = float('-inf')
-                    action = q_values.max(1).indices.view(1, 1)
-
+            action = 0
 
         self.action_tensor=torch.LongTensor([[action]])
 
         return self.action_tensor
 
-    '''
-    def sample_sequence_batch(self):
-        if len(self.replay_memory) < self.sequence_length:
-            return None  # Not enough experiences for a sequence
+    def get_legal_actions(self,state):
+        soc_v_field = state[0][:-1]
+        env_status = state[0][-1]
 
-        index = random.randint(0, len(self.replay_memory) - self.sequence_length)
-        sequence = list(self.replay_memory)[index:index + self.sequence_length]
 
-        # Unpack the sequence into separate lists
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = zip(*sequence)
+        #if self.last_action == 2 and (soc_v_field.sum() !=0 and env_status == 0.0):
+        #    legal_actions = [2]
+        #    print("Last action was 2 and soc_v_field.sum() !=0 and env_status == 0.0")
 
-        return state_batch, action_batch, reward_batch, next_state_batch, done_batch
-    '''
+        #else:
+
+        self.legal_actions = [0]
+
+        if env_status > 0.0 :
+            self.legal_actions.append(1)
+        if soc_v_field.sum() != 0:
+            self.legal_actions.append(2)
+
+
+        return self.legal_actions
+
+    def select_action(self, state):
+
+        _ = self.get_legal_actions(state)
+        if len(self.legal_actions)==1:
+            self.action_tensor = torch.LongTensor([[0]])
+
+        else:
+
+            # Epsilon-greedy exploration
+            eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
+                            math.exp(-self.steps_done / self.epsilon_decay)
+
+            if random.random() <= eps_threshold:
+                action = random.choice(self.legal_actions)
+
+            else:
+                with torch.no_grad():
+                    q_values = self.q_network(state)
+
+                    indices_descending_order = torch.argsort(q_values,descending=True)[0]
+
+                    for ind in indices_descending_order:
+                        if ind in self.legal_actions:
+                            action = ind
+                            break
+            self.action_tensor=torch.LongTensor([[action]])
+        return self.action_tensor
+
+
+
     def optimize(self):
-        if len(self.replay_memory) < self.batch_size:
+        if len(self.replay_memory)< self.batch_size:
             return
+        transitions = self.replay_memory.sample(self.batch_size)
+        # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
+        # detailed explanation). This converts batch-array of Transitions
+        # to Transition of batch-arrays.
+        batch = Transition(*zip(*transitions))
 
+        # Compute a mask of non-final states and concatenate the batch elements
+        # (a final state would've been the one after which simulation ended)
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                                batch.next_state)), device=device, dtype=torch.bool)
+        non_final_next_states = torch.cat([s for s in batch.next_state
+                                           if s is not None])
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
 
-        # Sample a random mini-batch from replay memory
+        # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
+        # columns of actions taken. These are the actions which would've been taken
+        # for each batch state according to policy_net
+        state_action_values = self.q_network(state_batch).gather(1, action_batch)
 
-        transitions = random.sample(self.replay_memory, self.batch_size)
-        batch = Experience(*zip(*transitions))
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state )), dtype=torch.bool)
-
-        non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
-
-
-        state_tensor = torch.cat(batch.state)
-        action_tensor = torch.cat(batch.action)
-
-        reward_tensor = torch.cat(batch.reward)
-
-        #print("non_final_mask:", non_final_mask.shape)
-        #print("non_final_next_states:", non_final_next_states.shape)
-        #print("state_tensor:", state_tensor.shape)
-        #print("action_tensor:", action_tensor.shape)
-        #print("reward_tensor:", reward_tensor.shape)
-
-        # Compute Q-values
-        q_values = self.q_network(state_tensor).gather(1, action_tensor)
-
-        #print("state_action_values:", q_values.shape)
-
-        next_state_values = torch.zeros(self.batch_size)
-        # Compute target Q-value
+        # Compute V(s_{t+1}) for all next states.
+        # Expected values of actions for non_final_next_states are computed based
+        # on the "older" target_net; selecting their best reward with max(1).values
+        # This is merged based on the mask, such that we'll have either the expected
+        # state value or 0 in case the state was final.
+        next_state_values = torch.zeros(self.batch_size, device=device)
         with torch.no_grad():
-            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).max(1)[0]
+            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).max(1).values
+        # Compute the expected Q values
+        expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
-        target_q_value = reward_tensor + (self.gamma * next_state_values)
-        #print("expected_state_action_values: ", target_q_value.shape)
-        #print(" \n **************************** \n")
+        # Compute MSE loss
+        loss = nn.functional.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
 
-        # Compute loss and perform a gradient descent step
-        #criterion that measures the mean squared error (squared L2 norm)
-        #print("expected_state_action_values.unsqueeze(1) : ",target_q_value.unsqueeze(1).shape)
-
-        loss = nn.functional.mse_loss(q_values, target_q_value.unsqueeze(1))
+        # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
-        #gradient clipping
-        #torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 0.1)
+        # In-place gradient clipping
+        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 100)
         self.optimizer.step()
-        #self.scheduler.step()
-        return loss.item()
+
+
 
     def update_target_network(self):
         # Update target Q-network by copying the weights from the current Q-network
@@ -193,7 +213,5 @@ class DQNAgent:
         #print("target_net_state_dict:", target_net_state_dict[key].shape)
         #print("policy_net_state_dict:", policy_net_state_dict[key].shape)
 
-    def add_to_replay_memory(self, experience):
-        # Add experience to replay memory
-        self.replay_memory.append(experience)
+
 

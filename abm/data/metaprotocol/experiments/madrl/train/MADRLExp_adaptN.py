@@ -53,7 +53,7 @@ Parameters:
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [3,10, 50]
+num_patches = [3,10, 50,100]
 
 criteria_exp = [
 

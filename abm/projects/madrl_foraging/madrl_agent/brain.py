@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import random
 from collections import namedtuple, deque
 import abm.projects.madrl_foraging.madrl_contrib.madrl_learning_params as learning_params
+import torch.nn.init as init
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -31,15 +32,17 @@ class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
         # convolutional layer ?
-        self.layer1 = nn.Linear(input_size, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, output_size)
+        self.layer1 = nn.Linear(input_size, 512)
+        self.layer2 = nn.Linear(512, 256)
+        self.layer3 = nn.Linear(256, 128)
+        self.layer4 = nn.Linear(128, output_size)
 
 
     def forward(self, state):
         x = F.relu(self.layer1(state))
         x = F.relu(self.layer2(x))
-        output = self.layer3(x)
+        x = F.relu(self.layer3(x))
+        output = self.layer4(x)
         return output
 
 # Define the DQN agent with replay memory
@@ -69,10 +72,10 @@ class DQNAgent:
 
         # Q-network and target Q-network
         if self.brain_type=="DQN":
-            self.q_network = DQNetwork(state_size, action_size)
-            self.target_q_network = DQNetwork(state_size, action_size)
+            self.q_network = DQNetwork(state_size, action_size).to(device)
+            self.target_q_network = DQNetwork(state_size, action_size).to(device)
             self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
-
+            self.target_q_network.eval()
         # Optimizer
         if learning_params.optimizer=="Adam":
             print("Using Adam")
@@ -111,16 +114,17 @@ class DQNAgent:
 
 
         #if self.last_action == 2 and (soc_v_field.sum() !=0 and env_status == 0.0):
-        #    legal_actions = [2]
-        #    print("Last action was 2 and soc_v_field.sum() !=0 and env_status == 0.0")
+        #    self.legal_actions = [2]
 
         #else:
+
 
         self.legal_actions = [0]
 
         if env_status > 0.0 :
             self.legal_actions.append(1)
-        if soc_v_field.sum() != 0:
+        if soc_v_field.sum() != 0 and self.last_action != 1 and env_status==0.0 :
+
             self.legal_actions.append(2)
 
 
@@ -133,24 +137,26 @@ class DQNAgent:
             self.action_tensor = torch.LongTensor([[0]])
 
         else:
-
             # Epsilon-greedy exploration
             eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                            math.exp(-self.steps_done / self.epsilon_decay)
+                                math.exp(-self.steps_done / self.epsilon_decay)
 
             if random.random() <= eps_threshold:
+
                 action = random.choice(self.legal_actions)
+
 
             else:
                 with torch.no_grad():
-                    q_values = self.q_network(state)
+                    q_values = self.q_network(state).detach()
 
                     indices_descending_order = torch.argsort(q_values,descending=True)[0]
 
                     for ind in indices_descending_order:
-                        if ind in self.legal_actions:
-                            action = ind
-                            break
+                            if ind in self.legal_actions:
+                                action = ind
+                                break
+                print("Greedy action:", action)
             self.action_tensor=torch.LongTensor([[action]])
         return self.action_tensor
 
@@ -187,7 +193,7 @@ class DQNAgent:
         # state value or 0 in case the state was final.
         next_state_values = torch.zeros(self.batch_size, device=device)
         with torch.no_grad():
-            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).max(1).values
+            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).detach().max(1).values
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
@@ -198,7 +204,7 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 100)
+        #torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 100)
         self.optimizer.step()
 
 

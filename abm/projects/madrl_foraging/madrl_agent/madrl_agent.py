@@ -48,9 +48,10 @@ class MADRLAgent(Agent):
         self.train=train
         self.soc_v_field = np.zeros(self.v_field_res)
         self.search_efficiency = 0
+        self.res=None
         #self.ise_w = float(learning_params.ise_w)
         #self.cse_w = float(learning_params.cse_w)
-        self.last_exploit_time = 0
+        self.last_exploit_time = 1
         self.total_reloc= 0
         self.total_discov= 0
 
@@ -258,7 +259,7 @@ class MADRLAgent(Agent):
             self.soc_v_field = np.zeros(self.v_field_res)
             self.search_efficiency = 0
 
-            self.last_exploit_time = 0
+            self.last_exploit_time = 1
             self.total_reloc = 0
             self.total_discov = 0
             self.policy_network.last_action=-1

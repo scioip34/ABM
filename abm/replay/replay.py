@@ -284,6 +284,7 @@ class ExperimentReplay:
             self.NNdist_b.hide()
 
 
+
         # Plotting Button Line
         button_start_y += self.button_height
         self.plot_efficiency = Button(
@@ -1190,6 +1191,7 @@ class ExperimentReplay:
             self.screen = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
 
     def start(self):
+
 
         while not self.quit_term:
             events = pygame.event.get()

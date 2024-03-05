@@ -49,12 +49,12 @@ class MADRLSimulation(Simulation):
 
 
         self.train=train
-        self.binary_env_status = learning_params.binary_env_status
-        self.with_tp = learning_params.tp
+        #self.binary_env_status = learning_params.binary_env_status
+        #self.with_tp = learning_params.tp
         seed = learning_params.seed
         if self.train:
             #TODO: If i am further training pretrained models i should not use the same seed
-            random.seed(seed)
+            #random.seed(seed)
             np.random.seed(seed)
             torch.manual_seed(seed)
         else:
@@ -68,7 +68,7 @@ class MADRLSimulation(Simulation):
 
         self.train_every=train_every
         #TODO: Add num episodes to learning_params
-        self.num_episodes = 25 #learning_params.num_episodes
+        self.num_episodes = 50 #learning_params.num_episodes
 
 
 
@@ -155,7 +155,7 @@ class MADRLSimulation(Simulation):
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
                             agent.collected_r_before = agent.collected_r  # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
-                            agent.last_exploit_time = self.t  # remember the time of last exploitation
+                             # remember the time of last exploitation
                             if destroy_resc:  # consumed unit was the last in the patch
                                 # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
                                 #       f"there are no more units before the next timestep, otherwise they stop"
@@ -244,10 +244,14 @@ class MADRLSimulation(Simulation):
         if ag.get_mode()=="exploit":
             reward = (ag.ise_w * ag.search_efficiency + ag.cse_w * collective_se)
         '''
+
+
         reward = 0
 
         if ag.get_mode()=="exploit":
-            reward = collective_se
+
+            reward = 1
+
         return reward
 
     def start_madqn_eval(self):
@@ -280,7 +284,7 @@ class MADRLSimulation(Simulation):
                         f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, \n Epsilon End: {learning_params.epsilon_end}, \n'
                         f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning Rate: {learning_params.lr}',
                         0)
-        writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
+        #writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
 
 
         turned_on_vfield = 0
@@ -304,6 +308,10 @@ class MADRLSimulation(Simulation):
                 state = ag.policy_network.state_tensor
 
                 _ = ag.policy_network.select_action(state)
+                if ag.policy_network.action_tensor==1:
+                    ag.last_exploit_time = 1
+                else:
+                    ag.last_exploit_time += 1
 
 
             collective_se = self.step(turned_on_vfield)
@@ -313,7 +321,6 @@ class MADRLSimulation(Simulation):
 
             for ag in self.agents:
 
-                reward = self.compute_reward(ag,collective_se)
 
                 if done:
                     ag.policy_network.next_state_tensor = None
@@ -332,11 +339,11 @@ class MADRLSimulation(Simulation):
                         ag.policy_network.next_state_tensor = torch.FloatTensor(
                             ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
-                    # Calculate the reward as a weighted sum of the individual and collective search efficiency
                 if ag.policy_network.last_action == 0 and ag.get_mode() == "exploit":
                     ag.total_discov += 1
                 if ag.policy_network.last_action == 2 and ag.get_mode() == "exploit":
                     ag.total_reloc += 1
+                reward = self.compute_reward(ag,collective_se)
 
 
                 ag.policy_network.reward_tensor = torch.FloatTensor([reward])
@@ -349,15 +356,8 @@ class MADRLSimulation(Simulation):
                     writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
                                           self.t)
 
-
-
-
-                    # Move to the next training step
-                    # TODO: Can this be the same as self.t even if the models are not trained at every timestep?
-                    ag.policy_network.steps_done += 1
             avg_search_efficiency = sum(collective_se_list) / len(collective_se_list)
-            writer.add_scalar('Average collective search efficiency', avg_search_efficiency, self.t)
-            writer.add_scalar('Final Collective search efficiency', collective_se, self.t)
+            writer.add_scalar('Collective search efficiency', collective_se, self.t)
             # move to next simulation timestep (only when not paused)
             self.t += 1
                 # save the agent and resource data to the ram for later analysis
@@ -465,7 +465,7 @@ class MADRLSimulation(Simulation):
                         f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning '
                         f'Rate: {learning_params.lr}',
                         0)
-        writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
+        #writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
         turned_on_vfield = 0
 
 
@@ -508,7 +508,7 @@ class MADRLSimulation(Simulation):
 
                     if done:
                         ag.policy_network.next_state_tensor = None
-                        #reward = ag.search_efficiency
+                        reward = collective_se
                     else:
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
                         if ag.env_status == 1:
@@ -523,22 +523,25 @@ class MADRLSimulation(Simulation):
                             #    ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0)
 
                         else:
+                            resc=None
                             ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
                         # Calculate the reward as a weighted sum of the individual and collective search efficiency
                         reward = self.compute_reward(ag,collective_se)
+                        if ag.policy_network.action_tensor.item() == 1:
+                            ag.last_exploit_time = self.t
+
                     ag.policy_network.reward_tensor = torch.FloatTensor([reward])
 
                     # Add the experience to the replay memory and train the agent
 
-                    if len(ag.policy_network.legal_actions)>1:
+
+                    if self.train:
+
                         ag.policy_network.replay_memory.push(ag.policy_network.state_tensor,
-                                                             ag.policy_network.action_tensor,
-                                                             ag.policy_network.next_state_tensor,
-                                                             ag.policy_network.reward_tensor)
-
-                    if self.t % self.train_every == 0:
-
+                                                                 ag.policy_network.action_tensor,
+                                                                 ag.policy_network.next_state_tensor,
+                                                                 ag.policy_network.reward_tensor)
 
                         loss = ag.policy_network.optimize()
                         # Update the target network with soft updates
@@ -553,7 +556,6 @@ class MADRLSimulation(Simulation):
                         ag.policy_network.steps_done += 1
                     ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
                     ag.policy_network.last_action = ag.policy_network.action_tensor.item()
-
                 # move to next simulation timestep (only when not paused)
                 self.t += 1
 

@@ -9,7 +9,7 @@ import abm.projects.madrl_foraging.madrl_contrib.madrl_learning_params as learni
 import torch.nn.init as init
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+print("Using devide: ",device)
 
 # Define experience tuple for replay memory
 Transition = namedtuple('Transition', ('state', 'action', 'next_state','reward'))
@@ -32,17 +32,20 @@ class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
         # convolutional layer ?
-        self.layer1 = nn.Linear(input_size, 512)
-        self.layer2 = nn.Linear(512, 256)
-        self.layer3 = nn.Linear(256, 128)
-        self.layer4 = nn.Linear(128, output_size)
+        print("holz")
+        self.layer1 = nn.Linear(input_size, 640)
+        self.layer2 = nn.Linear(640, 512)
+        self.layer3 = nn.Linear(512, 256)
+        self.layer4 = nn.Linear(256, 128)
+        self.layer5 = nn.Linear(128, output_size)
 
 
     def forward(self, state):
         x = F.relu(self.layer1(state))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
-        output = self.layer4(x)
+        x = F.relu(self.layer4(x))
+        output = self.layer5(x)
         return output
 
 # Define the DQN agent with replay memory
@@ -134,7 +137,7 @@ class DQNAgent:
 
         _ = self.get_legal_actions(state)
         if len(self.legal_actions)==1:
-            self.action_tensor = torch.LongTensor([[0]])
+            self.action_tensor = torch.LongTensor([[0]]).to(device)
 
         else:
             # Epsilon-greedy exploration
@@ -156,8 +159,8 @@ class DQNAgent:
                             if ind in self.legal_actions:
                                 action = ind
                                 break
-                print("Greedy action:", action)
-            self.action_tensor=torch.LongTensor([[action]])
+                
+            self.action_tensor=torch.LongTensor([[action]]).to(device)
         return self.action_tensor
 
 
@@ -165,6 +168,7 @@ class DQNAgent:
     def optimize(self):
         if len(self.replay_memory)< self.batch_size:
             return
+            
         transitions = self.replay_memory.sample(self.batch_size)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions
@@ -184,9 +188,11 @@ class DQNAgent:
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
         # for each batch state according to policy_net
+  
         state_action_values = self.q_network(state_batch).gather(1, action_batch)
-
+    
         # Compute V(s_{t+1}) for all next states.
+
         # Expected values of actions for non_final_next_states are computed based
         # on the "older" target_net; selecting their best reward with max(1).values
         # This is merged based on the mask, such that we'll have either the expected

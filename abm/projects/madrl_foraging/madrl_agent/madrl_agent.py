@@ -18,6 +18,7 @@ from abm.agent.agent import Agent
 from abm.projects.madrl_foraging.madrl_contrib import madrl_learning_params as learning_params
 
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class MADRLAgent(Agent):
     """

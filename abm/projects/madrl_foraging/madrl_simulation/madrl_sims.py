@@ -22,6 +22,8 @@ from abm.simulation.sims import Simulation, notify_agent, refine_ar_overlap_grou
 
 
 from datetime import datetime
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class MADRLSimulation(Simulation):
     def __init__(self, train,train_every,**kwargs):
@@ -332,12 +334,12 @@ class MADRLSimulation(Simulation):
                             resc = list(ag_resc_overlap.keys())[0]
 
                             ag.policy_network.next_state_tensor = torch.FloatTensor(
-                                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0)
+                                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0).to(device)
 
                     else:
 
                         ag.policy_network.next_state_tensor = torch.FloatTensor(
-                            ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
+                            ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
 
                 if ag.policy_network.last_action == 0 and ag.get_mode() == "exploit":
                     ag.total_discov += 1
@@ -346,7 +348,7 @@ class MADRLSimulation(Simulation):
                 reward = self.compute_reward(ag,collective_se)
 
 
-                ag.policy_network.reward_tensor = torch.FloatTensor([reward])
+                ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
                 ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
                 ag.policy_network.last_action = ag.policy_network.action_tensor.item()
 
@@ -425,12 +427,12 @@ class MADRLSimulation(Simulation):
 
                 resc = list(ag_resc_overlap.keys())[0]
                 ag.policy_network.state_tensor = torch.FloatTensor(
-                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0)
+                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0).to(device)
                 #else:
                 #    ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0)
 
             else:
-                ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
+                ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
 
         #if self.with_visualization:
         #    self.draw_frame(self.stats, self.stats_pos)
@@ -478,6 +480,7 @@ class MADRLSimulation(Simulation):
             done= False
             self.initialize_environment()
             collective_se_list = []
+            print("Starting episode: ",episode)
 
             while self.t < self.T:
 
@@ -510,13 +513,14 @@ class MADRLSimulation(Simulation):
                         ag.policy_network.next_state_tensor = None
                         reward = collective_se
                     else:
+                        
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
                         if ag.env_status == 1:
                             #if self.binary_env_status==False:
                                 #calculate number of resources left in the patch
                             ag_resc_overlap = self.agent_resource_overlap([ag])
                             resc= list(ag_resc_overlap.keys())[0]
-                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/resc.resc_units]).unsqueeze(0)
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/resc.resc_units]).unsqueeze(0).to(device)
 
 
                             #else:
@@ -524,25 +528,25 @@ class MADRLSimulation(Simulation):
 
                         else:
                             resc=None
-                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
 
                         # Calculate the reward as a weighted sum of the individual and collective search efficiency
                         reward = self.compute_reward(ag,collective_se)
                         if ag.policy_network.action_tensor.item() == 1:
                             ag.last_exploit_time = self.t
 
-                    ag.policy_network.reward_tensor = torch.FloatTensor([reward])
+                    ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
 
                     # Add the experience to the replay memory and train the agent
 
 
                     if self.train:
-
-                        ag.policy_network.replay_memory.push(ag.policy_network.state_tensor,
-                                                                 ag.policy_network.action_tensor,
-                                                                 ag.policy_network.next_state_tensor,
-                                                                 ag.policy_network.reward_tensor)
-
+                        ag.policy_network.replay_memory.push(
+                          ag.policy_network.state_tensor,
+                          ag.policy_network.action_tensor,
+                          ag.policy_network.next_state_tensor,
+                          ag.policy_network.reward_tensor
+                        )
                         loss = ag.policy_network.optimize()
                         # Update the target network with soft updates
                         ag.policy_network.update_target_network()

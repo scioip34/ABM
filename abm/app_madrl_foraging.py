@@ -114,6 +114,7 @@ def start(parallel=True, headless=False):
         #sim.write_batch_size = 100
         if sim_params["train"]:
             print("Starting training")
+            print("blablabla")
 
             _ = sim.start_madqn_train()
         else:

@@ -553,7 +553,7 @@ class MADRLSimulation(Simulation):
 
 
                         if loss is not None:
-                            writer.add_scalar(f'Agent_{ag.id}/Loss', loss, self.t+episode)
+                            writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
 
 
                         # Move to the next training step
@@ -572,7 +572,12 @@ class MADRLSimulation(Simulation):
                         writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
                                         episode)
                     writer.add_scalar('Collective search efficiency', collective_se, episode)
-
+                    # Save the models
+                    if episode % 10 == 0:
+                        for count, ag in enumerate(self.agents):
+                            torch.save(ag.policy_network.q_network.state_dict(),
+                                       f'{train_save_dir}/model_{ag.id}_{episode}.pth')
+                            print(f"Model {ag.id} saved to {train_save_dir}!")
                     for ag in self.agents:
                         ag.reset()
                     for resc in self.rescources:

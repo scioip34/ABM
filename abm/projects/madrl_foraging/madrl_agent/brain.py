@@ -32,20 +32,18 @@ class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
         # convolutional layer ?
-        print("holz")
-        self.layer1 = nn.Linear(input_size, 640)
-        self.layer2 = nn.Linear(640, 512)
-        self.layer3 = nn.Linear(512, 256)
-        self.layer4 = nn.Linear(256, 128)
-        self.layer5 = nn.Linear(128, output_size)
+
+        self.layer1 = nn.Linear(input_size, 512)
+        self.layer2 = nn.Linear(512, 256)
+        self.layer3 = nn.Linear(256, 128)
+        self.layer4 = nn.Linear(128, output_size)
 
 
     def forward(self, state):
         x = F.relu(self.layer1(state))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
-        x = F.relu(self.layer4(x))
-        output = self.layer5(x)
+        output = self.layer4(x)
         return output
 
 # Define the DQN agent with replay memory
@@ -167,7 +165,7 @@ class DQNAgent:
 
     def optimize(self):
         if len(self.replay_memory)< self.batch_size:
-            return
+            return None
             
         transitions = self.replay_memory.sample(self.batch_size)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
@@ -212,6 +210,7 @@ class DQNAgent:
         # In-place gradient clipping
         #torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 100)
         self.optimizer.step()
+        return loss.item()
 
 
 

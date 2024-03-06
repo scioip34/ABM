@@ -65,10 +65,9 @@ class MADRLAgent(Agent):
                 print("Loading pretrained model")
                 #raise ValueError('Not yet tested, verify the code before using it.')
                 model_path = os.path.join(learning_params.pretrained_models_dir, f"model_{self.id}.pth")
-
-                self.policy_network.q_network.load_state_dict(torch.load(model_path))
-                #self.policy_network.update_target_network()  # Update the target network initially
-
+                # Specify map_location to load the model on the CPU
+                map_location = torch.device('cpu')
+                self.policy_network.q_network.load_state_dict(torch.load(model_path, map_location=map_location))
 
         if not train:
             print("Model in evaluation mode")

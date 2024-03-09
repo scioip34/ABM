@@ -6,9 +6,9 @@ from abm.metarunner.metarunner import MetaProtocol
 
 #TODO: Generate experiment names from a list of experiments
 root_dir = "/Users/ferielamira/Desktop/Uni/Master-thesis/ABM/"
-exp_dir = os.path.join(root_dir,"abm/data/simulation_data/exp_new/batch_1/")
+exp_dir = os.path.join(root_dir,"abm/data/simulation_data/downloaded-from-drive")
 
-env_names = ["exp_interm","exp_sparse","exp_uniform_100","exp_uniform_50"]
+env_names = ["sparse","uniform"]
 #env_names = ["exp_binary-intermP","exp_binary-sparseP","exp_binary-patchyP"]
 
 num_trials = 2

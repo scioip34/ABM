@@ -27,7 +27,44 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
+"""class DQNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(DQNetwork, self).__init__()
+        # Convolutional layers for spatial data
+        self.conv1 = nn.Conv1d(1, 64, kernel_size=3)
+        self.pool = nn.MaxPool1d(kernel_size=2)
+        self.flatten = nn.Flatten()
 
+        # Fully connected layers for binary indicator
+        self.fc1 = nn.Linear(64 * ((input_size - 2) // 2), 256)  # Adjust input_size for fully connected layer
+
+        # Combined layer
+        self.fc_combined = nn.Linear(256 + 256, 128)  # Adjust input size based on your needs
+
+        # Output layer
+        self.fc_out = nn.Linear(128, output_size)
+
+    def forward(self, state):
+        spatial_data = state[:, :-1]  # Spatial data
+        binary_indicator = state[:, -1].unsqueeze(1)  # Binary indicator
+        print("spatial_data:", spatial_data.shape)
+        print("binary_indicator:", binary_indicator.shape)
+        # Process spatial data
+        spatial_data = spatial_data.unsqueeze(1)  # Add channel dimension
+        spatial_data = F.relu(self.pool(self.conv1(spatial_data)))
+        spatial_data = self.flatten(spatial_data)
+
+        # Process binary indicator
+        binary_indicator = F.relu(self.fc1(spatial_data))  # Use spatial_data instead of binary_indicator
+
+        # Concatenate processed spatial data and binary indicator
+        combined_data = torch.cat((spatial_data, binary_indicator), dim=1)
+        combined_data = F.relu(self.fc_combined(combined_data))
+
+        # Output layer
+        output = self.fc_out(combined_data)
+        return output
+"""
 class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
@@ -37,6 +74,13 @@ class DQNetwork(nn.Module):
         self.layer2 = nn.Linear(512, 256)
         self.layer3 = nn.Linear(256, 128)
         self.layer4 = nn.Linear(128, output_size)
+        # Apply He initialization to linear layers
+
+        init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
+
 
 
     def forward(self, state):
@@ -144,6 +188,7 @@ class DQNAgent:
 
             if random.random() <= eps_threshold:
 
+
                 action = random.choice(self.legal_actions)
 
 
@@ -166,7 +211,7 @@ class DQNAgent:
     def optimize(self):
         if len(self.replay_memory)< self.batch_size:
             return None
-            
+
         transitions = self.replay_memory.sample(self.batch_size)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions
@@ -186,9 +231,9 @@ class DQNAgent:
         # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
         # columns of actions taken. These are the actions which would've been taken
         # for each batch state according to policy_net
-  
+
         state_action_values = self.q_network(state_batch).gather(1, action_batch)
-    
+
         # Compute V(s_{t+1}) for all next states.
 
         # Expected values of actions for non_final_next_states are computed based
@@ -207,8 +252,13 @@ class DQNAgent:
         # Optimize the model
         self.optimizer.zero_grad()
         loss.backward()
+
+        # Print or log gradients
+        #for name, param in self.q_network.named_parameters():
+        #    if param.grad is not None:
+        #        print(f'Gradient {name}: {param.grad.norm().item()}')
         # In-place gradient clipping
-        #torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 100)
+        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 1.0)
         self.optimizer.step()
         return loss.item()
 

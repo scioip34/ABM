@@ -153,11 +153,15 @@ class MADRLSimulation(Simulation):
 
                         # Agent is exploiting this patch
                         if agent.get_mode() == "exploit":
+                            #if resc.resc_left/resc.resc_units
+                            #agent.reward = resc.resc_left/resc.resc_units
+
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
                             agent.collected_r_before = agent.collected_r  # rolling resource memory
                             agent.collected_r += depl_units  # and increasing it's collected rescources
-                             # remember the time of last exploitation
+
+                            # remember the time of last exploitation
                             if destroy_resc:  # consumed unit was the last in the patch
                                 # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
                                 #       f"there are no more units before the next timestep, otherwise they stop"
@@ -165,7 +169,8 @@ class MADRLSimulation(Simulation):
                                 for agent_tob_notified in agents:
                                     # print("C notify agent NO res ", agent_tob_notified.id)
                                     notify_agent(agent_tob_notified, -1)
-
+                        #else:
+                        #    agent.reward=0
                     # Collect all agents on resource patches
                     agents_on_rescs.append(agent)
 
@@ -184,6 +189,7 @@ class MADRLSimulation(Simulation):
                         notify_agent(agent, -1)
                     elif agent.get_mode() == "exploit":
                         notify_agent(agent, -1)
+                #agent.reward = 0
 
         # Update resource patches
         self.rescources.update()
@@ -253,6 +259,9 @@ class MADRLSimulation(Simulation):
         if ag.get_mode()=="exploit":
 
             reward = 1
+        elif ag.policy_network.last_action == 2 and ag.get_mode()=="explore":
+            reward = -0.25
+
 
         return reward
 
@@ -310,10 +319,7 @@ class MADRLSimulation(Simulation):
                 state = ag.policy_network.state_tensor
 
                 _ = ag.policy_network.select_action(state)
-                if ag.policy_network.action_tensor==1:
-                    ag.last_exploit_time = 1
-                else:
-                    ag.last_exploit_time += 1
+
 
 
             collective_se = self.step(turned_on_vfield)
@@ -341,12 +347,9 @@ class MADRLSimulation(Simulation):
                         ag.policy_network.next_state_tensor = torch.FloatTensor(
                             ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
 
-                if ag.policy_network.last_action == 0 and ag.get_mode() == "exploit":
-                    ag.total_discov += 1
-                if ag.policy_network.last_action == 2 and ag.get_mode() == "exploit":
-                    ag.total_reloc += 1
-                reward = self.compute_reward(ag,collective_se)
 
+
+                reward = self.compute_reward(ag,collective_se)
 
                 ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
                 ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
@@ -390,11 +393,6 @@ class MADRLSimulation(Simulation):
             raise Exception("Tried to save simulation data as csv file due to env configuration, "
                             "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
                             " or turn off CSV saving feature.")
-
-
-
-
-
 
         # Quit the pygame environment
         pygame.quit()
@@ -511,7 +509,7 @@ class MADRLSimulation(Simulation):
 
                     if done:
                         ag.policy_network.next_state_tensor = None
-                        reward = collective_se
+                        #ag.reward = collective_se
                     else:
                         
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
@@ -520,8 +518,8 @@ class MADRLSimulation(Simulation):
                                 #calculate number of resources left in the patch
                             ag_resc_overlap = self.agent_resource_overlap([ag])
                             resc= list(ag_resc_overlap.keys())[0]
+                            #ag.res= resc
                             ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/resc.resc_units]).unsqueeze(0).to(device)
-
 
                             #else:
                             #    ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0)
@@ -529,32 +527,32 @@ class MADRLSimulation(Simulation):
                         else:
                             resc=None
                             ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
-
+                            #ag.res = None
                         # Calculate the reward as a weighted sum of the individual and collective search efficiency
                         reward = self.compute_reward(ag,collective_se)
+
                         if ag.policy_network.action_tensor.item() == 1:
                             ag.last_exploit_time = self.t
 
                     ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
 
+
                     # Add the experience to the replay memory and train the agent
 
-
+                    ag.policy_network.replay_memory.push(
+                        ag.policy_network.state_tensor,
+                        ag.policy_network.action_tensor,
+                        ag.policy_network.next_state_tensor,
+                        ag.policy_network.reward_tensor
+                    )
                     if self.train:
-                        ag.policy_network.replay_memory.push(
-                          ag.policy_network.state_tensor,
-                          ag.policy_network.action_tensor,
-                          ag.policy_network.next_state_tensor,
-                          ag.policy_network.reward_tensor
-                        )
                         loss = ag.policy_network.optimize()
                         # Update the target network with soft updates
                         ag.policy_network.update_target_network()
-
-
                         if loss is not None:
                             writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
-
+                        else:
+                            print(f"Loss is None at timestep {ag.policy_network.steps_done}!")
 
                         # Move to the next training step
                         ag.policy_network.steps_done += 1

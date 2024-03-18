@@ -28,7 +28,6 @@ def transform_envconf(envconf):
     key_mapping = {
         "N": ("N", int),
         "T": ("T", int),
-        "TRAIN": ("train", lambda x: bool(int(x))),
         "WINDOW_PAD": ("window_pad", int),
         "AGENT_TYPE": ("agent_type", str),
         "VISUAL_FIELD_RESOLUTION": ("v_field_res", int),
@@ -58,7 +57,6 @@ def transform_envconf(envconf):
         "VISUAL_EXCLUSION": ("visual_exclusion", lambda x: bool(int(x))),
         "SHOW_VISION_RANGE": ("show_vision_range", lambda x: bool(int(x))),
         "AGENT_AGENT_COLLISION": ("collide_agents", lambda x: bool(int(x))),
-        "TRAIN_EVERY": ("train_every", int),
 
 
         "USE_RAM_LOGGING":("use_ram_logging", lambda x: bool(int(x))),
@@ -112,14 +110,7 @@ def start(parallel=True, headless=False):
         sim = Simulation(parallel=parallel,**sim_params)
 
         #sim.write_batch_size = 100
-        if sim_params["train"]:
-            print("Starting training")
-            print("blablabla")
-
-            _ = sim.start_madqn_train()
-        else:
-            print("Starting evaluation")
-            _ = sim.start_madqn_eval()
+        _ = sim.start_madqn()
 
 if __name__ == '__main__':
     start()

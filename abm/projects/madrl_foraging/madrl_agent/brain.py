@@ -11,6 +11,7 @@ import torch.nn.init as init
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using devide: ",device)
 
+
 # Define experience tuple for replay memory
 Transition = namedtuple('Transition', ('state', 'action', 'next_state','reward'))
 class ReplayMemory(object):
@@ -27,44 +28,54 @@ class ReplayMemory(object):
 
     def __len__(self):
         return len(self.memory)
+
+
 """class DQNetwork(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, num_observations, output_size):
         super(DQNetwork, self).__init__()
-        # Convolutional layers for spatial data
-        self.conv1 = nn.Conv1d(1, 64, kernel_size=3)
-        self.pool = nn.MaxPool1d(kernel_size=2)
-        self.flatten = nn.Flatten()
+        # Assuming the first 735 values are the visual field and the last one is the binary indicator
+        # We treat the visual field as a sequence with 1 channel and 735 features.
+        print("num_observations:", num_observations)
+        self.conv1 = nn.Conv1d(in_channels=2, out_channels=32, kernel_size=5, stride=1)
 
-        # Fully connected layers for binary indicator
-        self.fc1 = nn.Linear(64 * ((input_size - 2) // 2), 256)  # Adjust input_size for fully connected layer
+        # Calculate the size after convolutions
 
-        # Combined layer
-        self.fc_combined = nn.Linear(256 + 256, 128)  # Adjust input size based on your needs
+        # Fully connected layers
+        self.fc1 = nn.Linear(1471, 256)  # +1 for the binary indicator
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, output_size)
 
-        # Output layer
-        self.fc_out = nn.Linear(128, output_size)
+        # Apply He initialization to the convolutional and linear layers
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d) or isinstance(m, nn.Linear):
+                init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, state):
-        spatial_data = state[:, :-1]  # Spatial data
-        binary_indicator = state[:, -1].unsqueeze(1)  # Binary indicator
-        print("spatial_data:", spatial_data.shape)
-        print("binary_indicator:", binary_indicator.shape)
-        # Process spatial data
-        spatial_data = spatial_data.unsqueeze(1)  # Add channel dimension
-        spatial_data = F.relu(self.pool(self.conv1(spatial_data)))
-        spatial_data = self.flatten(spatial_data)
+        visual_field = state[:, :-1].unsqueeze(1)  # Shape (batch_size, 1, 735)
+        resource_indicator = state[:, -1]  # Shape (batch_size,)
 
-        # Process binary indicator
-        binary_indicator = F.relu(self.fc1(spatial_data))  # Use spatial_data instead of binary_indicator
+        x = F.relu(self.conv1(visual_field))
 
-        # Concatenate processed spatial data and binary indicator
-        combined_data = torch.cat((spatial_data, binary_indicator), dim=1)
-        combined_data = F.relu(self.fc_combined(combined_data))
+        # Flatten the convolutional output
+        conv_out = x.view(x.size(0), -1)
 
-        # Output layer
-        output = self.fc_out(combined_data)
-        return output
+        # Concatenate the convolutional output with the binary resource indicator
+        x = torch.cat((conv_out, resource_indicator.unsqueeze(1)), dim=1)
+
+        # Pass through the fully connected layers
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+
+        return x
+
+    def _calculate_conv_output_size(self, input_size):
+        temp_input = torch.zeros(1, 1, input_size)
+        temp_output = self.conv1(temp_input)
+        return temp_output.numel()
 """
+
+
 class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
@@ -81,14 +92,13 @@ class DQNetwork(nn.Module):
         init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
         init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
 
-
-
     def forward(self, state):
         x = F.relu(self.layer1(state))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
         output = self.layer4(x)
         return output
+
 
 # Define the DQN agent with replay memory
 class DQNAgent:
@@ -101,6 +111,8 @@ class DQNAgent:
         self.action_tensor=None
         self.reward_tensor=None
         self.agent_type = learning_params.brain_type
+        self.eps_print= False
+        self.state_history = []
 
         self.gamma = learning_params.gamma
         self.epsilon_start = learning_params.epsilon_start
@@ -134,14 +146,10 @@ class DQNAgent:
         self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
         #self.writer= SummaryWriter()
         self.legal_actions = None
-
-
             #self.target_q_network.eval()
             #print("Model in evaluation mode")
 
-
     def select_action_heuristic(self, legal_actions):
-
         if 1 in legal_actions:
             action = 1
         elif 2 in legal_actions:
@@ -175,6 +183,26 @@ class DQNAgent:
 
         return self.legal_actions
 
+    def save_model(self, filename):
+        checkpoint = {
+            'q_network_state_dict': self.q_network.state_dict(),
+            'target_q_network_state_dict': self.target_q_network.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'steps_done': self.steps_done,
+            # Add other parameters you want to save
+        }
+        print("Filename:", filename)
+        torch.save(checkpoint, filename)
+        print("Model and parameters saved successfully.")
+
+    def load_model_train(self, filename):
+        checkpoint = torch.load(filename)
+        self.q_network.load_state_dict(checkpoint['q_network_state_dict'])
+        self.target_q_network.load_state_dict(checkpoint['target_q_network_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.steps_done = checkpoint['steps_done']
+        print("Model and parameters loaded successfully.")
+
     def select_action(self, state):
 
         _ = self.get_legal_actions(state)
@@ -184,14 +212,13 @@ class DQNAgent:
         else:
             # Epsilon-greedy exploration
             eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                                math.exp(-self.steps_done / self.epsilon_decay)
+                                math.exp(-1. * self.steps_done / self.epsilon_decay)
+            if eps_threshold == 0.01 and self.eps_print:
+                print("Epsilon is 0.01 after", self.steps_done, "steps")
+                self.eps_print = False
 
             if random.random() <= eps_threshold:
-
-
                 action = random.choice(self.legal_actions)
-
-
             else:
                 with torch.no_grad():
                     q_values = self.q_network(state).detach()
@@ -202,7 +229,7 @@ class DQNAgent:
                             if ind in self.legal_actions:
                                 action = ind
                                 break
-                
+
             self.action_tensor=torch.LongTensor([[action]]).to(device)
         return self.action_tensor
 
@@ -258,11 +285,9 @@ class DQNAgent:
         #    if param.grad is not None:
         #        print(f'Gradient {name}: {param.grad.norm().item()}')
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 1.0)
+        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 5.0)
         self.optimizer.step()
         return loss.item()
-
-
 
     def update_target_network(self):
         # Update target Q-network by copying the weights from the current Q-network

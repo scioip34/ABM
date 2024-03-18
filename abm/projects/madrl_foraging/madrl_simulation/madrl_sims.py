@@ -2,6 +2,7 @@ import copy
 import random
 import shutil
 
+import math
 import optuna
 import pygame
 import numpy as np
@@ -26,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class MADRLSimulation(Simulation):
-    def __init__(self, train,train_every,**kwargs):
+    def __init__(self, **kwargs):
         """
         Inherited from Simulation class
         :param agent_type: type of the agent, so far only (DQN,LSTMDQN)
@@ -49,14 +50,15 @@ class MADRLSimulation(Simulation):
         super().__init__(**kwargs)
 
 
-
-        self.train=train
-        #self.binary_env_status = learning_params.binary_env_status
-        #self.with_tp = learning_params.tp
         seed = learning_params.seed
+        self.train=learning_params.train
+        self.train_every = learning_params.train_every
+
+        self.num_episodes = learning_params.num_episodes
+
         if self.train:
             #TODO: If i am further training pretrained models i should not use the same seed
-            #random.seed(seed)
+            random.seed(seed)
             np.random.seed(seed)
             torch.manual_seed(seed)
         else:
@@ -65,16 +67,6 @@ class MADRLSimulation(Simulation):
             np.random.seed(seed)
             torch.manual_seed(seed)
             #raise Exception("Evaluation mode not supported for MADRL simulation!")
-
-
-
-        self.train_every=train_every
-        #TODO: Add num episodes to learning_params
-        self.num_episodes = 50 #learning_params.num_episodes
-
-
-
-
 
 
     def add_new_agent(self, id, x, y, orient, with_proove=False, behave_params=None):
@@ -210,10 +202,9 @@ class MADRLSimulation(Simulation):
         for ag in self.agents:
             ag.calc_social_V_proj(self.agents)
             ag.search_efficiency = ag.collected_r / self.t if self.t != 0 else 0
-
-
         collective_se = sum(ag.search_efficiency for ag in self.agents) / len(
             self.agents)
+
 
 
         # Draw the updated environment and agents (and visual fields if needed)
@@ -223,31 +214,15 @@ class MADRLSimulation(Simulation):
             self.draw_frame(self.stats, self.stats_pos)
             pygame.display.flip()
 
-        # TODO: Should this be placed right after the visualization?
         return collective_se
-    def compute_reward(self,ag,collective_se):
 
-        #sparse and egoistical rewards
-        '''time_penalty= 1
-        if self.with_tp:
-            if self.t != ag.last_exploit_time :
-                time_penalty = self.t - ag.last_exploit_time
-
-        if ag.get_mode()=="exploit" and ag.collected_r>ag.collected_r_before:
-            reward=1/time_penalty
-
-        else:
-            reward=0
+    def compute_reward(self,ag):
         '''
-        '''            
-        if self.with_tp and self.t != ag.last_exploit_time :
-                time_penalty = self.t - ag.last_exploit_time
-            else:
-                time_penalty = 1
+        if ag.cse_w>0:
 
-            reward = (ag.ise_w * ag.search_efficiency + ag.cse_w * collective_se) / time_penalty
-        '''
-        '''
+            collective_se = sum(agent.search_efficiency for agent in self.agents) / len(
+                self.agents)
+
         reward = 0
         if ag.get_mode()=="exploit":
             reward = (ag.ise_w * ag.search_efficiency + ag.cse_w * collective_se)
@@ -259,151 +234,11 @@ class MADRLSimulation(Simulation):
         if ag.get_mode()=="exploit":
 
             reward = 1
-        elif ag.policy_network.last_action == 2 and ag.get_mode()=="explore":
-            reward = -0.25
+        #elif ag.policy_network.last_action == 2 and ag.get_mode()=="explore":
+        #    reward = -0.25
 
 
         return reward
-
-    def start_madqn_eval(self):
-        '''Main simulation loop for training the agents with MADQN'''
-
-        # Start time of the simulation
-        start_time = datetime.now()
-
-        # Create the agents and resources patches  in the environment
-        self.create_agents()
-        self.create_resources()
-
-        # Create surface to show visual fields and local var to decide when to show visual fields
-        self.stats, self.stats_pos = self.create_vis_field_graph()
-
-        # Create list to store collective search efficiency at each time step
-        collective_se_list = []
-
-        # Create variable to indicate if the simulation is done
-        done= False
-
-        # Create a directory to save the training data (models and tensorboard logs)
-
-        eval_save_dir = logging_params.TIMESTAMP_SAVE_DIR
-        print(f"Saving evaluation data to {eval_save_dir}!")
-
-        # Create a tensorboard writer to save the training logs
-        writer = SummaryWriter(eval_save_dir)
-        writer.add_text('Hyperparameters',
-                        f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, \n Epsilon End: {learning_params.epsilon_end}, \n'
-                        f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning Rate: {learning_params.lr}',
-                        0)
-        #writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
-
-
-        turned_on_vfield = 0
-
-        # Initialize the social visual fields for each agent
-        self.initialize_environment()
-
-        print(f"Starting main simulation loop in MADQN evaluation mode with {len(self.agents)} agents and {len(self.rescources)} resources !")
-        while self.t < self.T:
-
-            # Indicate that the simulation is not done
-            if self.t==self.T-1:
-                done = True
-
-
-            # Agent 0 always has riority over agent 1 and agent 1 over agent 2
-            # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-
-            for ag in self.agents:
-                # Select an action
-                state = ag.policy_network.state_tensor
-
-                _ = ag.policy_network.select_action(state)
-
-
-
-            collective_se = self.step(turned_on_vfield)
-            collective_se_list.append(collective_se)
-            # Train the agents
-
-
-            for ag in self.agents:
-
-
-                if done:
-                    ag.policy_network.next_state_tensor = None
-                else:
-                    # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
-                    if ag.env_status == 1:
-                            # calculate number of resources left in the patch
-                            ag_resc_overlap = self.agent_resource_overlap([ag])
-                            resc = list(ag_resc_overlap.keys())[0]
-
-                            ag.policy_network.next_state_tensor = torch.FloatTensor(
-                                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0).to(device)
-
-                    else:
-
-                        ag.policy_network.next_state_tensor = torch.FloatTensor(
-                            ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
-
-
-
-                reward = self.compute_reward(ag,collective_se)
-
-                ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
-                ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
-                ag.policy_network.last_action = ag.policy_network.action_tensor.item()
-
-
-
-                if self.t % 100:
-                    writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
-                                          self.t)
-
-            avg_search_efficiency = sum(collective_se_list) / len(collective_se_list)
-            writer.add_scalar('Collective search efficiency', collective_se, self.t)
-            # move to next simulation timestep (only when not paused)
-            self.t += 1
-                # save the agent and resource data to the ram for later analysis
-            if self.save_in_ram:
-                ifdb.save_agent_data_RAM(self.agents, self.t)
-                ifdb.save_resource_data_RAM(self.rescources, self.t)
-
-            #if self.with_visualization:
-            self.clock.tick(self.framerate)
-
-        # Calculate the average collective search efficiency
-        # Close the tensorboard writer
-        print("Collective search efficiency", collective_se)
-        for ag in self.agents:
-            writer.add_text('Agent{}/Total discoveries'.format(ag.id), str(ag.total_discov))
-            writer.add_text('Agent{}/Total patch joining'.format(ag.id), str(ag.total_reloc))
-        writer.close()
-        print("env path", self.env_path)
-        env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
-
-
-        if self.save_csv_files:
-            if self.save_in_ifd or self.save_in_ram:
-
-                ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
-                                      save_extracted_vfield=False, pop_num=None)
-        else:
-            raise Exception("Tried to save simulation data as csv file due to env configuration, "
-                            "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
-                            " or turn off CSV saving feature.")
-
-        # Quit the pygame environment
-        pygame.quit()
-
-        # Print the execution time
-        end_time = datetime.now()
-        print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ",
-          (end_time - start_time).total_seconds())
-
-        return avg_search_efficiency
-
 
 
     def initialize_environment(self):
@@ -436,7 +271,7 @@ class MADRLSimulation(Simulation):
         #    self.draw_frame(self.stats, self.stats_pos)
         #    pygame.display.flip()
 
-    def start_madqn_train(self):
+    def start_madqn(self):
         """Main simulation loop for training the agents with MADQN"""
 
         # Start time of the simulation
@@ -449,16 +284,12 @@ class MADRLSimulation(Simulation):
         # Create surface to show visual fields and local var to decide when to show visual fields
         self.stats, self.stats_pos = self.create_vis_field_graph()
 
-        # Create list to store collective search efficiency at each time step
+        # Create a directory to save the data (models and tensorboard logs)
 
+        save_dir = logging_params.TIMESTAMP_SAVE_DIR
 
-
-        # Create a directory to save the training data (models and tensorboard logs)
-
-        train_save_dir = logging_params.TIMESTAMP_SAVE_DIR
-        print(f"Saving training data to {train_save_dir}!")
-
-        writer = SummaryWriter(train_save_dir)
+        print(f"Saving data to {save_dir}!")
+        writer = SummaryWriter(save_dir)
         writer.add_text('Hyperparameters',
                         f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, '
                         f'\n Epsilon End: {learning_params.epsilon_end}, \n'
@@ -467,11 +298,8 @@ class MADRLSimulation(Simulation):
                         0)
         #writer.add_text('Experiment parameters', f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}",1)
         turned_on_vfield = 0
-
-
-
-
-        print(f"Starting main simulation loop in MADQN training mode with {len(self.agents)} agents and {len(self.rescources)} resources !")
+        mode = "training" if self.train else "evaluation"
+        print(f"Starting main simulation loop in MADQN in {mode} with {len(self.agents)} agents and {len(self.rescources)} resources !")
         #print(f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}")
         for episode in range(self.num_episodes + 1):
             # Create a variable to indicate if the simulation is done
@@ -481,25 +309,20 @@ class MADRLSimulation(Simulation):
             print("Starting episode: ",episode)
 
             while self.t < self.T:
-
-
                 # Indicate that the simulation is not done
                 if self.t==self.T-1:
                     done = True
-
+                    print("last timestep")
 
                 # Agent 0 always has riority over agent 1 and agent 1 over agent 2
                 # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
                 # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed
                 # to deplete the patch, followed by agent 1, then agent 2
                 # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-                exploiting_agents= []
+
                 for ag in self.agents:
                     # Select an action
-
-
                     _ = ag.policy_network.select_action(ag.policy_network.state_tensor)
-
 
                 collective_se = self.step(turned_on_vfield)
 
@@ -509,9 +332,9 @@ class MADRLSimulation(Simulation):
 
                     if done:
                         ag.policy_network.next_state_tensor = None
-                        #ag.reward = collective_se
+                        ag.reward = collective_se
                     else:
-                        
+
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
                         if ag.env_status == 1:
                             #if self.binary_env_status==False:
@@ -525,11 +348,11 @@ class MADRLSimulation(Simulation):
                             #    ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0)
 
                         else:
-                            resc=None
+
                             ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
-                            #ag.res = None
+
                         # Calculate the reward as a weighted sum of the individual and collective search efficiency
-                        reward = self.compute_reward(ag,collective_se)
+                        reward = self.compute_reward(ag)
 
                         if ag.policy_network.action_tensor.item() == 1:
                             ag.last_exploit_time = self.t
@@ -549,9 +372,18 @@ class MADRLSimulation(Simulation):
                         loss = ag.policy_network.optimize()
                         # Update the target network with soft updates
                         ag.policy_network.update_target_network()
+
                         if loss is not None:
+                            if math.isinf(loss):
+                                print(f"Loss is infinity at timestep {ag.policy_network.steps_done}!")
+                            elif math.isnan(loss):
+                                print(f"Loss is not a number (nan) at timestep {ag.policy_network.steps_done}!")
+                            elif loss < 0:
+                                print(f"Loss is negative at timestep {ag.policy_network.steps_done}!")
+                            elif loss > 20:
+                                print(f"Loss is {loss} at timestep {ag.policy_network.steps_done}!")
                             writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
-                        else:
+                        elif ag.policy_network.steps_done > ag.policy_network.batch_size:
                             print(f"Loss is None at timestep {ag.policy_network.steps_done}!")
 
                         # Move to the next training step
@@ -565,40 +397,31 @@ class MADRLSimulation(Simulation):
                     ifdb.save_agent_data_RAM(self.agents, self.t)
                     ifdb.save_resource_data_RAM(self.rescources, self.t)
 
-                if done :
-                    for ag in self.agents:
-                        writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
+            print("it was in the last timestep")
+            for ag in self.agents:
+
+                writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
                                         episode)
-                    writer.add_scalar('Collective search efficiency', collective_se, episode)
-                    # Save the models
-                    if episode % 10 == 0:
-                        for count, ag in enumerate(self.agents):
-                            torch.save(ag.policy_network.q_network.state_dict(),
-                                       f'{train_save_dir}/model_{ag.id}_{episode}.pth')
-                            print(f"Model {ag.id} saved to {train_save_dir}!")
-                    for ag in self.agents:
-                        ag.reset()
-                    for resc in self.rescources:
-                        self.kill_resource(resc)
-                        #self.create_resources()
-                    self.t=0
-                    break
+                writer.add_scalar('Collective search efficiency', collective_se, episode)
+                # Save the models
+                '''
+                if episode % 10 == 0:
+                    for count, ag in enumerate(self.agents):
+                        torch.save(ag.policy_network.q_network.state_dict(),
+                                           f'{save_dir}/model_{ag.id}_{episode}.pth')
+                        print(f"Model {ag.id} saved to {save_dir}!")
+                '''
 
-
-            #for resc in self.rescources:
-            #    self.kill_resource(resc)
-            #self.create_resources()
+                ag.reset()
+            for resc in self.rescources:
+                self.kill_resource(resc)
             self.t=0
-
-
-        # Calculate the average collective search efficiency
-        avg_search_efficiency= sum(collective_se_list) / len(collective_se_list)
+            print(f"Episode {episode} ended with collective search efficiency: ", collective_se)
 
         # Save the models
-        for count, ag in enumerate(self.agents):
-            torch.save(ag.policy_network.q_network.state_dict(),
-                       f'{train_save_dir}/model_{ag.id}.pth')
-            print(f"Model {ag.id} saved to {train_save_dir}!")
+        if self.train:
+            for count, ag in enumerate(self.agents):
+                ag.policy_network.save_model(f'{save_dir}/model_{ag.id}.pth')
         # Close the tensorboard writer
         writer.close()
         env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
@@ -608,7 +431,10 @@ class MADRLSimulation(Simulation):
 
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
                                       save_extracted_vfield=False, pop_num=None)
-
+            else:
+                raise Exception("Tried to save simulation data as csv file due to env configuration, "
+                                "but IFDB/RAM logging was turned off. Nothing to save! Please turn on IFDB/RAM logging"
+                                " or turn off CSV saving feature.")
 
         # Quit the pygame environment
         pygame.quit()
@@ -617,8 +443,6 @@ class MADRLSimulation(Simulation):
         end_time = datetime.now()
         print(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S.%f')} Total simulation time: ",
           (end_time - start_time).total_seconds())
-
-        return avg_search_efficiency
 
 '''
     def start_opt(self,trial):

@@ -368,7 +368,7 @@ class MADRLSimulation(Simulation):
                         ag.policy_network.next_state_tensor,
                         ag.policy_network.reward_tensor
                     )
-                    if self.train:
+                    if self.train and self.t % self.train_every == 0:
                         loss = ag.policy_network.optimize()
                         # Update the target network with soft updates
                         ag.policy_network.update_target_network()
@@ -380,8 +380,8 @@ class MADRLSimulation(Simulation):
                                 print(f"Loss is not a number (nan) at timestep {ag.policy_network.steps_done}!")
                             elif loss < 0:
                                 print(f"Loss is negative at timestep {ag.policy_network.steps_done}!")
-                            elif loss > 20:
-                                print(f"Loss is {loss} at timestep {ag.policy_network.steps_done}!")
+                            #elif loss > 20:
+                            #    print(f"Loss is {loss} at timestep {ag.policy_network.steps_done}!")
                             writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
                         elif ag.policy_network.steps_done > ag.policy_network.batch_size:
                             print(f"Loss is None at timestep {ag.policy_network.steps_done}!")

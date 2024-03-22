@@ -80,7 +80,6 @@ class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
         # convolutional layer ?
-
         self.layer1 = nn.Linear(input_size, 512)
         self.layer2 = nn.Linear(512, 256)
         self.layer3 = nn.Linear(256, 128)
@@ -139,7 +138,7 @@ class DQNAgent:
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         else:
             print("Using RMSprop")
-            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr)
+            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr,weight_decay=1e-4)
         #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=500, gamma=0.9)
 
         # Replay memory

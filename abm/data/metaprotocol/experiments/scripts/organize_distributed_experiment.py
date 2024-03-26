@@ -1,10 +1,20 @@
 from glob import glob
 import os
 import shutil
+import tkinter as tk
+from tkinter import filedialog
+
+# Create a root window and hide it
+root = tk.Tk()
+root.withdraw()
+
+# Open a file dialog and get the directory path
+distributed_exp_path = filedialog.askdirectory()
+
 
 # folder in which the individual hashed exp folders are
-# distributed_exp_path = "/home/david/Desktop/clustermount/ABM/abm/data/simulation_data/figExp1N100"
-distributed_exp_path = "/home/david/Desktop/database/figExp2A/figExp2AintermedN25NoColl"
+distributed_exp_path = "/home/david/Desktop/clustermount/ABM/abm/data/simulation_data/VSWRMExp1"
+# distributed_exp_path = "/home/david/Desktop/database/figExp2A/figExp2AintermedN25NoColl"
 
 hashed_subfolders = glob(os.path.join(distributed_exp_path, "*/"), recursive=False)
 batch_num = 0

@@ -14,14 +14,23 @@ cmap = cc.cm.CET_CBL2
 
 # under this path the individual summary statistics are saved
 # with _N<number of agents> post tag.
-data_path = f"/media/david/DMezeySCIoI/ABMData/StatFor/RevisionData/DataRevision"
+data_path = f"G:\\ABMData\\StatFor\\RevisionData\\DataRevision"
 
-min_data_val = 0
-max_data_val = 0.25
 
 # set of agent numbers to summarize for
-Ns = [5, 10, 25]
+Ns = [5, 10, 25, 50]
 conditions = ["Half", "Normal", "Twice"]
+y_titles = ["$N_R^{TOTAL}=1200$\nSocial Excitability $\epsilon_w$", "$N_R^{TOTAL}=2400$\nSocial Excitability $\epsilon_w$", "$N_R^{TOTAL}=4800$\nSocial Excitability $\epsilon_w$"]
+columnwise_norm = True
+
+if columnwise_norm:
+    min_data_val = 0
+    max_data_val = 1
+    colorbar_title = "Relative Search Efficiency"
+else:
+    min_data_val = 0
+    max_data_val = 0.25
+    colorbar_title = "Absolute Search Efficiency"
 
 # Manually definig the sparified y ticks and their rotations
 sparse_y_indices = [0, 4, 8]  # int((len(y_labels)-1)/2), len(y_labels)-1]
@@ -45,18 +54,16 @@ for wi in range(fig_shape[0]):
             print(hi, wi, ni)
             plt.axes(ax[wi, hi])
             collapsed_data = np.load(os.path.join(data_path, f"coll_eff_N{Ns[ni]}_{conditions[wi]}.npy"))
-            # # column-wise normalization
-            # for coli in range(collapsed_data.shape[1]):
-            #     print(f"Normalizing column {coli}")
-            #     minval = np.min(collapsed_data[:, coli])
-            #     maxval = np.max(collapsed_data[:, coli])
-            #     collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+            # column-wise normalization
+            if columnwise_norm:
+                for coli in range(collapsed_data.shape[1]):
+                    print(f"Normalizing column {coli}")
+                    minval = np.min(collapsed_data[:, coli])
+                    maxval = np.max(collapsed_data[:, coli])
+                    collapsed_data[:, coli] = (collapsed_data[:, coli] - minval) / (maxval - minval)
+
             agent_dim = 4
-            import seaborn as sns
-            # cmap = sns.cubehelix_palette(start=1, rot=0, dark=0.1, light=.95, reverse=False, as_cmap=True)
-            # mpl.colors.LinearSegmentedColormap.from_list("", clist_1)
             im = plt.imshow(collapsed_data, vmin=min_data_val, vmax=max_data_val, origin="lower", cmap=cmap)
-            plt.title(f"$N_A$={Ns[ni]}")
 
             # creating x-axis and labels
             # reading original labels with long names
@@ -67,6 +74,8 @@ for wi in range(fig_shape[0]):
             for li in range(0, len(labels), 2):
                 conc_x_labels.append(labels[li + 1].replace("N_RESOURCES=", "").replace(".0,", " x ") +
                                      labels[li].replace("MIN_RESOURCE_PER_PATCH=", "").replace(".0", "U"))
+
+            print(conc_x_labels)
 
             # creating y-axis labels
             tuned_env_pattern = os.path.join(data_path, "tuned_env*.json")
@@ -80,16 +89,28 @@ for wi in range(fig_shape[0]):
 
             # The others are sparsified for better readability
             if hi == 0:
-                plt.yticks([i for i in sparse_y_indices],
-                           [y_labels[i] for i in sparse_y_indices], ha='right', rotation_mode='anchor')
-                for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
-                    tick.set_rotation(sparese_y_tick_rotations[ticki])
-
-            # The ones in second or other columns have same y axis
+                plt.yticks([i for i in range(len(y_labels))],
+                           y_labels, ha='right', rotation_mode='anchor')
+                plt.ylabel(y_titles[wi])
+                # for ticki, tick in enumerate(ax[wi, hi].get_yticklabels()):
+                #     tick.set_rotation(sparese_y_tick_rotations[ticki])
             else:
                 plt.yticks([], [])
 
-            plt.xticks([])
+            if wi == 0:
+                plt.title(f"$N_A$={Ns[ni]}")
+                plt.xticks([], [])
+            elif wi == len(conditions) - 1:
+                # if hi == 0:
+                plt.xlabel("Number of Patches")
+                plt.xticks([i for i in range(0, len(conc_x_labels))],
+                           [conc_x_labels[i].split(' x ')[0] for i in range(0, len(conc_x_labels))],
+                           ha='right', rotation_mode='anchor')
+                for tick in ax[wi, hi].get_xticklabels():
+                    tick.set_rotation(45)
+            else:
+                plt.xticks([], [])
+
         else:
             plt.axes(ax[wi, hi])
             plt.yticks([], [])
@@ -252,7 +273,23 @@ cb = plt.colorbar(im, cax=cbaxes, orientation='vertical')
 # cb.ax.set_xticks([min_data_val, (min_data_val+max_data_val)/2, max_data_val])
 # cb.ax.xaxis.set_ticks_position("top")
 # cb.ax.xaxis.set_label_position('top')
-plt.ylabel('Relative Search Efficiency')
+plt.ylabel(colorbar_title)
+
+cbaxes = fig.add_axes([0.805, 0.16 + 1*(0.2 + 0.1/5), 0.025, 0.2])
+# position for the colorbar
+cb = plt.colorbar(im, cax=cbaxes, orientation='vertical')
+# cb.ax.set_xticks([min_data_val, (min_data_val+max_data_val)/2, max_data_val])
+# cb.ax.xaxis.set_ticks_position("top")
+# cb.ax.xaxis.set_label_position('top')
+plt.ylabel(colorbar_title)
+
+cbaxes = fig.add_axes([0.805, 0.16 + 0*(0.2 + 0.1/5), 0.025, 0.2])
+# position for the colorbar
+cb = plt.colorbar(im, cax=cbaxes, orientation='vertical')
+# cb.ax.set_xticks([min_data_val, (min_data_val+max_data_val)/2, max_data_val])
+# cb.ax.xaxis.set_ticks_position("top")
+# cb.ax.xaxis.set_label_position('top')
+plt.ylabel(colorbar_title)
 
 # cbaxes = fig.add_axes([0.805, 0.16 + 1*(0.2 + 0.1/5), 0.025, 0.2])
 # # position for the colorbar

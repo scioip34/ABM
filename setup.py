@@ -25,7 +25,10 @@ setup(
         'opencv-python',
         'xvfbwrapper',
         'zarr',
-        'fastcluster'
+        'fastcluster',
+        'torch',
+        'tensorboard',
+
     ],
     extras_require={
         'test': [

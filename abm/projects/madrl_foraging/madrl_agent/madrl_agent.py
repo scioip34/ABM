@@ -75,7 +75,7 @@ class MADRLAgent(Agent):
                     checkpoint = torch.load(model_path)
                     self.policy_network.q_network.load_state_dict(checkpoint['q_network_state_dict'],map_location)
 
-        if not train:
+        if not train :
             print("Model in evaluation mode")
             self.policy_network.q_network.eval()
             self.policy_network.epsilon_start = 0

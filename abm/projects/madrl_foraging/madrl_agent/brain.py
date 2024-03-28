@@ -12,6 +12,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using devide: ",device)
 
 
+
+
 # Define experience tuple for replay memory
 Transition = namedtuple('Transition', ('state', 'action', 'next_state','reward'))
 class ReplayMemory(object):
@@ -26,78 +28,41 @@ class ReplayMemory(object):
     def sample(self, batch_size):
         return random.sample(self.memory, batch_size)
 
+
     def __len__(self):
         return len(self.memory)
-
-
-"""class DQNetwork(nn.Module):
-    def __init__(self, num_observations, output_size):
-        super(DQNetwork, self).__init__()
-        # Assuming the first 735 values are the visual field and the last one is the binary indicator
-        # We treat the visual field as a sequence with 1 channel and 735 features.
-        print("num_observations:", num_observations)
-        self.conv1 = nn.Conv1d(in_channels=2, out_channels=32, kernel_size=5, stride=1)
-
-        # Calculate the size after convolutions
-
-        # Fully connected layers
-        self.fc1 = nn.Linear(1471, 256)  # +1 for the binary indicator
-        self.fc2 = nn.Linear(256, 128)
-        self.fc3 = nn.Linear(128, output_size)
-
-        # Apply He initialization to the convolutional and linear layers
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d) or isinstance(m, nn.Linear):
-                init.kaiming_uniform_(m.weight, mode='fan_in', nonlinearity='relu')
-
-    def forward(self, state):
-        visual_field = state[:, :-1].unsqueeze(1)  # Shape (batch_size, 1, 735)
-        resource_indicator = state[:, -1]  # Shape (batch_size,)
-
-        x = F.relu(self.conv1(visual_field))
-
-        # Flatten the convolutional output
-        conv_out = x.view(x.size(0), -1)
-
-        # Concatenate the convolutional output with the binary resource indicator
-        x = torch.cat((conv_out, resource_indicator.unsqueeze(1)), dim=1)
-
-        # Pass through the fully connected layers
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-
-        return x
-
-    def _calculate_conv_output_size(self, input_size):
-        temp_input = torch.zeros(1, 1, input_size)
-        temp_output = self.conv1(temp_input)
-        return temp_output.numel()
-"""
 
 
 class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
-        # convolutional layer ?
-        self.layer1 = nn.Linear(input_size, 512)
-        self.layer2 = nn.Linear(512, 256)
-        self.layer3 = nn.Linear(256, 128)
-        self.layer4 = nn.Linear(128, output_size)
-        # Apply He initialization to linear layers
 
+        self.layer1 = nn.Linear(input_size, 512)
+        #self.ln1 = nn.LayerNorm(512)  # Layer normalization for layer1
+
+        self.layer2 = nn.Linear(512, 256)
+        #self.ln2 = nn.LayerNorm(256)  # Layer normalization for layer2
+
+        self.layer3 = nn.Linear(256, 128)
+        #self.ln3 = nn.LayerNorm(128)  # Layer normalization for layer3
+
+        self.layer4 = nn.Linear(128, output_size)
+
+        # Initialize weights
         init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
         init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
         init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
         init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, state):
+        #x = F.relu(self.ln1(self.layer1(state)))
+        #x = F.relu(self.ln2(self.layer2(x)))
+        #x = F.relu(self.ln3(self.layer3(x)))
         x = F.relu(self.layer1(state))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
         output = self.layer4(x)
         return output
-
 
 # Define the DQN agent with replay memory
 class DQNAgent:
@@ -109,7 +74,6 @@ class DQNAgent:
         self.next_state_tensor=None
         self.action_tensor=None
         self.reward_tensor=None
-        self.agent_type = learning_params.brain_type
         self.eps_print= False
         self.state_history = []
 
@@ -127,13 +91,12 @@ class DQNAgent:
         self.last_action = -1
 
         # Q-network and target Q-network
-        if self.brain_type=="DQN":
-            self.q_network = DQNetwork(state_size, action_size).to(device)
-            self.target_q_network = DQNetwork(state_size, action_size).to(device)
-            self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
-            self.target_q_network.eval()
-        # Optimizer
-        if learning_params.optimizer=="Adam":
+        self.q_network = DQNetwork(state_size, action_size).to(device)
+        self.target_q_network = DQNetwork(state_size, action_size).to(device)
+        self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
+        self.target_q_network.eval()
+            # Optimizer
+        if learning_params.optimizer=="ADAM":
             print("Using Adam")
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         else:
@@ -141,7 +104,7 @@ class DQNAgent:
             self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr,weight_decay=1e-4)
         #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=500, gamma=0.9)
 
-        # Replay memory
+            # Replay memory
         self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
         #self.writer= SummaryWriter()
         self.legal_actions = None
@@ -158,6 +121,12 @@ class DQNAgent:
 
         self.action_tensor=torch.LongTensor([[action]])
 
+        return self.action_tensor
+
+    def select_action_random(self, state):
+        legal_actions = self.get_legal_actions(state)
+        action = random.choice(legal_actions)
+        self.action_tensor=torch.LongTensor([[action]])
         return self.action_tensor
 
     def get_legal_actions(self,state):
@@ -182,6 +151,42 @@ class DQNAgent:
 
         return self.legal_actions
 
+
+    def select_action(self, state):
+
+        _ = self.get_legal_actions(state)
+        if self.brain_type=="heuristic":
+            self.action_tensor = self.select_action_heuristic(self.legal_actions)
+        elif self.brain_type=="random":
+            self.action_tensor = self.select_action_random(state)
+        elif self.brain_type=="DQN":
+            if len(self.legal_actions)==1:
+                self.action_tensor = torch.LongTensor([[0]]).to(device)
+
+            else:
+                # Epsilon-greedy exploration
+                eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
+                                    math.exp(-1. * self.steps_done / self.epsilon_decay)
+                if eps_threshold == 0.01 and self.eps_print:
+                    print("Epsilon is 0.01 after", self.steps_done, "steps")
+                    self.eps_print = False
+
+                if random.random() <= eps_threshold:
+                    action = random.choice(self.legal_actions)
+                else:
+                    with torch.no_grad():
+                        q_values = self.q_network(state).detach()
+
+                        indices_descending_order = torch.argsort(q_values,descending=True)[0]
+
+                        for ind in indices_descending_order:
+                                if ind in self.legal_actions:
+                                    action = ind
+                                    break
+
+                self.action_tensor=torch.LongTensor([[action]]).to(device)
+        return self.action_tensor
+
     def save_model(self, filename):
         checkpoint = {
             'q_network_state_dict': self.q_network.state_dict(),
@@ -201,38 +206,6 @@ class DQNAgent:
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.steps_done = checkpoint['steps_done']
         print("Model and parameters loaded successfully.")
-
-    def select_action(self, state):
-
-        _ = self.get_legal_actions(state)
-        if len(self.legal_actions)==1:
-            self.action_tensor = torch.LongTensor([[0]]).to(device)
-
-        else:
-            # Epsilon-greedy exploration
-            eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                                math.exp(-1. * self.steps_done / self.epsilon_decay)
-            if eps_threshold == 0.01 and self.eps_print:
-                print("Epsilon is 0.01 after", self.steps_done, "steps")
-                self.eps_print = False
-
-            if random.random() <= eps_threshold:
-                action = random.choice(self.legal_actions)
-            else:
-                with torch.no_grad():
-                    q_values = self.q_network(state).detach()
-
-                    indices_descending_order = torch.argsort(q_values,descending=True)[0]
-
-                    for ind in indices_descending_order:
-                            if ind in self.legal_actions:
-                                action = ind
-                                break
-
-            self.action_tensor=torch.LongTensor([[action]]).to(device)
-        return self.action_tensor
-
-
 
     def optimize(self):
         if len(self.replay_memory)< self.batch_size:
@@ -283,8 +256,10 @@ class DQNAgent:
         #for name, param in self.q_network.named_parameters():
         #    if param.grad is not None:
         #        print(f'Gradient {name}: {param.grad.norm().item()}')
+
+
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 5.0)
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
         self.optimizer.step()
         return loss.item()
 

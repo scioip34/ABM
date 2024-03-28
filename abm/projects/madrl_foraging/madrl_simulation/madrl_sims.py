@@ -3,7 +3,6 @@ import random
 import shutil
 
 import math
-import optuna
 import pygame
 import numpy as np
 
@@ -301,7 +300,7 @@ class MADRLSimulation(Simulation):
         mode = "training" if self.train else "evaluation"
         print(f"Starting main simulation loop in MADQN in {mode} with {len(self.agents)} agents and {len(self.rescources)} resources !")
         #print(f"ISE_W: {learning_params.ise_w}, \n CSE_W {learning_params.cse_w} \n TP {learning_params.tp},\n BINARY_ENV_STATUS: {learning_params.binary_env_status}")
-        for episode in range(self.num_episodes + 1):
+        for episode in range(self.num_episodes ):
             # Create a variable to indicate if the simulation is done
             done= False
             self.initialize_environment()
@@ -361,30 +360,32 @@ class MADRLSimulation(Simulation):
 
 
                     # Add the experience to the replay memory and train the agent
+                    if self.train:
 
-                    ag.policy_network.replay_memory.push(
-                        ag.policy_network.state_tensor,
-                        ag.policy_network.action_tensor,
-                        ag.policy_network.next_state_tensor,
-                        ag.policy_network.reward_tensor
-                    )
+                        ag.policy_network.replay_memory.push(
+                            ag.policy_network.state_tensor,
+                            ag.policy_network.action_tensor,
+                            ag.policy_network.next_state_tensor,
+                            ag.policy_network.reward_tensor
+                        )
                     if self.train and self.t % self.train_every == 0:
                         loss = ag.policy_network.optimize()
+
                         # Update the target network with soft updates
                         ag.policy_network.update_target_network()
 
                         if loss is not None:
                             if math.isinf(loss):
-                                print(f"Loss is infinity at timestep {ag.policy_network.steps_done}!")
+                                print(f"Loss is infinity at timestep {self.t}!")
                             elif math.isnan(loss):
-                                print(f"Loss is not a number (nan) at timestep {ag.policy_network.steps_done}!")
+                                print(f"Loss is not a number (nan) at timestep {self.t}!")
                             elif loss < 0:
-                                print(f"Loss is negative at timestep {ag.policy_network.steps_done}!")
-                            #elif loss > 20:
-                            #    print(f"Loss is {loss} at timestep {ag.policy_network.steps_done}!")
+                                print(f"Loss is negative at timestep {self.t}!")
+                            elif loss > 40 and ag.id == 1:
+                                print(f"Loss of agent 1 is {loss} at timestep {self.t}!")
                             writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
                         elif ag.policy_network.steps_done > ag.policy_network.batch_size:
-                            print(f"Loss is None at timestep {ag.policy_network.steps_done}!")
+                            print(f"Loss is None at timestep {self.t}!")
 
                         # Move to the next training step
                         ag.policy_network.steps_done += 1
@@ -397,7 +398,8 @@ class MADRLSimulation(Simulation):
                     ifdb.save_agent_data_RAM(self.agents, self.t)
                     ifdb.save_resource_data_RAM(self.rescources, self.t)
 
-            print("it was in the last timestep")
+
+
             for ag in self.agents:
 
                 writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,

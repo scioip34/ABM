@@ -3,13 +3,13 @@
 #SBATCH --job-name=scioi_p34_ABM_simulation
 #SBATCH --output=slurm_log/.%j.log         # output file
 #SBATCH --error=slurm_log/.%j.err          # error file
-#SBATCH --partition=ex_scioi_node          # partition to submit to
+#SBATCH --partition=ex_scioi_gpu          # partition to submit to
 #SBATCH --ntasks=1
 #SBATCH --time=7-00:00                     # Runtime in D-HH:MM
 #SBATCH --cpus-per-task=4                  # on ex_scioi partition we have 32core/node
 #SBATCH --mem=32G                          # memory requested
 #SBATCH --exclusive=user
-
+#SBATCH --gres=gpu:1                       #number of gpus
 # BEHAVIOR:
 # Runs a single experiment on a dedicated cluster node. The experiment is defined in the dedicated folder of the codebase with the
 # metarunner API of the ABM framework.
@@ -59,7 +59,7 @@ fi
 
 # Load singularity
 echo "Loading singularity..."
-module load singularity/3.7.0
+module load singularity/3.7.4
 singularity version
 
 # Create singularity instance

@@ -13,7 +13,7 @@ from abm.projects.madrl_foraging.madrl_agent import madrl_supcalc as supcalc
 import matplotlib.pyplot as plt
 
 #matplotlib.use('agg')
-from abm.projects.madrl_foraging.madrl_agent.brain import DQNAgent
+from abm.projects.madrl_foraging.madrl_agent.brain import DQNAgent, DDQNAgent
 from abm.agent.agent import Agent
 from abm.projects.madrl_foraging.madrl_contrib import madrl_learning_params as learning_params
 
@@ -56,11 +56,11 @@ class MADRLAgent(Agent):
         self.last_exploit_time = 1
         self.total_reloc= 0
         self.total_discov= 0
-
-
-
         #create the policy network
-        self.policy_network = DQNAgent(state_size=self.v_field_res+ 1, action_size=3)
+        if learning_params.brain_type == "DQN":
+            self.policy_network = DQNAgent(state_size=self.v_field_res+ 1, action_size=3)
+        elif learning_params.brain_type == "DDQN":
+            self.policy_network = DDQNAgent(state_size=self.v_field_res+ 1, action_size=3)
 
         if learning_params.pretrained and learning_params.pretrained_models_dir!="":
                 print("Loading pretrained model")

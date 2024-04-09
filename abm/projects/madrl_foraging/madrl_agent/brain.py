@@ -111,13 +111,16 @@ class DQNAgent:
             #self.target_q_network.eval()
             #print("Model in evaluation mode")
 
-    def select_action_heuristic(self, legal_actions):
+    def select_action_heuristic(self, state):
+        legal_actions = self.get_legal_actions(state)
+
+
         if 1 in legal_actions:
             action = 1
         elif 2 in legal_actions:
             action = 2
         else:
-            action = 0
+            action= 0
 
         self.action_tensor=torch.LongTensor([[action]])
 
@@ -144,7 +147,7 @@ class DQNAgent:
 
         if env_status > 0.0 :
             self.legal_actions.append(1)
-        if soc_v_field.sum() != 0 and self.last_action != 1 and env_status==0.0 :
+        if soc_v_field.sum() != 0:# and self.last_action != 1 and env_status==0.0 :
 
             self.legal_actions.append(2)
 
@@ -159,7 +162,7 @@ class DQNAgent:
             self.action_tensor = self.select_action_heuristic(self.legal_actions)
         elif self.brain_type=="random":
             self.action_tensor = self.select_action_random(state)
-        elif self.brain_type=="DQN":
+        elif self.brain_type=="DQN" or self.brain_type=="DDQN":
             if len(self.legal_actions)==1:
                 self.action_tensor = torch.LongTensor([[0]]).to(device)
 
@@ -274,4 +277,40 @@ class DQNAgent:
         #print("policy_net_state_dict:", policy_net_state_dict[key].shape)
 
 
+class DDQNAgent(DQNAgent):
+    def __init__(self, state_size, action_size):
+        super().__init__(state_size, action_size)
+
+    def optimize(self):
+        if len(self.replay_memory) < self.batch_size:
+            return None
+
+        transitions = self.replay_memory.sample(self.batch_size)
+        batch = Transition(*zip(*transitions))
+
+        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+                                                batch.next_state)), device=device, dtype=torch.bool)
+        non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+        state_batch = torch.cat(batch.state)
+        action_batch = torch.cat(batch.action)
+        reward_batch = torch.cat(batch.reward)
+
+        state_action_values = self.q_network(state_batch).gather(1, action_batch)
+
+        # DDQN changes
+        next_state_values = torch.zeros(self.batch_size, device=device)
+        if sum(non_final_mask) > 0:
+            next_state_actions = self.q_network(non_final_next_states).max(1)[1].unsqueeze(1)  # Use q_network to select actions
+            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).gather(1, next_state_actions).squeeze().detach()  # Use target_q_network to evaluate the value of selected actions
+
+        expected_state_action_values = (next_state_values * self.gamma) + reward_batch
+
+        loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
+        self.optimizer.step()
+
+        return loss.item()
 

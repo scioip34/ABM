@@ -11,7 +11,8 @@ import glob
 import colorcet as cc
 
 clist_1 = ['#303030', '#443762', '#534b7a', '#5c6c73', '#4b9847', '#5cc22c', '#a9dc63', '#dbef97', '#f8faca']
-cmap = cc.cm.CET_CBL2
+# using fire colormap
+cmap = cc.cm.fire
 
 # data path
 exp_name = "VSWRMExp1"
@@ -77,20 +78,39 @@ for mi, metric in enumerate(metrics):
 
             # adding xlabel  and beta ticks in the last row
             if mi == len(metrics) - 1:
-                ax[mi, fi].set_xlabel("$\\beta_0$")
-                ax[mi, fi].set_xticks(range(len(betas)), ha='left', rotation_mode='anchor')
-                ax[mi, fi].set_xticklabels(betas)
-                # set tick rotation to 45 degrees
-                ax[mi, fi].tick_params(axis='x', rotation=45)
+                if fi == 0:
+                    ax[mi, fi].set_xlabel("$\\beta_0$", fontsize=12)
+                    ax[mi, fi].set_xticks(range(len(betas)), ha='left', rotation_mode='anchor')
+                    ax[mi, fi].set_xticklabels(betas)
+                    # set tick rotation to 45 degrees
+                    ax[mi, fi].tick_params(axis='x', rotation=45, labelsize=10)
+                else:
+                    # making ticks half as long
+                    ax[mi, fi].set_xlabel("$\\beta_0$", fontsize=12)
+                    rare_betas = [b if i % 3 == 0 else "" for i, b in enumerate(betas)]
+                    rare_betas[-1] = betas[-1]
+                    ax[mi, fi].set_xticks(range(len(rare_betas)), ha='left', rotation_mode='anchor')
+                    ax[mi, fi].set_xticklabels(rare_betas)
+                    # set tick rotation to 45 degrees
+                    ax[mi, fi].tick_params(axis='x', rotation=45, labelsize=10)
+
             else:
                 plt.axes(ax[mi, fi])
                 plt.xticks([], [])
 
             # adding ylabel in the first column
             if fi == 0:
-                ax[mi, fi].set_ylabel("$\\alpha_0$")
-                ax[mi, fi].set_yticks(range(len(alphas)))
-                ax[mi, fi].set_yticklabels(alphas)
+                if mi == len(metrics) - 1:
+                    ax[mi, fi].set_ylabel("$\\alpha_0$", fontsize=12)
+                    ax[mi, fi].set_yticks(range(len(alphas)))
+                    ax[mi, fi].set_yticklabels(alphas)
+                else:
+                    ax[mi, fi].set_ylabel("$\\alpha_0$", fontsize=12)
+                    rare_alphas = [a if i % 3 == 0 else "" for i, a in enumerate(alphas)]
+                    rare_alphas[-1] = alphas[-1]
+                    ax[mi, fi].set_yticks(range(len(rare_alphas)))
+                    ax[mi, fi].set_yticklabels(rare_alphas)
+                    ax[mi, fi].tick_params(axis='y', labelsize=10)
             else:
                 plt.axes(ax[mi, fi])
                 plt.yticks([], [])
@@ -110,7 +130,7 @@ for mi, metric in enumerate(metrics):
 
 # setting font on all x and y axis to smaller
 for a in ax.flatten():
-    a.tick_params(axis='both', which='major', labelsize=7)
+    a.tick_params(axis='both', which='major', labelsize=12)
 
 # plotting adjustments (5 rows)
 left = 0.226
@@ -159,16 +179,16 @@ for imi, im in enumerate(ims):
         # cb.ax.tick_params(axis='y', rotation=45)
 
         # set tick font size to 5
-        cb.ax.tick_params(labelsize=7)
+        cb.ax.tick_params(labelsize=12)
 
         # set ylabel font size to 7
-        cb.ax.set_ylabel(metrics[len(metrics)-imi], fontsize=10, rotation=270, labelpad=30)
+        cb.ax.set_ylabel(metrics[len(metrics)-imi], fontsize=14, rotation=270, labelpad=30)
 
 
 # for 5 rows
 # plt.subplots_adjust(hspace=0, wspace=0, top=0.976, bottom=0.062, left=0.226, right=0.798)
 
 # for 6 rows
-plt.subplots_adjust(hspace=0, wspace=0, top=top, bottom=bottom, left=left, right=right)
+plt.subplots_adjust(hspace=0, wspace=0.026, top=top, bottom=bottom, left=left, right=right)
 plt.show()
 

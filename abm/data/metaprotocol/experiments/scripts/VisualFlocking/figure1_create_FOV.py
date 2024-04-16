@@ -16,7 +16,8 @@ cmap = cc.cm.fire
 
 # data path
 exp_name = "VSWRMExp1"
-data_path = f"/home/david/Desktop/database/VSWRM_figdata/{exp_name}/summary"
+# data_path = f"/home/david/Desktop/database/VSWRM_figdata/{exp_name}/summary"
+data_path = os.path.join("G:\\", "VSWRMData", "FigData", f"{exp_name}", "summary")
 
 # included metrics
 metrics = ["Phase Diagram", "Polarization\n Order", "Mean Inter-\nIndividual Distance", "Size of \nLargest Cluster", "Area-to-Circle\nRatio [%]", "Time Ratio\n in Overlap [%]"]
@@ -80,19 +81,19 @@ for mi, metric in enumerate(metrics):
             if mi == len(metrics) - 1:
                 if fi == 0:
                     ax[mi, fi].set_xlabel("$\\beta_0$", fontsize=12)
-                    ax[mi, fi].set_xticks(range(len(betas)), ha='left', rotation_mode='anchor')
+                    ax[mi, fi].set_xticks(range(len(betas)), ha='right', rotation_mode='anchor')
                     ax[mi, fi].set_xticklabels(betas)
                     # set tick rotation to 45 degrees
-                    ax[mi, fi].tick_params(axis='x', rotation=45, labelsize=10)
+                    ax[mi, fi].tick_params(axis='x', rotation=45, labelsize=7)
                 else:
                     # making ticks half as long
                     ax[mi, fi].set_xlabel("$\\beta_0$", fontsize=12)
                     rare_betas = [b if i % 3 == 0 else "" for i, b in enumerate(betas)]
                     rare_betas[-1] = betas[-1]
-                    ax[mi, fi].set_xticks(range(len(rare_betas)), ha='left', rotation_mode='anchor')
+                    ax[mi, fi].set_xticks(range(len(rare_betas)), ha='right', rotation_mode='anchor')
                     ax[mi, fi].set_xticklabels(rare_betas)
                     # set tick rotation to 45 degrees
-                    ax[mi, fi].tick_params(axis='x', rotation=45, labelsize=10)
+                    ax[mi, fi].tick_params(axis='x', rotation=45, labelsize=7)
 
             else:
                 plt.axes(ax[mi, fi])
@@ -104,13 +105,14 @@ for mi, metric in enumerate(metrics):
                     ax[mi, fi].set_ylabel("$\\alpha_0$", fontsize=12)
                     ax[mi, fi].set_yticks(range(len(alphas)))
                     ax[mi, fi].set_yticklabels(alphas)
+                    ax[mi, fi].tick_params(axis='y', labelsize=7)
                 else:
                     ax[mi, fi].set_ylabel("$\\alpha_0$", fontsize=12)
                     rare_alphas = [a if i % 3 == 0 else "" for i, a in enumerate(alphas)]
                     rare_alphas[-1] = alphas[-1]
                     ax[mi, fi].set_yticks(range(len(rare_alphas)))
                     ax[mi, fi].set_yticklabels(rare_alphas)
-                    ax[mi, fi].tick_params(axis='y', labelsize=10)
+                    ax[mi, fi].tick_params(axis='y', labelsize=7)
             else:
                 plt.axes(ax[mi, fi])
                 plt.yticks([], [])
@@ -129,8 +131,8 @@ for mi, metric in enumerate(metrics):
             plt.xticks([], [])
 
 # setting font on all x and y axis to smaller
-for a in ax.flatten():
-    a.tick_params(axis='both', which='major', labelsize=12)
+# for a in ax.flatten():
+#     a.tick_params(axis='both', which='major', labelsize=10)
 
 # plotting adjustments (5 rows)
 left = 0.226
@@ -179,16 +181,16 @@ for imi, im in enumerate(ims):
         # cb.ax.tick_params(axis='y', rotation=45)
 
         # set tick font size to 5
-        cb.ax.tick_params(labelsize=12)
+        cb.ax.tick_params(labelsize=10)
 
         # set ylabel font size to 7
-        cb.ax.set_ylabel(metrics[len(metrics)-imi], fontsize=14, rotation=270, labelpad=30)
+        cb.ax.set_ylabel(metrics[len(metrics)-imi], fontsize=10, rotation=270, labelpad=30)
 
 
 # for 5 rows
 # plt.subplots_adjust(hspace=0, wspace=0, top=0.976, bottom=0.062, left=0.226, right=0.798)
 
 # for 6 rows
-plt.subplots_adjust(hspace=0, wspace=0.026, top=top, bottom=bottom, left=left, right=right)
+plt.subplots_adjust(hspace=0, wspace=0.07, top=top, bottom=bottom, left=left, right=right)
 plt.show()
 

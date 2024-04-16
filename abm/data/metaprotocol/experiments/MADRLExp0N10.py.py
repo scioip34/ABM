@@ -10,13 +10,13 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Description: MADRLForaging project, running simulations with different number of patches and  3 DQN agents
+Description: MADRLForaging project, running simulations with different number of patches and 10 agents
 
 Defined by: Feriel Amira
 """
 sum_resources = 2400
 num_patches = [3, 10, 50,100]
-num_agents = 3
+num_agents = [10]
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),
@@ -24,7 +24,7 @@ criteria_exp = [
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
     Constant("N_EPISODES",200),
-    Constant("T", 200),
+    Constant("T", 20000),
     Constant("SEED", 0),
     Constant("TRAIN", 1),
     Constant("TRAIN_EVERY", 1),
@@ -96,7 +96,7 @@ criteria_exp = [
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources / nup) for nup in num_patches]),  # same here
     Tunable("N_RESOURCES", values_override=num_patches),
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
-    Constant("N", num_agents)
+    Constant("N", 3),
 
 ]
 

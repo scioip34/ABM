@@ -73,6 +73,7 @@ singularity instance start --nv  --bind "/$(pwd):/app" \
 # Executing experiment via entrypoint on node inside singularity instance
 echo "Starting experiment on instance..."
 env SINGULARITYENV_EXPERIMENT_NAME=$EXPERIMENT_NAME singularity exec --nv instance://scioip34abmcontainer_$EXPERIMENT_NAME sh /app/singularity_entrypoint.sh
+
 # When done we clean up
 echo "Experiment finished, stopping singularity instance."
 singularity instance stop scioip34abmcontainer_$EXPERIMENT_NAME

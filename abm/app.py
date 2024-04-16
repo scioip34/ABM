@@ -27,6 +27,7 @@ def start(parallel=False, headless=False, agent_behave_param_list=None):
         sim = Simulation(N=int(float(envconf["N"])),
                          T=int(float(envconf["T"])),
                          v_field_res=int(envconf["VISUAL_FIELD_RESOLUTION"]),
+                         seed= int(envconf["SEED"]),
                          agent_fov=float(envconf['AGENT_FOV']),
                          framerate=int(float(envconf["INIT_FRAMERATE"])),
                          with_visualization=bool(int(float(envconf["WITH_VISUALIZATION"]))),
@@ -115,4 +116,4 @@ def generate_env_file(env_data, file_name, save_folder):
 
 if __name__ == '__main__':
 
-    start()
+    start_playground()

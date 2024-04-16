@@ -1,112 +1,103 @@
+import json
 import os
-from tensorboard.backend.event_processing import event_accumulator
+import numpy as np
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-from scipy.stats import hmean
-from matplotlib.lines import Line2D
 
-import numpy as np
-
+# Root directory
 root_dir = "/Users/ferielamira/Desktop/Uni/Master-thesis/ABM/"
-exp_dir = os.path.join(root_dir,"abm/data/simulation_data/exp_adapt/batch_0")
+# Define experiment directories and types
+exp_dirs = {
+    "dqn_new": os.path.join(root_dir, "abm/data/simulation_data/docker_exp_dqn/batch_1"),
 
-#env_names =["exp_binary-patchyP","exp_binary-sparseP","exp_binary-intermP"]
-#env_names=["exp_coll_patchyP"]
-#env_names=["exp_coll_sparseP"]
-env_names=["exp_coll_intermP"]
-#env_names =["exp_coll_patchyP","exp_coll_sparseP","exp_coll_intermP"]
+    "dqn_old":os.path.join(root_dir, "abm/data/simulation_data/3_agents/exp_new/batch_1"),
+    "random": os.path.join(root_dir, "abm/data/simulation_data/exp_random/batch_1"),
+    "mec": os.path.join(root_dir,"abm/data/simulation_data/exp_mecanistic/batch_0/3_agents"),
+    "heuristic": os.path.join(root_dir,"abm/data/simulation_data/exp_heuristic/batch_0"),
+    "ddqn": os.path.join(root_dir,"abm/data/simulation_data/docker_exp_ddqn/batch_0")
 
-#,"exp_coll_sparseP","exp_coll_intermP"]
+}
 
-#env_names =["exp_coll_patchyP","exp_indiv_patchyP"]
+# Environment names
+env_names = ["exp_sparse"] #,"exp_interm","exp_uniform_100"]
+N_steps = 20000  # Total number of steps
 
+def process_exp_dir(exp_dir, exp_type):
+    data = []
 
+    for env_name in env_names:
+        if exp_dir == exp_dirs["mec"] or exp_dir == exp_dirs["heuristic"]:
+            root_eval_path = os.path.join(exp_dir,env_name)
+        elif exp_dir == exp_dirs["dqn_old"] or exp_dir == exp_dirs["dqn_new"]:
+            root_eval_path = os.path.join(exp_dir, env_name, "eval/batch_1")
+        else:
+            root_eval_path = os.path.join(exp_dir, env_name, "eval/batch_0")
 
-# Specify the root directory containing subdirectories with TensorFlow logs
-#root_directory = '/path/to/root/directory'
+        total_efficiencies = []
 
+        for root, dirs, files in os.walk(root_eval_path):
 
-for env_name in env_names:
-    root_eval_path = os.path.join(exp_dir, env_name, "eval")
-    # Lists to store data from different files
-    all_steps = []
-    all_values = []
-    outliers = []
+            for trial_dir in dirs:
+                log_path = os.path.join(root, trial_dir)
+                with open(os.path.join(log_path, "agent_data.json"), 'r') as file:
+                    trial_data = json.load(file)
+                N_agents=len(trial_data)
 
+                total_exploitations = sum([sum([0.25 for mode in trial_data[str(j)]["mode"] if mode == 1]) for j in range(N_agents)])
+                search_efficiency = total_exploitations / (N_steps * N_agents)
+                total_efficiencies.append(search_efficiency)
 
-    # Iterate through subdirectories
-    for root, dirs, files in os.walk(root_eval_path):
-        for dir in dirs:
-            log_path = os.path.join(root, dir)
+        avg_efficiency = np.mean(total_efficiencies)
+        data.append({"env_name": env_name, "avg_efficiency": avg_efficiency, "type": exp_type})
 
-            # Check if the directory contains TensorFlow logs
-            if any(file.startswith('events') for file in os.listdir(log_path)):
-                print(log_path)
+    return data
 
-                ea = event_accumulator.EventAccumulator(log_path)
-                ea.Reload()
+# Process experiments and combine data
+combined_data = []
+for exp_type, exp_dir in exp_dirs.items():
+    combined_data += process_exp_dir(exp_dir, exp_type)
 
-                # Extract step and value data from TensorFlow logs
-                steps = np.array([event.step for event in ea.Scalars('Collective search efficiency')])
-                values = np.array([event.value for event in ea.Scalars('Collective search efficiency')])
-                if len(steps) == 10000 and len(values) == 10000:
+# Sort data for plotting
+combined_data.sort(key=lambda x: x["env_name"])
+#print combined data if type is random
+for data in combined_data:
+    if data["type"]=='dqn_old':
+        print(data)
 
-                    # Append data to lists
-                    if sum(values)/len(values) <=0.01:
-                        outliers.append(log_path)
-                    else:
-                        all_steps.append(steps)
-                        all_values.append(values)
-        print(f"From {len(all_values)+len(outliers)} there were {len(outliers)} outliers")
+# Plotting
+fig, ax = plt.subplots()
+bar_width = 0.20
+index = np.arange(len(env_names))
 
+for i, env_name in enumerate(env_names):
+    dqn_eff = [data["avg_efficiency"] for data in combined_data if data["env_name"] == env_name and data["type"] == "dqn_new"]
+    ddqn_eff = [data["avg_efficiency"] for data in combined_data if data["env_name"] == env_name and data["type"] == "ddqn"]
+    dqn_old_eff = [data["avg_efficiency"] for data in combined_data if data["env_name"] == env_name and data["type"] == "dqn_old"]
 
-    # Calculate mean and variance over steps
-    mean_values = np.mean(all_values, axis=0)
-    #print(mean_values)
-
-    #variance_values = np.var(all_values, axis=0)
-    #print(variance_values)
-
-    # Plot the results
-    if "coll" in env_name:
-        linestyle ='-'
-    else:
-        linestyle = '--'
-    if "sparse" in env_name:
-        label = "Sparse"
-        color = 'r'
-    elif "patchy" in env_name:
-        label = "Patchy"
-        color = 'g'
-    else:
-        label = "Intermediate"
-        color = 'b'
-    for value in all_values:
-        plt.plot(all_steps[0], value,  color=color, alpha=0.3, linestyle=linestyle)
-    plt.plot(all_steps[0], mean_values,  color=color, linestyle=linestyle)
-    #plt.fill_between(all_steps[0], mean_values - variance_values, mean_values + variance_values, color=color, alpha=0.3)
+    rand_eff = [data["avg_efficiency"] for data in combined_data if data["env_name"] == env_name and data["type"] == "random"]
+    mec_eff = [data["avg_efficiency"] for data in combined_data if data["env_name"] == env_name and data["type"] == "mec"]
+    heuristic_eff =  [data["avg_efficiency"] for data in combined_data if data["env_name"] == env_name and data["type"] == "heuristic"]
 
 
-legend_lines = [
-    #Line2D([0], [0], linestyle='-', color="black", label='Collective reward'),
-    #Line2D([0], [0], linestyle='--', color="black", label='Binary reward'),
-    Line2D([0], [0], color="r", label='Sparse environment'),
-    Line2D([0], [0], color="g", label='Patchy environment'),
-    Line2D([0], [0], color="b", label='Intermediate environment'),
-]
+    #ax.bar(index[i] , heuristic_eff, bar_width, color="orange",label='Heuristic Agents' if i == 0 else "")
+    ax.bar(index[i], dqn_eff, bar_width, color="b",label='IDQN Agents' if i == 0 else "")
+    ax.bar(index[i]+ bar_width, dqn_old_eff, bar_width, color="yellow",label='IDQN old Agents' if i == 0 else "")
 
-# Customize the legend
-#plt.legend(handles=legend_lines, loc='lower right')
-
-plt.xlabel('Steps')
-plt.ylabel('Collective search efficiency')
-plt.title('Average collective search efficiency over time in a intermediate environments')
+    #ax.bar(index[i] + 2*bar_width, mec_eff, bar_width, color="r",label='Mechanistic Agents' if i == 0 else "")
+    #ax.bar(index[i] + 3*bar_width, rand_eff, bar_width, color="pink",label='Random Agents' if i == 0 else "")
+    #ax.bar(index[i] + 4*bar_width, ddqn_eff, bar_width, color="purple",label='IDDQN Agents' if i == 0 else "")
 
 
+ax.set_xlabel('Environment')
+ax.set_ylabel('Average Search Efficiency')
+ax.set_title('Search Efficiency Across Environments')
+ax.set_xticks(index + 3*bar_width / 2)
+ax.set_xticklabels(env_names)
+ax.legend()
 
-plt.savefig(os.path.join(exp_dir, "CSE_coll_interm.png"))
-
-
-
+# Show and save the plot
+plt.show()
+print(os.path.join(exp_dir, "search_efficiency_comparison.png"))
+plt.savefig(os.path.join(exp_dir, "search_efficiency_comparison.png"))
 

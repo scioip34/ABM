@@ -58,8 +58,8 @@ def save_agent_data_RAM(agents, t):
     the unique measurement in the database
     """
     global agents_dict
-    if t % 500 == 0:
-        print(f"Agent data size in memory: {sys.getsizeof(agents_dict) / 1024} MB", )
+    #if t % 500 == 0:
+    #    print(f"Agent data size in memory: {sys.getsizeof(agents_dict) / 1024} MB", )
     for agent in agents:
         if agent.id not in list(agents_dict.keys()):
             agents_dict[agent.id] = {}
@@ -225,8 +225,8 @@ def save_resource_data_RAM(resources, t):
     if multiple simulations are running in parallel a uuid hash must be passed as experiment hash to find
     the unique measurement in the database"""
     global resources_dict
-    if t % 500 == 0:
-        print(f"Resource data size in memory: {sys.getsizeof(resources_dict) / 1024} MB", )
+    #if t % 500 == 0:
+    #    print(f"Resource data size in memory: {sys.getsizeof(resources_dict) / 1024} MB", )
     ids_in_run = []
     for res in resources:
         if res.id not in list(resources_dict.keys()):

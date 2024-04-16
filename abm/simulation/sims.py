@@ -65,7 +65,7 @@ class Simulation:
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
                  patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
-                 agent_behave_param_list=None, collide_agents=True):
+                 agent_behave_param_list=None, collide_agents=True,seed=1):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -121,6 +121,7 @@ class Simulation:
         self.WIDTH = width
         self.HEIGHT = height
         self.window_pad = window_pad
+        np.random.seed(seed)
 
         self.allow_border_patch_overlap = allow_border_patch_overlap
 
@@ -152,6 +153,7 @@ class Simulation:
         # Agent parameters
         self.agent_radii = agent_radius
         self.v_field_res = v_field_res
+
         self.pooling_time = pooling_time
         self.pooling_prob = pooling_prob
         self.agent_consumption = agent_consumption

@@ -95,36 +95,20 @@ class DQNAgent:
         self.target_q_network = DQNetwork(state_size, action_size).to(device)
         self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
         self.target_q_network.eval()
-            # Optimizer
+
+        # Optimizer
         if learning_params.optimizer=="ADAM":
             print("Using Adam")
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         else:
             print("Using RMSprop")
             self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr,weight_decay=1e-4)
-        #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=500, gamma=0.9)
 
             # Replay memory
         self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
-        #self.writer= SummaryWriter()
+
         self.legal_actions = None
-            #self.target_q_network.eval()
-            #print("Model in evaluation mode")
 
-    def select_action_heuristic(self, state):
-        legal_actions = self.get_legal_actions(state)
-
-
-        if 1 in legal_actions:
-            action = 1
-        elif 2 in legal_actions:
-            action = 2
-        else:
-            action= 0
-
-        self.action_tensor=torch.LongTensor([[action]])
-
-        return self.action_tensor
 
     def select_action_random(self, state):
         legal_actions = self.get_legal_actions(state)
@@ -136,21 +120,12 @@ class DQNAgent:
         soc_v_field = state[0][:-1]
         env_status = state[0][-1]
 
-
-        #if self.last_action == 2 and (soc_v_field.sum() !=0 and env_status == 0.0):
-        #    self.legal_actions = [2]
-
-        #else:
-
-
         self.legal_actions = [0]
 
         if env_status > 0.0 :
             self.legal_actions.append(1)
-        if soc_v_field.sum() != 0:# and self.last_action != 1 and env_status==0.0 :
-
+        if soc_v_field.sum() != 0 and self.last_action != 1 and env_status==0.0 :
             self.legal_actions.append(2)
-
 
         return self.legal_actions
 
@@ -158,11 +133,11 @@ class DQNAgent:
     def select_action(self, state):
 
         _ = self.get_legal_actions(state)
-        if self.brain_type=="heuristic":
-            self.action_tensor = self.select_action_heuristic(self.legal_actions)
-        elif self.brain_type=="random":
+
+        if self.brain_type=="random":
             self.action_tensor = self.select_action_random(state)
         elif self.brain_type=="DQN" or self.brain_type=="DDQN":
+
             if len(self.legal_actions)==1:
                 self.action_tensor = torch.LongTensor([[0]]).to(device)
 
@@ -170,9 +145,9 @@ class DQNAgent:
                 # Epsilon-greedy exploration
                 eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
                                     math.exp(-1. * self.steps_done / self.epsilon_decay)
-                if eps_threshold == 0.01 and self.eps_print:
-                    print("Epsilon is 0.01 after", self.steps_done, "steps")
-                    self.eps_print = False
+                #if eps_threshold == 0.01 and self.eps_print:
+                #    print(" is 0.01 after", self.steps_done, "steps")
+                #    self.eps_print = False
 
                 if random.random() <= eps_threshold:
                     action = random.choice(self.legal_actions)
@@ -260,7 +235,6 @@ class DQNAgent:
         #    if param.grad is not None:
         #        print(f'Gradient {name}: {param.grad.norm().item()}')
 
-
         # In-place gradient clipping
         torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
         self.optimizer.step()
@@ -273,9 +247,6 @@ class DQNAgent:
         for key in policy_net_state_dict:
             target_net_state_dict[key] = policy_net_state_dict[key]*self.tau + target_net_state_dict[key]*(1-self.tau)
         self.target_q_network.load_state_dict(target_net_state_dict)
-        #print("target_net_state_dict:", target_net_state_dict[key].shape)
-        #print("policy_net_state_dict:", policy_net_state_dict[key].shape)
-
 
 class DDQNAgent(DQNAgent):
     def __init__(self, state_size, action_size):

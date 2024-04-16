@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 
 # Install base requirements
 RUN apt-get -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update && \
@@ -37,10 +37,11 @@ RUN chmod +x /app/docker_entrypoint.sh
 RUN pip install -e /app
 
 # Add a non-root user so that the generated data can be easily handled on host
+
 ENV GID 1330459074
 ENV UID 1330459074
 RUN groupadd --gid $GID appgroup && \
-    useradd -r -d /app -g appgroup -G root,sudo -u $UID appuser
+    useradd -r -d /app -g appgroup -G root,sudo -l -u $UID appuser
 
 RUN adduser appuser sudo
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers

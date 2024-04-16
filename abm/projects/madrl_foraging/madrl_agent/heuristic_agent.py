@@ -13,14 +13,14 @@ from abm.projects.madrl_foraging.madrl_agent import madrl_supcalc as supcalc
 import matplotlib.pyplot as plt
 
 #matplotlib.use('agg')
-from abm.projects.madrl_foraging.madrl_agent.brain import DQNAgent, DDQNAgent
+from abm.projects.madrl_foraging.madrl_agent.brain import DQNAgent
 from abm.agent.agent import Agent
 from abm.projects.madrl_foraging.madrl_contrib import madrl_learning_params as learning_params
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-class MADRLAgent(Agent):
+class HeuristicAgent(Agent):
     """
     Agent class that includes all private parameters of the agents and all methods necessary to move in the environment
     and to make decisions.
@@ -34,84 +34,40 @@ class MADRLAgent(Agent):
         # Initializing supercalss (Pygame Sprite)
         super().__init__(**kwargs)
 
+        # in case we run multiple simulations, we reload the env parameters
+        #importlib.reload(movement_params)
+
+        self.exploited_patch = None
 
         # Non-initialisable private attributes
         self.show_stats = True
         self.mode = "explore"  # explore, flock, collide, exploit, pool  # saved
-        #self.exploit_soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
-        #self.reloc_soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
-        #self.explore_soc_v_field = np.zeros(self.v_field_res)  # social visual projection field
+
         self.train=train
         self.soc_v_field = np.zeros(self.v_field_res)
         self.search_efficiency = 0
         self.res=None
-        self.reward=0
-        #self.ise_w = float(learning_params.ise_w)
-        #self.cse_w = float(learning_params.cse_w)
         self.last_exploit_time = 1
         self.total_reloc= 0
         self.total_discov= 0
+
+
+
         #create the policy network
-        if learning_params.brain_type == "DQN":
-            print("DQN Agent")
-            self.policy_network = DQNAgent(state_size=self.v_field_res+ 1, action_size=3)
-        elif learning_params.brain_type == "DDQN":
-            print("DDQN Agent")
+        self.policy_network = DQNAgent(state_size=self.v_field_res+ 1, action_size=3)
 
-            self.policy_network = DDQNAgent(state_size=self.v_field_res+ 1, action_size=3)
+        self.policy_network.epsilon_start = 0
+        self.policy_network.epsilon_end = 0
 
-        if learning_params.pretrained and learning_params.pretrained_models_dir!="":
-                print("Loading pretrained model")
-                #raise ValueError('Not yet tested, verify the code before using it.')
-                model_path = os.path.join(learning_params.pretrained_models_dir, f"model_{self.id}.pth")
-                # Specify map_location to load the model on the CPU
-
-                if train:
-                    self.policy_network.load_model_train(model_path)
-                else:
-                    map_location = torch.device('cpu')
-                    checkpoint = torch.load(model_path)
-                    try:
-                        self.policy_network.q_network.load_state_dict(checkpoint['q_network_state_dict'],map_location)
-                    except:
-                        self.policy_network.q_network.load_state_dict(checkpoint, map_location)
-
-        if not train :
-            print("Model in evaluation mode")
-            self.policy_network.q_network.eval()
-            self.policy_network.epsilon_start = 0
-            self.policy_network.epsilon_end = 0
-            #self.target_q_network.eval()
-            #print("Model in evaluation mode")
 
     def update_decision_processes(self):
         """updating inner decision processes according to the policy network"""
-        action = self.policy_network.action_tensor.item()
-        if action == 0:
-            self.set_mode("explore")
-        elif action == 1:
+
+        action = self.action_tensor.item()
+        if action == 1:
             self.set_mode("exploit")
         elif action == 2:
             self.set_mode("relocate")
-
-    def compute_reward(self):
-        '''
-        if ag.cse_w>0:
-
-            collective_se = sum(agent.search_efficiency for agent in self.agents) / len(
-                self.agents)
-
-        reward = 0
-        if ag.get_mode()=="exploit":
-            reward = (ag.ise_w * ag.search_efficiency + ag.cse_w * collective_se)
-        '''
-
-        reward = 0
-
-        if self.get_mode()=="exploit":
-            reward = 1
-
-        return reward
 
     def update(self, agents):
         """
@@ -121,12 +77,16 @@ class MADRLAgent(Agent):
                 socially relevant, i.e. all agents.
         """
 
+        # calculate socially relevant projection field (Vsoc and Vsoc+)
+        #self.calc_social_V_proj(agents)
+        #self.visualize_v_fields()
+        # update decision processes
         self.update_decision_processes()
 
         if self.get_mode() == "explore":
             vel, theta = supcalc.random_walk(desired_vel=self.max_exp_vel)
 
-        elif self.get_mode() == "exploit":
+        if self.get_mode() == "exploit":
             if self.env_status == 1:
                 vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
             else:
@@ -174,51 +134,46 @@ class MADRLAgent(Agent):
 
         self.mode = mode
 
-    def calc_social_V_proj(self, agents):
-        """Calculating the socially relevant visual projection field of the agent. This is calculated as the
-        projection of nearby exploiting agents that are not visually excluded by other agents"""
-        # visible agents (exluding self)
-        agents = [ag for ag in agents if supcalc.distance(self, ag) <= self.vision_range]
-        # those of them that are exploiting
-        exploit_agents = [ag for ag in agents if ag.id != self.id
-                       and ag.get_mode() == "exploit"]
-        #explore_agents= [ag for ag in agents if ag.id != self.id and ag.get_mode() == "explore"]
-        #reloc_agents= [ag for ag in agents if ag.id != self.id and ag.get_mode() == "relocate"]
-
-        # all other agents to calculate visual exclusions
-        non_exploit_agents = [ag for ag in agents if ag not in exploit_agents]
-        #non_explore_agents = [ag for ag in agents if ag not in explore_agents]
-        #non_reloc_agents = [ag for ag in agents if ag not in reloc_agents]
-
-        if self.exclude_agents_same_patch:
-            # in case agents on same patch are excluded they can still cause visual exclusion for exploiting agents
-            # on the same patch (i.e. they can cover agents on other patches)
-            non_exploit_agents.extend([ag for ag in exploit_agents if ag.exploited_patch_id == self.exploited_patch_id])
-            exploit_agents = [ag for ag in exploit_agents if ag.exploited_patch_id != self.exploited_patch_id]
-
-        # Excluding agents that still try to exploit but can not as the patch has been emptied
-        exploit_agents = [ag for ag in exploit_agents if ag.exploited_patch_id != -1]
-
-        if self.visual_exclusion:
-            self.soc_v_field = self.projection_field(exploit_agents, keep_distance_info=True,
-                                                     non_expl_agents=non_exploit_agents)
-            #self.exploit_soc_v_field= self.projection_field(exploit_agents, keep_distance_info=True,
-            #                                         non_expl_agents=non_exploit_agents)
-            #self.explore_soc_v_field= self.projection_field(explore_agents, keep_distance_info=True,
-            #                                         non_expl_agents=non_explore_agents)
-            #self.reloc_soc_v_field= self.projection_field(reloc_agents, keep_distance_info=True,
-            #                                         non_expl_agents=non_reloc_agents)
+    def calc_resource_V_proj(self,resource):
+        if resource[0]!=None:
+            self.soc_v_field = self.projection_field(resource, keep_distance_info=True)
         else:
-            self.exploit_soc_v_field  = self.projection_field(exploit_agents, keep_distance_info=True)
-            #self.explore_soc_v_field = self.projection_field(explore_agents, keep_distance_info=True)
-            #self.reloc_soc_v_field = self.projection_field(reloc_agents, keep_distance_info=True)
+            self.soc_v_field = np.zeros(self.v_field_res)
 
-
-        #self.soc_v_field = np.concatenate((self.exploit_soc_v_field, self.reloc_soc_v_field,self.explore_soc_v_field))
-        #self.soc_v_field = self.exploit_soc_v_field
         return self.soc_v_field
 
-    def visualize_v_fields(self):
+    def get_legal_actions(self,state):
+        soc_v_field = state[0][:-1]
+        env_status = state[0][-1]
+
+
+        self.legal_actions=[]
+        if env_status > 0.0 :
+            self.legal_actions.append(1)
+        if soc_v_field.sum() != 0:# and self.last_action != 1 and env_status==0.0 :
+
+            self.legal_actions.append(2)
+
+
+        return self.legal_actions
+
+
+    def select_action(self, state):
+
+        legal_actions = self.get_legal_actions(state)
+
+        if 1 in legal_actions:
+            action = 1
+        elif 2 in legal_actions:
+            action = 2
+
+        self.action_tensor=torch.LongTensor([[action]])
+
+        return self.action_tensor
+
+
+    def visualize_v_fields(self, explore=True,exploit=True,reloc=True):
+
 
         if self.vis_counter % 50 == 0:
             # Create a polar plot
@@ -226,9 +181,13 @@ class MADRLAgent(Agent):
 
             # Plot the social visual field
             angles = np.linspace(-np.pi, np.pi,
-                                 len(self.soc_v_field))  # generates an array of evenly spaced values within the range from -pi to pi
-
-            ax.plot(angles, self.soc_v_field, label='Exploiting Agents', color="green")
+                                 len(self.exploit_soc_v_field))  # generates an array of evenly spaced values within the range from -pi to pi
+            if exploit :
+                ax.plot(angles, self.exploit_soc_v_field, label='Exploiting Agents', color="green")
+            if explore :
+                ax.plot(angles, self.explore_soc_v_field, label='Exploring Agents', color="blue")
+            if reloc :
+                ax.plot(angles, self.reloc_soc_v_field, label='Relocating Agents', color="pink")
 
             ax.set_rticks([])  # Remove radial tick labels if not needed
             ax.set_yticklabels([])  # Remove radial tick labels if not needed
@@ -238,6 +197,8 @@ class MADRLAgent(Agent):
 
             plt.close()
         self.vis_counter += 1
+
+
 
     def reset(self):
             """
@@ -252,7 +213,6 @@ class MADRLAgent(Agent):
             self.velocity = 0
             self.collected_r = 0
             self.collected_r_before = 0
-            self.exploited_patch_id = -1
             self.mode = "explore"
             self.vis_field_source_data = {}
             self.vis_counter = 0
@@ -286,4 +246,6 @@ class MADRLAgent(Agent):
                              ((1 + np.cos(self.orientation)) * self.radius,
                               (1 - np.sin(self.orientation)) * self.radius), 3)
             self.mask = pygame.mask.from_surface(self.image)
+
+
 

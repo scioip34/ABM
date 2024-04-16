@@ -65,7 +65,7 @@ singularity version
 
 # Create singularity instance
 echo "Creating singularity instance..."
-singularity instance start --bind "/$(pwd):/app" \
+singularity instance start --nv  --bind "/$(pwd):/app" \
                            --bind "/tmp/influxdb:/var/lib/influxdb" \
                            --bind "/$(pwd)/journal/journal_$EXPERIMENT_NAME:/var/log/journal" \
                            scioip34abm.sif scioip34abmcontainer_$EXPERIMENT_NAME

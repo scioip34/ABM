@@ -10,7 +10,7 @@ description_text = f"""
 Experiment file using the MetaRunner interfacing language to define a set of criteria for batch simulations
 
 Title:      Experiment : {EXP_NAME}
-Description: MADRLForaging project, running simulations with different number of patches and agents
+Description: MADRLForaging project, running simulations with different number of patches and  3 DQN agents
 
 Defined by: Feriel Amira
 """
@@ -24,7 +24,7 @@ criteria_exp = [
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
     Constant("N_EPISODES",200),
-    Constant("T", 20000),
+    Constant("T", 200),
     Constant("SEED", 0),
     Constant("TRAIN", 1),
     Constant("TRAIN_EVERY", 1),

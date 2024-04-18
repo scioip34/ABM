@@ -209,7 +209,7 @@ class MADRLAgent(Agent):
             #self.reloc_soc_v_field= self.projection_field(reloc_agents, keep_distance_info=True,
             #                                         non_expl_agents=non_reloc_agents)
         else:
-            self.exploit_soc_v_field  = self.projection_field(exploit_agents, keep_distance_info=True)
+            self.soc_v_field  = self.projection_field(exploit_agents, keep_distance_info=True)
             #self.explore_soc_v_field = self.projection_field(explore_agents, keep_distance_info=True)
             #self.reloc_soc_v_field = self.projection_field(reloc_agents, keep_distance_info=True)
 

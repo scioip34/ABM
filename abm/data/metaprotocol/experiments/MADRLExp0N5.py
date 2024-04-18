@@ -23,14 +23,14 @@ criteria_exp = [
     Constant("ENV_WIDTH", 500),
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
-    Constant("N_EPISODES",200),
-    Constant("T", 20000),
+    Constant("N_EPISODES",50),
+    Constant("T", 200),
     Constant("SEED", 0),
     Constant("TRAIN", 1),
     Constant("TRAIN_EVERY", 1),
     Constant("PRETRAINED", 0),
     Constant("BATCH_SIZE",128),
-    Constant("REPLAY_MEMORY_CAPACITY", 50000),
+    Constant("REPLAY_MEMORY_CAPACITY", 20000),
     Constant("GAMMA", 0.99),
     Constant("LR", 1e-05),
     Constant("EPSILON_START", 1.0),
@@ -96,7 +96,7 @@ criteria_exp = [
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources / nup) for nup in num_patches]),  # same here
     Tunable("N_RESOURCES", values_override=num_patches),
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
-    Constant("N", 3),
+    Constant("N", num_agents)
 
 ]
 
@@ -215,7 +215,7 @@ criteria_exp = [
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources / nup) for nup in num_patches]),  # same here
     Tunable("N_RESOURCES", values_override=num_patches),
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
-    Constant("N", 3),
+    Constant("N", num_agents)
 
 ]
 

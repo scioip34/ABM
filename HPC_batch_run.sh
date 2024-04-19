@@ -9,7 +9,7 @@
 #SBATCH --cpus-per-task=4                  # on ex_scioi partition we have 32core/node
 #SBATCH --mem=32G                          # memory requested
 #SBATCH --exclusive=user
-#SBATCH --gres=gpu:2                      #number of gpus
+#SBATCH --gres=gpu:1                     #number of gpus
 
 # BEHAVIOR:
 # Runs a single experiment on a dedicated cluster node. The experiment is defined in the dedicated folder of the codebase with the

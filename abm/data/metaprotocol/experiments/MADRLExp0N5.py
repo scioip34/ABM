@@ -16,7 +16,7 @@ Defined by: Feriel Amira
 """
 sum_resources = 2400
 num_patches = [3, 10, 50,100]
-num_agents = [5]
+num_agents = 5
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),

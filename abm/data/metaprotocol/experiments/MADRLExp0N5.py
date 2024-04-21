@@ -16,7 +16,7 @@ Defined by: Feriel Amira
 """
 sum_resources = 2400
 num_patches = [3, 10, 50,100]
-num_agents = 5
+num_agents = [5,8,10]
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),
@@ -96,7 +96,7 @@ criteria_exp = [
     Tunable("MIN_RESOURCE_PER_PATCH", values_override=[int(sum_resources / nup) for nup in num_patches]),  # same here
     Tunable("N_RESOURCES", values_override=num_patches),
     Constant("MAX_RESOURCE_PER_PATCH", -1),  # so that the minimum value will be used as definite
-    Constant("N", num_agents)
+    Tunable("N", values_override=num_agents)
 
 ]
 

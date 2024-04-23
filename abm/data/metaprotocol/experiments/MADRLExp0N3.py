@@ -15,15 +15,15 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [3, 10, 50,100]
-num_agents = [5,8,10]
+num_patches = [3]
+num_agents = [3]
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),
     Constant("ENV_WIDTH", 500),
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
-    Constant("N_EPISODES",100),
+    Constant("N_EPISODES",50),
     Constant("T", 20000),
     Constant("SEED", 0),
     Constant("TRAIN", 1),

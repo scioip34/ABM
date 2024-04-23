@@ -70,7 +70,7 @@ class MADRLAgent(Agent):
                     self.policy_network.load_model_train(model_path)
                 else:
                     map_location = torch.device('cpu')
-                    checkpoint = torch.load(model_path)
+                    checkpoint = torch.load(model_path, map_location)
                     try:
                         self.policy_network.q_network.load_state_dict(checkpoint['q_network_state_dict'],map_location)
                     except:

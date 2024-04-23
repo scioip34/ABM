@@ -49,10 +49,10 @@ class DQNetwork(nn.Module):
         self.layer4 = nn.Linear(128, output_size)
 
         # Initialize weights
-        init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
-        init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
-        init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
-        init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, state):
         #x = F.relu(self.ln1(self.layer1(state)))
@@ -150,6 +150,7 @@ class DQNAgent:
                 #    self.eps_print = False
 
                 if random.random() <= eps_threshold:
+                    #print("Choosing random action")
                     action = random.choice(self.legal_actions)
                 else:
                     with torch.no_grad():
@@ -236,7 +237,7 @@ class DQNAgent:
         #        print(f'Gradient {name}: {param.grad.norm().item()}')
 
         # In-place gradient clipping
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
+        #torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
         self.optimizer.step()
         return loss.item()
 

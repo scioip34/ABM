@@ -49,10 +49,10 @@ class DQNetwork(nn.Module):
         self.layer4 = nn.Linear(128, output_size)
 
         # Initialize weights
-        #init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
-        #init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
-        #init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
-        #init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, state):
         #x = F.relu(self.ln1(self.layer1(state)))

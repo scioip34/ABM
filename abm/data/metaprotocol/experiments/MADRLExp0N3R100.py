@@ -73,11 +73,9 @@ criteria_exp = [
     Constant("MOV_EXP_VEL_MIN", 3.0),
     Constant("MOV_EXP_VEL_MAX", 3.0),
     Tunable("MOV_REL_DES_VEL", values_override=reloc_speed),
-    Constant("MOV_EXP_TH_MIN", 0.5),
+    Constant("MOV_EXP_TH_MIN", -0.5),
     Constant("MOV_EXP_TH_MAX", 0.5),
     Constant("MOV_REL_TH_MAX", 1.8),
-    Constant("MOV_REL_TH_MIN", 1.8),
-
     Constant("CONS_STOP_RATIO", 0.175),
     Constant("DEC_TW", 0.5),
     Constant("DEC_EPSW", 2),

@@ -15,7 +15,7 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [3,100]
+num_patches = [3]
 num_agents = [3]
 reloc_speed = [3,1]
 criteria_exp = [
@@ -45,7 +45,7 @@ criteria_exp = [
     #Constant("CSE_W", 0.0),
     #Constant("TP", 0),
     #Constant("BINARY_ENV_STATUS", 0),
-    Constant("WITH_VISUALIZATION", 0),
+    Constant("WITH_VISUALIZATION", 1),
     Constant("INIT_FRAMERATE", 60),
     Constant("SHOW_VISUAL_FIELDS", 1),
     Constant("SHOW_VISUAL_FIELDS_RETURN", 0),
@@ -73,11 +73,9 @@ criteria_exp = [
     Constant("MOV_EXP_VEL_MIN", 3.0),
     Constant("MOV_EXP_VEL_MAX", 3.0),
     Tunable("MOV_REL_DES_VEL", values_override=reloc_speed),
-    Constant("MOV_EXP_TH_MIN", 0.5),
+    Constant("MOV_EXP_TH_MIN", -0.5),
     Constant("MOV_EXP_TH_MAX", 0.5),
     Constant("MOV_REL_TH_MAX", 1.8),
-    Constant("MOV_REL_TH_MIN", 1.8),
-
     Constant("CONS_STOP_RATIO", 0.175),
     Constant("DEC_TW", 0.5),
     Constant("DEC_EPSW", 2),

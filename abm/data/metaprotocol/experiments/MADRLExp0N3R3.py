@@ -17,7 +17,9 @@ Defined by: Feriel Amira
 sum_resources = 2400
 num_patches = [3]
 num_agents = [3]
-reloc_speed = [3,1]
+reloc_speed = [3,2]
+reloc_th = [1.8,0.5]
+
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),
@@ -75,7 +77,8 @@ criteria_exp = [
     Tunable("MOV_REL_DES_VEL", values_override=reloc_speed),
     Constant("MOV_EXP_TH_MIN", -0.5),
     Constant("MOV_EXP_TH_MAX", 0.5),
-    Constant("MOV_REL_TH_MAX", 1.8),
+    Tunable("MOV_REL_TH_MAX", values_override=reloc_th),
+
     Constant("CONS_STOP_RATIO", 0.175),
     Constant("DEC_TW", 0.5),
     Constant("DEC_EPSW", 2),

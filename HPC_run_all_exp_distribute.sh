@@ -74,9 +74,7 @@ do
     echo "Starting experiment $exp_name_hashed"
     sbatch --export=EXPERIMENT_NAME=$exp_name_hashed,HPC_DISTRIBUTED_ABM=yes ./HPC_batch_run.sh
 
-    # Adding a 1-minute delay before starting the next experiment
-    echo "Pausing for 60 seconds before submitting the next job..."
-    sleep 60
+
 
   done
 done

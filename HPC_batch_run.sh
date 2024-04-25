@@ -10,6 +10,7 @@
 #SBATCH --mem=32G                          # memory requested
 #SBATCH --exclusive=user
 #SBATCH --gres=gpu:1                     #number of gpus
+#SBATCH --constraint=gpu
 
 # BEHAVIOR:
 # Runs a single experiment on a dedicated cluster node. The experiment is defined in the dedicated folder of the codebase with the

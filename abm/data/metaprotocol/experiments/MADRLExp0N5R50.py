@@ -15,8 +15,8 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [3, 10, 50,100]
-num_agents = [5,8,10]
+num_patches = [50]
+num_agents = [5]
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),

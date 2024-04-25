@@ -24,7 +24,7 @@ criteria_exp = [
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
     Constant("N_EPISODES",100),
-    Constant("T", 20000),
+    Constant("T", 200),
     Constant("SEED", 0),
     Constant("TRAIN", 1),
     Constant("TRAIN_EVERY", 1),

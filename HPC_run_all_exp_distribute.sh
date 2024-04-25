@@ -3,7 +3,7 @@
 # BEHAVIOR:
 # Parses the abm/data/metarunner/experiments folder and runs each experiment py file in the folder on the HPC cluster.
 # Each experiment will be run on a different node.
-# Prepares the environment on the gateway such es env files, empty folders for logging and errors of the jobs, etc.
+# Prepares the environment on the gateway such as env files, empty folders for logging and errors of the jobs, etc.
 
 # Define how many repetitions should we simulate on the cluster in a heavily distributed manner,
 # meaning we run only 1 batch per instance but we create many instances that can be distributed on the
@@ -51,7 +51,7 @@ done
 # Prepare empty env files for each experiment on root
 for exp_name in "${exp_name_array[@]}"
 do
-  echo "Handling instances for base experiemnt $exp_name, creating $NUM_INSTANCES_PER_EXP instances"
+  echo "Handling instances for base experiment $exp_name, creating $NUM_INSTANCES_PER_EXP instances"
   for i in $(seq 1 $NUM_INSTANCES_PER_EXP)
   do
     # Generating random hash for each instance per experiment
@@ -73,6 +73,10 @@ do
     # Run an experiment on a dedicated node
     echo "Starting experiment $exp_name_hashed"
     sbatch --export=EXPERIMENT_NAME=$exp_name_hashed,HPC_DISTRIBUTED_ABM=yes ./HPC_batch_run.sh
+
+    # Adding a 1-minute delay before starting the next experiment
+    echo "Pausing for 60 seconds before submitting the next job..."
+    sleep 60
 
   done
 done

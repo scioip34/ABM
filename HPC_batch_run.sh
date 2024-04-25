@@ -72,7 +72,7 @@ singularity instance start --nv  --bind "/$(pwd):/app" \
 
 # Executing experiment via entrypoint on node inside singularity instance
 echo "Starting experiment on instance..."
-echo $CUDA_VISIBLE_DEVICES
+#echo $CUDA_VISIBLE_DEVICES
 env SINGULARITYENV_EXPERIMENT_NAME=$EXPERIMENT_NAME singularity exec --nv instance://scioip34abmcontainer_$EXPERIMENT_NAME sh /app/singularity_entrypoint.sh
 
 # When done we clean up

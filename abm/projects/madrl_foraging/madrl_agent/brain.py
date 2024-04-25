@@ -102,7 +102,7 @@ class DQNAgent:
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         else:
             print("Using RMSprop")
-            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr,weight_decay=1e-4)
+            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr)#,weight_decay=1e-4)
 
             # Replay memory
         self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
@@ -238,6 +238,8 @@ class DQNAgent:
 
         # In-place gradient clipping
         #torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
+        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 1.0)
+
         self.optimizer.step()
         return loss.item()
 

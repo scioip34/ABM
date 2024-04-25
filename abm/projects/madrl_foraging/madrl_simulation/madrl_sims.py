@@ -262,7 +262,7 @@ class MADRLSimulation(Simulation):
                 for ag in self.agents:
                     if done:
                         ag.policy_network.next_state_tensor = None
-                        ag.reward = collective_se
+                        #ag.reward = collective_se
                     else:
 
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))

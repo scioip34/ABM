@@ -102,7 +102,7 @@ class DQNAgent:
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         else:
             print("Using RMSprop")
-            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr)#,weight_decay=1e-4)
+            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr,weight_decay=1e-4)
 
             # Replay memory
         self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
@@ -139,15 +139,14 @@ class DQNAgent:
         elif self.brain_type=="DQN" or self.brain_type=="DDQN":
 
             if len(self.legal_actions)==1:
+
                 self.action_tensor = torch.LongTensor([[self.legal_actions[0]]]).to(device)
 
             else:
                 # Epsilon-greedy exploration
                 eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
                                     math.exp(-1. * self.steps_done / self.epsilon_decay)
-                #if eps_threshold == 0.01 and self.eps_print:
-                #    print(" is 0.01 after", self.steps_done, "steps")
-                #    self.eps_print = False
+
 
                 if random.random() <= eps_threshold:
                     #print("Choosing random action")

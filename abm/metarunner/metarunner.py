@@ -277,7 +277,10 @@ class MetaProtocol:
         if project == "MADRLForaging":
             from abm import app_madrl_foraging
             import abm.projects.madrl_foraging.madrl_contrib.madrl_learning_params as madrlp
+            import abm.projects.madrl_foraging.madrl_contrib.madrl_movement_params as madrlm
+
             importlib.reload(madrlp)
+            importlib.reload(madrlm)
             print("Running MADRLForaging")
 
             app_madrl_foraging .start(parallel=self.parallel_run, headless=self.headless)

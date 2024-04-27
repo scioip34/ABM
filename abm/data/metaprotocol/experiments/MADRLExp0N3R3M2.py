@@ -15,17 +15,18 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [100]
+num_patches = [3]
 num_agents = [3]
-reloc_speed = [3,2]
-reloc_th = [1.8,0.5]
+reloc_speed = [3.0]
+reloc_th = [0.5]
+
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),
     Constant("ENV_WIDTH", 500),
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
-    Constant("N_EPISODES",50),
+    Constant("N_EPISODES",20000),
     Constant("T", 20000),
     Constant("SEED", 0),
     Constant("TRAIN", 1),
@@ -77,6 +78,7 @@ criteria_exp = [
     Constant("MOV_EXP_TH_MIN", -0.5),
     Constant("MOV_EXP_TH_MAX", 0.5),
     Tunable("MOV_REL_TH_MAX", values_override=reloc_th),
+
     Constant("CONS_STOP_RATIO", 0.175),
     Constant("DEC_TW", 0.5),
     Constant("DEC_EPSW", 2),

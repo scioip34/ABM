@@ -262,7 +262,7 @@ class MADRLSimulation(Simulation):
                 for ag in self.agents:
                     if done:
                         ag.policy_network.next_state_tensor = None
-                        #ag.reward = collective_se
+                        ag.reward = collective_se
                     else:
 
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
@@ -278,6 +278,7 @@ class MADRLSimulation(Simulation):
 
                         # Calculate the reward as a weighted sum of the individual and collective search efficiency
                         reward = ag.compute_reward()
+
 
                         if ag.policy_network.action_tensor.item() == 1:
                             ag.last_exploit_time = self.t

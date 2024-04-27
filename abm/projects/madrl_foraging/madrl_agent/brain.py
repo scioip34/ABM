@@ -139,7 +139,7 @@ class DQNAgent:
         elif self.brain_type=="DQN" or self.brain_type=="DDQN":
 
             if len(self.legal_actions)==1:
-                self.action_tensor = torch.LongTensor([[0]]).to(device)
+                self.action_tensor = torch.LongTensor([[self.legal_actions[0]]]).to(device)
 
             else:
                 # Epsilon-greedy exploration
@@ -283,7 +283,7 @@ class DDQNAgent(DQNAgent):
 
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 1.0)
         self.optimizer.step()
 
         return loss.item()

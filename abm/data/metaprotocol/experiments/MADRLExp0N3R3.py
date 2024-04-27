@@ -17,8 +17,8 @@ Defined by: Feriel Amira
 sum_resources = 2400
 num_patches = [3]
 num_agents = [3]
-reloc_speed = [3,2]
-reloc_th = [1.8,0.5]
+reloc_speed = [3.0,2.0]
+reloc_th = [1.8]
 
 criteria_exp = [
 
@@ -26,7 +26,7 @@ criteria_exp = [
     Constant("ENV_WIDTH", 500),
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
-    Constant("N_EPISODES",50),
+    Constant("N_EPISODES",20),
     Constant("T", 20000),
     Constant("SEED", 0),
     Constant("TRAIN", 1),
@@ -47,7 +47,7 @@ criteria_exp = [
     #Constant("CSE_W", 0.0),
     #Constant("TP", 0),
     #Constant("BINARY_ENV_STATUS", 0),
-    Constant("WITH_VISUALIZATION", 1),
+    Constant("WITH_VISUALIZATION", 0),
     Constant("INIT_FRAMERATE", 60),
     Constant("SHOW_VISUAL_FIELDS", 1),
     Constant("SHOW_VISUAL_FIELDS_RETURN", 0),

@@ -39,7 +39,7 @@ criteria_exp = [
     Constant("EPSILON_START", 1.0),
     Constant("EPSILON_END", 0.001),
     Constant("EPSILON_DECAY", 50000),
-    Constant("TAU", 0.01),
+    Constant("TAU", 0.001),
     Constant("OPTIMIZER", "RMSPROP"),
     Constant("PRETRAINED_MODELS_DIR", ""),
     Constant("BRAIN_TYPE", "DQN"),

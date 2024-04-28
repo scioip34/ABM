@@ -15,11 +15,10 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [3]
+num_patches = [100]
 num_agents = [3]
 reloc_speed = [3.0]
 reloc_th = [2.0]
-
 criteria_exp = [
 
     Constant("APP_VERSION", "MADRLForaging"),
@@ -38,7 +37,7 @@ criteria_exp = [
     Constant("LR", 1e-06),
     Constant("EPSILON_START", 1.0),
     Constant("EPSILON_END", 0.001),
-    Constant("EPSILON_DECAY", 50000),
+    Constant("EPSILON_DECAY", 20000),
     Constant("TAU", 0.01),
     Constant("OPTIMIZER", "RMSPROP"),
     Constant("PRETRAINED_MODELS_DIR", ""),
@@ -78,7 +77,6 @@ criteria_exp = [
     Constant("MOV_EXP_TH_MIN", -0.5),
     Constant("MOV_EXP_TH_MAX", 0.5),
     Tunable("MOV_REL_TH_MAX", values_override=reloc_th),
-
     Constant("CONS_STOP_RATIO", 0.175),
     Constant("DEC_TW", 0.5),
     Constant("DEC_EPSW", 2),

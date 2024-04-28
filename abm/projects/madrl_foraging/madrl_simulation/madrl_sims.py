@@ -198,7 +198,7 @@ class MADRLSimulation(Simulation):
                 # calculate number of resources left in the patch
                 resc = list(ag_resc_overlap.keys())[0]
                 ag.policy_network.state_tensor = torch.FloatTensor(
-                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0).to(device)
+                ag.soc_v_field.tolist() +[1.0] ).unsqueeze(0).to(device) #[resc.resc_left / resc.resc_units]
 
             else:
                 ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
@@ -271,7 +271,7 @@ class MADRLSimulation(Simulation):
                             ag_resc_overlap = self.agent_resource_overlap([ag])
                             resc= list(ag_resc_overlap.keys())[0]
 
-                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/resc.resc_units]).unsqueeze(0).to(device)
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0).to(device)#[resc.resc_left/resc.resc_units]
 
                         else:
                             ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)

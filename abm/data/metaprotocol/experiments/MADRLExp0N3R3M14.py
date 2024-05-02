@@ -39,7 +39,7 @@ criteria_exp = [
     Constant("LR", 1e-05),
     Constant("EPSILON_START", 1.0),
     Constant("EPSILON_END", 0.01),
-    Constant("EPSILON_DECAY", 50000),
+    Constant("EPSILON_DECAY", 10000),
     Constant("TAU", 0.01),
     Constant("OPTIMIZER", "RMSPROP"),
     Constant("PRETRAINED_MODELS_DIR", ""),

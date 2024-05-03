@@ -51,6 +51,7 @@ class MADRLAgent(Agent):
         self.last_exploit_time = 1
         self.total_reloc= 0
         self.total_discov= 0
+        self.new_discovery = 0
         #create the policy network
         if learning_params.brain_type == "DQN":
             print("DQN Agent")
@@ -109,7 +110,9 @@ class MADRLAgent(Agent):
         reward = 0
 
         if self.get_mode()=="exploit":
-            reward = 1
+            #print(f"Agent {self.id} gets novelity reward of {self.new_discovery}")
+            reward = 0.75 + 0.25 *self.new_discovery
+
 
         return reward
 
@@ -256,6 +259,7 @@ class MADRLAgent(Agent):
             self.mode = "explore"
             self.vis_field_source_data = {}
             self.vis_counter = 0
+
 
             # Decision Variables
             self.overriding_mode = None

@@ -46,6 +46,7 @@ class Rescource(pygame.sprite.Sprite):
         self.unit_per_timestep = quality  # saved
         self.is_clicked = False
         self.show_stats = False
+        self.agent_visits = [] # number of agents that have visited the patch
 
         # Environment related parameters
         self.WIDTH = env_size[0]  # env width

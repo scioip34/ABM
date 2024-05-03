@@ -1,3 +1,4 @@
+import math
 import random
 import pygame
 import numpy as np
@@ -114,6 +115,10 @@ class MADRLSimulation(Simulation):
 
                         # Agent is exploiting this patch
                         if agent.get_mode() == "exploit":
+                            if agent.id not in resc.agent_visits:
+                                agent.new_discovery = 1 / (1 + math.sqrt(len(resc.agent_visits)))
+                                resc.agent_visits.append(agent.id)
+
 
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
@@ -164,6 +169,7 @@ class MADRLSimulation(Simulation):
 
         # Check for agent-resource interactions and update the resource patches
         self.agent2resource_interaction(collided_agents)
+
 
         for ag in self.agents:
             ag.calc_social_V_proj(self.agents)
@@ -323,9 +329,12 @@ class MADRLSimulation(Simulation):
                 # move to next simulation timestep (only when not paused)
                 self.t += 1
 
+
                 if self.save_in_ram:
                     ifdb.save_agent_data_RAM(self.agents, self.t)
                     ifdb.save_resource_data_RAM(self.rescources, self.t)
+            #pause for 10mins
+
 
 
             for ag in self.agents:

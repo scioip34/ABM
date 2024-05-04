@@ -16,8 +16,8 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [3]
-num_agents = [3]
+num_patches = [10]
+num_agents = [5]
 reloc_speed = [3.0]
 reloc_th = [2.0]
 

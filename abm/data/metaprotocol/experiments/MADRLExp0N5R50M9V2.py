@@ -16,8 +16,8 @@ Description: MADRLForaging project, running simulations with different number of
 Defined by: Feriel Amira
 """
 sum_resources = 2400
-num_patches = [100]
-num_agents = [3]
+num_patches = [50]
+num_agents = [5]
 reloc_speed = [3.0]
 reloc_th = [2.0]
 
@@ -33,7 +33,7 @@ criteria_exp = [
     Constant("TRAIN", 1),
     Constant("TRAIN_EVERY", 1),
     Constant("PRETRAINED", 0),
-    Constant("BATCH_SIZE", 128),
+    Constant("BATCH_SIZE",128),
     Constant("REPLAY_MEMORY_CAPACITY", 50000),
     Constant("GAMMA", 0.95),
     Constant("LR", 1e-04),

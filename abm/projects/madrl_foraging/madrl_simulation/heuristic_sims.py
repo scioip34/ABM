@@ -186,7 +186,6 @@ class HeuristicSimulation(Simulation):
                         notify_agent(agent, -1)
                     elif agent.get_mode() == "exploit":
                         notify_agent(agent, -1)
-                        agent.expl
                 #agent.reward = 0
 
         # Update resource patches
@@ -305,6 +304,7 @@ class HeuristicSimulation(Simulation):
         #if self.with_visualization:
         #    self.draw_frame(self.stats, self.stats_pos)
         #    pygame.display.flip()
+    def start_heuristic(self):
 
         """Main simulation loop for training the agents with MADQN"""
 
@@ -343,7 +343,7 @@ class HeuristicSimulation(Simulation):
             for ag in self.agents:
                 # Select an action
 
-                    act = ag.select_action_heuristic(ag.policy_network.state_tensor)
+                    act = ag.select_action(ag.policy_network.state_tensor)
 
 
             collective_se = self.step(turned_on_vfield)

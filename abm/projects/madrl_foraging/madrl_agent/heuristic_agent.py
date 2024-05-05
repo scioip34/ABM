@@ -50,6 +50,7 @@ class HeuristicAgent(Agent):
         self.last_exploit_time = 1
         self.total_reloc= 0
         self.total_discov= 0
+        self.action_tensor=torch.Tensor([2])
 
 
 

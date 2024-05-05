@@ -70,7 +70,7 @@ class MADRLAgent(Agent):
                 if train:
                     self.policy_network.load_model_train(model_path)
                 else:
-                    map_location = torch.device('cpu')
+                    map_location = device #torch.device('cpu')
                     checkpoint = torch.load(model_path, map_location)
                     try:
                         self.policy_network.q_network.load_state_dict(checkpoint['q_network_state_dict'],map_location)
@@ -111,7 +111,7 @@ class MADRLAgent(Agent):
 
         if self.get_mode()=="exploit":
             #print(f"Agent {self.id} gets novelity reward of {self.new_discovery}")
-            reward = 0.75 + 0.25 *self.new_discovery
+            reward = 1 #0.75 + 0.25 *self.new_discovery
 
 
         return reward
@@ -134,10 +134,10 @@ class MADRLAgent(Agent):
                 vel, theta = (-self.velocity * self.exp_stop_ratio, 0)
             else:
                 print(f"ERROR: Exploiting agent {self.id} is not on a resource patch, will relocate!")
-                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
+                vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field,v_desired=self.max_exp_vel)
 
         elif self.get_mode() == "relocate":
-            vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field)
+            vel, theta = supcalc.F_reloc_LR(self.velocity, self.soc_v_field, v_desired=self.max_exp_vel)
 
         if not self.is_moved_with_cursor:  # we freeze agents when we move them
             # updating agent's state variables according to calculated vel and theta

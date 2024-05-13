@@ -296,15 +296,22 @@ class MADRLSimulation(Simulation):
                     # Add the experience to the replay memory and train the agent
                 for ag in self.agents:
                     if self.train:
-                        for ag2 in self.agents:
-
-
+                        if done == True:
                             ag.policy_network.replay_memory.push(
-                                ag2.policy_network.state_tensor,
-                                ag2.policy_network.action_tensor,
-                                ag2.policy_network.next_state_tensor,
-                                ag2.policy_network.reward_tensor
+                                ag.policy_network.state_tensor,
+                                ag.policy_network.action_tensor,
+                                ag.policy_network.next_state_tensor,
+                                ag.policy_network.reward_tensor
                             )
+                        else:
+                            for ag2 in self.agents:
+
+                                ag.policy_network.replay_memory.push(
+                                    ag2.policy_network.state_tensor,
+                                    ag2.policy_network.action_tensor,
+                                    ag2.policy_network.next_state_tensor,
+                                    ag2.policy_network.reward_tensor
+                                )
                     #   if self.train and self.t % self.train_every == 0:
                         loss = ag.policy_network.optimize()
 

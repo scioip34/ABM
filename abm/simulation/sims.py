@@ -1,7 +1,7 @@
 import pygame
 import numpy as np
 import sys
-
+import random
 from abm.agent import supcalc
 from abm.agent.agent import Agent
 from abm.environment.rescource import Rescource
@@ -65,7 +65,7 @@ class Simulation:
                  vision_range=150, agent_fov=1.0, visual_exclusion=False, show_vision_range=False,
                  use_ifdb_logging=False, use_ram_logging=False, save_csv_files=False, ghost_mode=True,
                  patchwise_exclusion=True, parallel=False, use_zarr=True, allow_border_patch_overlap=False,
-                 agent_behave_param_list=None, collide_agents=True,seed=1):
+                 agent_behave_param_list=None, collide_agents=True, seed=None):
         """
         Initializing the main simulation instance
         :param N: number of agents
@@ -121,7 +121,10 @@ class Simulation:
         self.WIDTH = width
         self.HEIGHT = height
         self.window_pad = window_pad
-        np.random.seed(seed)
+        self.seed = seed
+        random.seed(seed)
+
+        np.random.seed(self.seed)
 
         self.allow_border_patch_overlap = allow_border_patch_overlap
 
@@ -706,7 +709,8 @@ class Simulation:
     def start(self):
 
         start_time = datetime.now()
-        print(f"Running simulation start method!")
+        #print(f"Running simulation start method with seed {self.seed}!")
+
 
         # Creating N agents in the environment
         print("Creating agents!")
@@ -723,7 +727,7 @@ class Simulation:
         # local var to decide when to show visual fields
         turned_on_vfield = 0
 
-        print("Starting main simulation loop!")
+        #print("Starting main simulation loop with seed ", self.seed)
         # Main Simulation loop until dedicated simulation time
         while self.t < self.T:
 

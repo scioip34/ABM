@@ -12,8 +12,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using devide: ",device)
 
 
-
-
 # Define experience tuple for replay memory
 Transition = namedtuple('Transition', ('state', 'action', 'next_state','reward'))
 class ReplayMemory(object):
@@ -28,36 +26,25 @@ class ReplayMemory(object):
     def sample(self, batch_size):
         return random.sample(self.memory, batch_size)
 
-
     def __len__(self):
         return len(self.memory)
-
 
 class DQNetwork(nn.Module):
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
 
         self.layer1 = nn.Linear(input_size, 512)
-        #self.ln1 = nn.LayerNorm(512)  # Layer normalization for layer1
-
         self.layer2 = nn.Linear(512, 256)
-        #self.ln2 = nn.LayerNorm(256)  # Layer normalization for layer2
-
         self.layer3 = nn.Linear(256, 128)
-        #self.ln3 = nn.LayerNorm(128)  # Layer normalization for layer3
-
         self.layer4 = nn.Linear(128, output_size)
 
         # Initialize weights
-        init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
-        init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
-        init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
-        init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
+        #init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, state):
-        #x = F.relu(self.ln1(self.layer1(state)))
-        #x = F.relu(self.ln2(self.layer2(x)))
-        #x = F.relu(self.ln3(self.layer3(x)))
         x = F.relu(self.layer1(state))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer3(x))
@@ -96,13 +83,14 @@ class DQNAgent:
         self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
         self.target_q_network.eval()
 
+
         # Optimizer
         if learning_params.optimizer=="ADAM":
             print("Using Adam")
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         else:
             print("Using RMSprop")
-            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr,weight_decay=1e-4)
+            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr)#,weight_decay=1e-4)
 
             # Replay memory
         self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
@@ -140,16 +128,15 @@ class DQNAgent:
 
             if len(self.legal_actions)==1:
 
-                self.action_tensor = torch.LongTensor([[self.legal_actions[0]]]).to(device)
+                self.action_tensor = torch.LongTensor([[0]]).to(device)
 
             else:
                 # Epsilon-greedy exploration
                 eps_threshold = self.epsilon_end + (self.epsilon_start - self.epsilon_end) * \
-                                    math.exp(-1. * self.steps_done / self.epsilon_decay)
+                                    math.exp(-self.steps_done / self.epsilon_decay)
 
 
                 if random.random() <= eps_threshold:
-                    #print("Choosing random action")
                     action = random.choice(self.legal_actions)
                 else:
                     with torch.no_grad():
@@ -237,7 +224,7 @@ class DQNAgent:
 
         # In-place gradient clipping
         #torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
-        torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 1.0)
+        #torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 1.0)
 
         self.optimizer.step()
         return loss.item()

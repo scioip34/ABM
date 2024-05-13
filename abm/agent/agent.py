@@ -473,8 +473,6 @@ class Agent(pygame.sprite.Sprite):
         # extracting obstacle coordinates
         obstacle_coords = [ob.position for ob in obstacles]
 
-
-
         # if non-social cues can visually exclude social ones we also concatenate these to the obstacle coords
         if non_expl_agents is not None:
             len_social = len(obstacles)
@@ -597,7 +595,6 @@ class Agent(pygame.sprite.Sprite):
         v_field_post = np.flip(v_field)
         v_field_post[phis < fov[0]] = 0
         v_field_post[phis > fov[1]] = 0
-
 
         return v_field_post
 

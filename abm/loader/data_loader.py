@@ -2090,6 +2090,7 @@ class ExperimentLoader:
             plt.plot(self.mean_iid)
             num_agents = self.iid_matrix.shape[-2]
             restr_m = self.iid_matrix[..., np.triu_indices(num_agents, k=1)[0], np.triu_indices(num_agents, k=1)[1]]
+
             for run_i in range(self.iid_matrix.shape[0]):
                 plt.plot(restr_m[run_i, :, :], marker=".", linestyle='None')
             ax.set_xticks(range(len(self.varying_params[list(self.varying_params.keys())[0]])))

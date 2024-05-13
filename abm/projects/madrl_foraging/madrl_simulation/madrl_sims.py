@@ -1,5 +1,7 @@
 import math
 import random
+import time
+
 import pygame
 import numpy as np
 import torch
@@ -14,6 +16,7 @@ from abm.simulation.sims import Simulation, notify_agent, refine_ar_overlap_grou
 
 
 from datetime import datetime
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -35,7 +38,8 @@ class MADRLSimulation(Simulation):
         self.num_episodes = learning_params.num_episodes
 
         seed = learning_params.seed
-        random.seed(seed)
+        #TODO: Put back random.seed()
+        #random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
 
@@ -115,9 +119,9 @@ class MADRLSimulation(Simulation):
 
                         # Agent is exploiting this patch
                         if agent.get_mode() == "exploit":
-                            if agent.id not in resc.agent_visits:
-                                agent.new_discovery = 1 / (1 + math.sqrt(len(resc.agent_visits)))
-                                resc.agent_visits.append(agent.id)
+                            #if agent.id not in resc.agent_visits:
+                            #    agent.new_discovery = 1 / (1 + math.sqrt(len(resc.agent_visits)))
+                            #    resc.agent_visits.append(agent.id)
 
 
                             # continue depleting the patch
@@ -204,8 +208,7 @@ class MADRLSimulation(Simulation):
                 # calculate number of resources left in the patch
                 resc = list(ag_resc_overlap.keys())[0]
                 ag.policy_network.state_tensor = torch.FloatTensor(
-                ag.soc_v_field.tolist() +[1.0] ).unsqueeze(0).to(device) #[resc.resc_left / resc.resc_units]
-
+                ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0)
             else:
                 ag.policy_network.state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
 
@@ -277,10 +280,10 @@ class MADRLSimulation(Simulation):
                             ag_resc_overlap = self.agent_resource_overlap([ag])
                             resc= list(ag_resc_overlap.keys())[0]
 
-                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [1.0]).unsqueeze(0).to(device)#[resc.resc_left/resc.resc_units]
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [resc.resc_left/resc.resc_units]).unsqueeze(0)
 
                         else:
-                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0).to(device)
+                            ag.policy_network.next_state_tensor = torch.FloatTensor(ag.soc_v_field.tolist() + [0.0]).unsqueeze(0)
 
                         # Calculate the reward as a weighted sum of the individual and collective search efficiency
                         reward = ag.compute_reward()
@@ -293,13 +296,15 @@ class MADRLSimulation(Simulation):
 
                     # Add the experience to the replay memory and train the agent
                     if self.train:
+
+
                         ag.policy_network.replay_memory.push(
                             ag.policy_network.state_tensor,
                             ag.policy_network.action_tensor,
                             ag.policy_network.next_state_tensor,
                             ag.policy_network.reward_tensor
                         )
-                    if self.train and self.t % self.train_every == 0:
+                    #   if self.train and self.t % self.train_every == 0:
                         loss = ag.policy_network.optimize()
 
                         # Update the target network with soft updates
@@ -307,16 +312,6 @@ class MADRLSimulation(Simulation):
 
 
                         if loss is not None:
-                            '''
-                            if math.isinf(loss):
-                                print(f"Loss is infinity at timestep {self.t}!")
-                            elif math.isnan(loss):
-                                print(f"Loss is not a number (nan) at timestep {self.t}!")
-                            elif loss < 0:
-                                print(f"Loss is negative at timestep {self.t}!")
-                            elif loss > 40 and ag.id == 1:
-                                print(f"Loss of agent 1 is {loss} at timestep {self.t}!")
-                            '''
 
                             writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
                         elif ag.policy_network.steps_done > ag.policy_network.batch_size:
@@ -328,12 +323,12 @@ class MADRLSimulation(Simulation):
                     ag.policy_network.last_action = ag.policy_network.action_tensor.item()
                 # move to next simulation timestep (only when not paused)
                 self.t += 1
-
+                #time.sleep(600)
 
                 if self.save_in_ram:
                     ifdb.save_agent_data_RAM(self.agents, self.t)
                     ifdb.save_resource_data_RAM(self.rescources, self.t)
-            #pause for 10mins
+
 
 
 
@@ -347,6 +342,9 @@ class MADRLSimulation(Simulation):
             for resc in self.rescources:
                 self.kill_resource(resc)
             self.t=0
+
+
+
             print(f"Episode {episode} ended with collective search efficiency: ", collective_se)
 
         # Save the models

@@ -110,7 +110,11 @@ def start(parallel=True, headless=False):
         sim = Simulation(parallel=parallel,**sim_params)
 
         #sim.write_batch_size = 100
-        _ = sim.start_madqn()
+        if envconf["BRAIN_TYPE"] == "ideal":
+            _ = sim.start_heuristic()
+        else:
+            _ = sim.start_madqn()
+
 
 if __name__ == '__main__':
     start()

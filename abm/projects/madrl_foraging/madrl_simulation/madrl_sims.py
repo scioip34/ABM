@@ -38,8 +38,7 @@ class MADRLSimulation(Simulation):
         self.num_episodes = learning_params.num_episodes
 
         seed = learning_params.seed
-        #TODO: Put back random.seed()
-        #random.seed(seed)
+        random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
 

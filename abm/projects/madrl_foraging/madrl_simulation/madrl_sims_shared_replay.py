@@ -294,9 +294,11 @@ class MADRLSimulation(Simulation):
                     ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
 
                     # Add the experience to the replay memory and train the agent
-                if self.train:
-                    for ag in self.agents:
+                for ag in self.agents:
+                    if self.train:
                         for ag2 in self.agents:
+
+
                             ag.policy_network.replay_memory.push(
                                 ag2.policy_network.state_tensor,
                                 ag2.policy_network.action_tensor,

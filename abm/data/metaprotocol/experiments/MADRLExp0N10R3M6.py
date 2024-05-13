@@ -43,7 +43,7 @@ criteria_exp = [
     Constant("TAU", 0.01),
     Constant("OPTIMIZER", "RMSPROP"),
     Constant("PRETRAINED_MODELS_DIR", ""),
-    Constant("BRAIN_TYPE", "DDQN"),
+    Constant("BRAIN_TYPE", "DQN"),
     #Constant("ISE_W", 1.0),
     #Constant("CSE_W", 0.0),
     #Constant("TP", 0),

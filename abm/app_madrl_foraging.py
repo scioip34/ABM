@@ -93,7 +93,7 @@ def start(parallel=True, headless=False):
     if envconf["BRAIN_TYPE"] == "ideal":
         from abm.projects.madrl_foraging.madrl_simulation.heuristic_sims import HeuristicSimulation as Simulation
     else:
-        from abm.projects.madrl_foraging.madrl_simulation.madrl_sims_shared_replay import MADRLSimulation as Simulation
+        from abm.projects.madrl_foraging.madrl_simulation.madrl_sims import MADRLSimulation as Simulation
 
     vscreen_width = int(envconf["ENV_WIDTH"]) + 2 * int(envconf["WINDOW_PAD"]) + 10
     vscreen_height = int(envconf["ENV_HEIGHT"]) + 2 * int(envconf["WINDOW_PAD"]) + 10

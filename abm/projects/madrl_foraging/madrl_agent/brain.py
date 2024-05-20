@@ -130,8 +130,7 @@ class DQNAgent:
             if len(self.legal_actions)==1:
 
                 self.action_tensor = torch.LongTensor([[0]]).to(device)
-            if 1 in self.legal_actions:
-                self.action_tensor = torch.LongTensor([[1]]).to(device)
+
 
             else:
                 # Epsilon-greedy exploration

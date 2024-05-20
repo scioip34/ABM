@@ -112,6 +112,7 @@ class DQNAgent:
 
         if env_status > 0.0 :
             self.legal_actions.append(1)
+
         if soc_v_field.sum() != 0 and self.last_action != 1 and env_status==0.0 :
             self.legal_actions.append(2)
 
@@ -129,6 +130,8 @@ class DQNAgent:
             if len(self.legal_actions)==1:
 
                 self.action_tensor = torch.LongTensor([[0]]).to(device)
+            if 1 in self.legal_actions:
+                self.action_tensor = torch.LongTensor([[1]]).to(device)
 
             else:
                 # Epsilon-greedy exploration

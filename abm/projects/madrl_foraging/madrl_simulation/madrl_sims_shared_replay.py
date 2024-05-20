@@ -312,7 +312,7 @@ class MADRLSimulation(Simulation):
                                     ag2.policy_network.next_state_tensor,
                                     ag2.policy_network.reward_tensor
                                 )
-                    #   if self.train and self.t % self.train_every == 0:
+                    if self.train and self.t % self.train_every == 0:
                         loss = ag.policy_network.optimize()
 
                         # Update the target network with soft updates
@@ -326,7 +326,7 @@ class MADRLSimulation(Simulation):
                             print(f"Loss is None at timestep {self.t}!")
 
                         # Move to the next training step
-                        ag.policy_network.steps_done += 1
+                    ag.policy_network.steps_done += 1
                     ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
                     ag.policy_network.last_action = ag.policy_network.action_tensor.item()
                 # move to next simulation timestep (only when not paused)

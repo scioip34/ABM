@@ -530,12 +530,31 @@ class Simulation:
                 self.agents.add(agent)
                 agent_proven = True
 
+    '''
     def create_agents(self):
         """Creating agents according to how the simulation class was initialized"""
         for i in range(self.N):
             # allowing agents to overlap arena borders (maximum overlap is radius of patch)
             x = np.random.randint(self.window_pad - self.agent_radii, self.WIDTH + self.window_pad - self.agent_radii)
             y = np.random.randint(self.window_pad - self.agent_radii, self.HEIGHT + self.window_pad - self.agent_radii)
+            orient = np.random.uniform(0, 2 * np.pi)
+            if not self.heterogen_agents:
+                # create agents according to environment variables homogeneously
+                self.add_new_agent(i, x, y, orient)
+            else:
+                self.add_new_agent(i, x, y, orient, behave_params=self.agent_behave_param_list[i])
+    '''
+
+
+    def create_agents(self):
+        """Creating agents according to how the simulation class was initialized"""
+        center_x = self.WIDTH // 2
+        center_y = self.HEIGHT // 2
+
+        for i in range(self.N):
+            # All agents will be placed at the center of the grid
+            x = center_x
+            y = center_y
             orient = np.random.uniform(0, 2 * np.pi)
             if not self.heterogen_agents:
                 # create agents according to environment variables homogeneously

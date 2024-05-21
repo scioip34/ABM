@@ -13,7 +13,7 @@ from abm.projects.madrl_foraging.madrl_agent import madrl_supcalc as supcalc
 import matplotlib.pyplot as plt
 
 #matplotlib.use('agg')
-from abm.projects.madrl_foraging.madrl_agent.brain import DQNAgent, DDQNAgent
+from abm.projects.madrl_foraging.madrl_agent.brain import DQNAgent
 from abm.agent.agent import Agent
 from abm.projects.madrl_foraging.madrl_contrib import madrl_learning_params as learning_params
 
@@ -53,13 +53,7 @@ class MADRLAgent(Agent):
         self.total_discov= 0
         self.new_discovery = 0
         #create the policy network
-        if learning_params.brain_type == "DQN":
-            print("DQN Agent")
-            self.policy_network = DQNAgent(state_size=self.v_field_res+ 1, action_size=3)
-        elif learning_params.brain_type == "DDQN":
-            print("DDQN Agent")
-
-            self.policy_network = DDQNAgent(state_size=self.v_field_res+ 1, action_size=3)
+        self.policy_network = DQNAgent(state_size=self.v_field_res+ 1, action_size=3)
 
         if learning_params.pretrained and learning_params.pretrained_models_dir!="":
                 print("Loading pretrained model")
@@ -248,8 +242,10 @@ class MADRLAgent(Agent):
             Reset relevant values of the agent after each train episode.
             """
             # Reset position and orientation
-            x=np.random.randint(self.window_pad - self.radius, self.WIDTH + self.window_pad - self.radius)
-            y=np.random.randint(self.window_pad - self.radius, self.HEIGHT + self.window_pad - self.radius)
+            #x=np.random.randint(self.window_pad - self.radius, self.WIDTH + self.window_pad - self.radius)
+            #y=np.random.randint(self.window_pad - self.radius, self.HEIGHT + self.window_pad - self.radius)
+            x = self.WIDTH // 2
+            y = self.HEIGHT // 2
             self.position = np.array((x,y), dtype=np.float64)
             self.orientation = np.random.uniform(0, 2 * np.pi)
             # Reset agent state variables

@@ -39,10 +39,10 @@ class DQNetwork(nn.Module):
         self.layer4 = nn.Linear(128, output_size)
 
         # Initialize weights
-        #init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
-        #init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
-        #init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
-        #init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer1.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer2.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer3.weight, mode='fan_in', nonlinearity='relu')
+        init.kaiming_uniform_(self.layer4.weight, mode='fan_in', nonlinearity='relu')
 
     def forward(self, state):
         x = F.relu(self.layer1(state))
@@ -207,8 +207,17 @@ class DQNAgent:
         # This is merged based on the mask, such that we'll have either the expected
         # state value or 0 in case the state was final.
         next_state_values = torch.zeros(self.batch_size, device=device)
-        with torch.no_grad():
-            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).detach().max(1).values
+        if self.brain_type=="DDQN":
+            # Double DQN update
+            if sum(non_final_mask) > 0:
+                next_state_actions = self.q_network(non_final_next_states).max(1)[1].unsqueeze(1)
+                next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).gather(1,
+                                                                                                        next_state_actions).squeeze().detach()
+        else:
+            # Standard DQN update
+            with torch.no_grad():
+                next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).detach().max(1).values
+
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
 
@@ -238,41 +247,4 @@ class DQNAgent:
         for key in policy_net_state_dict:
             target_net_state_dict[key] = policy_net_state_dict[key]*self.tau + target_net_state_dict[key]*(1-self.tau)
         self.target_q_network.load_state_dict(target_net_state_dict)
-
-class DDQNAgent(DQNAgent):
-    def __init__(self, state_size, action_size):
-        super().__init__(state_size, action_size)
-
-    def optimize(self):
-        if len(self.replay_memory) < self.batch_size:
-            return None
-
-        transitions = self.replay_memory.sample(self.batch_size)
-        batch = Transition(*zip(*transitions))
-
-        non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                                batch.next_state)), device=device, dtype=torch.bool)
-        non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
-        state_batch = torch.cat(batch.state)
-        action_batch = torch.cat(batch.action)
-        reward_batch = torch.cat(batch.reward)
-
-        state_action_values = self.q_network(state_batch).gather(1, action_batch)
-
-        # DDQN changes
-        next_state_values = torch.zeros(self.batch_size, device=device)
-        if sum(non_final_mask) > 0:
-            next_state_actions = self.q_network(non_final_next_states).max(1)[1].unsqueeze(1)  # Use q_network to select actions
-            next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).gather(1, next_state_actions).squeeze().detach()  # Use target_q_network to evaluate the value of selected actions
-
-        expected_state_action_values = (next_state_values * self.gamma) + reward_batch
-
-        loss = F.mse_loss(state_action_values, expected_state_action_values.unsqueeze(1))
-
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 1.0)
-        self.optimizer.step()
-
-        return loss.item()
 

@@ -18,6 +18,8 @@ num_patches = [3]
 num_agents = [3]
 reloc_speed = [3.0]
 reloc_th = [2.0]
+seed = [0]
+optimizers = ["ADAM", "RMSPROP"]
 
 criteria_exp = [
 
@@ -27,10 +29,10 @@ criteria_exp = [
     Constant("WINDOW_PAD", 30),
     Constant("N_EPISODES", 100),
     Constant("T", 20000),
-    Constant("SEED", 0),
+    Tunable("SEED", values_override=seed),
     Constant("TRAIN", 1),
     Constant("TRAIN_EVERY", 5),
-    Constant("PRETRAINED", 1),
+    Constant("PRETRAINED", 0),
     Constant("BATCH_SIZE", 128),
     Constant("REPLAY_MEMORY_CAPACITY", 50000),
     Constant("GAMMA", 0.99),
@@ -39,7 +41,7 @@ criteria_exp = [
     Constant("EPSILON_END", 0.01),
     Constant("EPSILON_DECAY", 50000),
     Constant("TAU", 0.01),
-    Constant("OPTIMIZER", "ADAM"),
+    Tunable("OPTIMIZER", values_override=optimizers),
     Constant("PRETRAINED_MODELS_DIR", ""),
     Constant("BRAIN_TYPE", "DQN"),
     #Constant("ISE_W", 1.0),

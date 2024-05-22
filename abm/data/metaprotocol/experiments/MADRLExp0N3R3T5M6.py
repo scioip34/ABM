@@ -27,7 +27,7 @@ criteria_exp = [
     Constant("ENV_WIDTH", 500),
     Constant("ENV_HEIGHT", 500),
     Constant("WINDOW_PAD", 30),
-    Constant("N_EPISODES", 100),
+    Constant("N_EPISODES", 50),
     Constant("T", 20000),
     Tunable("SEED", values_override=seed),
     Constant("TRAIN", 1),

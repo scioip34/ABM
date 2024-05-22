@@ -41,7 +41,7 @@ criteria_exp = [
     Constant("GAMMA", 0.99),
     Constant("LR", 1e-05),
     Constant("EPSILON_START", 1.0),
-    Constant("EPSILON_END", 0.01),
+    Constant("EPSILON_END", 0.001),
     Constant("EPSILON_DECAY", 50000),
     Constant("TAU", 0.01),
     Tunable("OPTIMIZER", values_override=optimizers),

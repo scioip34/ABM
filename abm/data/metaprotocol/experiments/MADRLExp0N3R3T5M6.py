@@ -36,7 +36,7 @@ criteria_exp = [
     Constant("BATCH_SIZE", 128),
     Constant("REPLAY_MEMORY_CAPACITY", 50000),
     Constant("GAMMA", 0.99),
-    Constant("LR", 1e-05),
+    Constant("LR", 1e-06),
     Constant("EPSILON_START", 1.0),
     Constant("EPSILON_END", 0.001),
     Constant("EPSILON_DECAY", 50000),

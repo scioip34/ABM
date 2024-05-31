@@ -127,11 +127,9 @@ class DQNAgent:
             self.action_tensor = self.select_action_random(state)
         elif self.brain_type=="DQN" or self.brain_type=="DDQN":
 
-            if len(self.legal_actions)==1:
+            if len(self.legal_actions)==1 and self.legal_actions[0]==0:
 
                 self.action_tensor = torch.LongTensor([[0]]).to(device)
-            if 1 in self.legal_actions:
-                self.action_tensor = torch.LongTensor([[1]]).to(device)
 
 
             else:
@@ -154,6 +152,7 @@ class DQNAgent:
                                     break
 
                 self.action_tensor=torch.LongTensor([[action]]).to(device)
+
         return self.action_tensor
 
     def save_model(self, filename):

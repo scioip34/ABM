@@ -1,3 +1,34 @@
+"""
+BSD 3-Clause License
+
+Copyright (c) 2017-2022, Pytorch contributors
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+* Redistributions of source code must retain the above copyright notice, this
+  list of conditions and the following disclaimer.
+
+* Redistributions in binary form must reproduce the above copyright notice,
+  this list of conditions and the following disclaimer in the documentation
+  and/or other materials provided with the distribution.
+
+* Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
 import math
 import torch
 import torch.nn as nn
@@ -15,23 +46,27 @@ print("Using devide: ",device)
 # Define experience tuple for replay memory
 Transition = namedtuple('Transition', ('state', 'action', 'next_state','reward'))
 class ReplayMemory(object):
+    '''Shared replay memory'''
 
     def __init__(self, capacity):
         self.memory = deque([], maxlen=capacity)
 
     def push(self, *args):
-        """Save a transition"""
+        """Saving a transition"""
         self.memory.append(Transition(*args))
 
     def sample(self, batch_size):
+        """Sampling a random batch of transitions"""
         return random.sample(self.memory, batch_size)
 
     def __len__(self):
         return len(self.memory)
 
 class DQNetwork(nn.Module):
+    """Deep Q-network with 2 hidden layers, ReLU activation functions and Kaiming initialization."""
     def __init__(self, input_size, output_size):
         super(DQNetwork, self).__init__()
+
 
         self.layer1 = nn.Linear(input_size, 512)
         self.layer2 = nn.Linear(512, 256)
@@ -51,8 +86,8 @@ class DQNetwork(nn.Module):
         output = self.layer4(x)
         return output
 
-# Define the DQN agent with replay memory
 class DQNAgent:
+
     def __init__(self, state_size, action_size):
         self.id = id
         self.state_size = state_size
@@ -77,58 +112,80 @@ class DQNAgent:
         self.brain_type = learning_params.brain_type
         self.last_action = -1
 
-        # Q-network and target Q-network
-        self.q_network = DQNetwork(state_size, action_size).to(device)
-        self.target_q_network = DQNetwork(state_size, action_size).to(device)
-        self.target_q_network.load_state_dict(self.q_network.state_dict())  # Initialize target network with the same weights
-        self.target_q_network.eval()
+        # Initializing the current ant target DQN networks
+        if self.brain_type=="DDQN" or self.brain_type=="DQN":
+            self.current_network = DQNetwork(state_size, action_size).to(device)
+            self.target_network = DQNetwork(state_size, action_size).to(device)
+            self.target_network.load_state_dict(self.current_network.state_dict())  # Initialize target network with the same weights
+            self.target_network.eval()
 
 
-        # Optimizer
-        if learning_params.optimizer=="ADAM":
-            print("Using Adam")
-            self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
-        else:
-            print("Using RMSprop")
-            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=self.lr)#,weight_decay=1e-4)
 
-            # Replay memory
-        self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
+            # Initializing the optimizer (Adam or RmsProp )
+            if learning_params.optimizer=="ADAM":
+                print("Using Adam")
+                self.optimizer = optim.Adam(self.current_network.parameters(), lr=self.lr)
+            else:
+                print("Using RMSprop")
+                self.optimizer = optim.RMSprop(self.current_network.parameters(), lr=self.lr)#,weight_decay=1e-4)
 
-        self.legal_actions = None
+            # Initialize the replay memory
+            #self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
 
 
-    def select_action_random(self, state):
-        legal_actions = self.get_legal_actions(state)
-        action = random.choice(legal_actions)
-        self.action_tensor=torch.LongTensor([[action]])
-        return self.action_tensor
+
 
     def get_legal_actions(self,state):
+        """Get legal actions based on the state of the agent.
+        """
+        # Extract the social and personal information from the state
         soc_v_field = state[0][:-1]
         env_status = state[0][-1]
 
-        self.legal_actions = [0]
+        # Exploration is always a legal option
+        legal_actions = [0]
 
+        # Exploitation is only legal if the agent is overlapping with a non-empty patch
         if env_status > 0.0 :
-            self.legal_actions.append(1)
+            legal_actions.append(1)
 
-        if soc_v_field.sum() != 0 and self.last_action != 1 and env_status==0.0 :
-            self.legal_actions.append(2)
+        # Relocation is only legal if the agent visual field is non-empty and the agent himself is not exploiting
+        if (soc_v_field.sum() != 0 and
+                (self.brain_type=="ideal" or (self.brain_type!="ideal" and  self.last_action != 1 and env_status==0.0))) :
+            legal_actions.append(2)
 
-        return self.legal_actions
+
+        return legal_actions
+
+
 
 
     def select_action(self, state):
+        """Select an action based on the state of the agent."""
 
-        _ = self.get_legal_actions(state)
-
+        # Getting the legal actions for this specific state
+        legal_actions = self.get_legal_actions(state)
+        # If the agent follows a random policy the action is selected randomly
         if self.brain_type=="random":
-            self.action_tensor = self.select_action_random(state)
+            action = random.choice(legal_actions)
+            self.action_tensor = torch.LongTensor([[action]])
+
+        # If the agent follows an ideal policy the action is selected based on the following rules:
+        # He exploits if he is overlapping with a non-empty patch until its depletion
+        # He relocates to the nearest patch if he is not exploiting
+        elif self.brain_type =="ideal":
+            if 1 in legal_actions:
+                action = 1
+            elif 2 in legal_actions:
+                action = 2
+            self.action_tensor = torch.LongTensor([[action]])
+
+        # If the agent follows a DQN or DDQN policy
+        # the action is selected based on the Q-values of the current network
+        # and the epsilon-greedy policy
         elif self.brain_type=="DQN" or self.brain_type=="DDQN":
 
-            if len(self.legal_actions)==1 and self.legal_actions[0]==0:
-
+            if len(legal_actions)==1 and legal_actions[0]==0:
                 self.action_tensor = torch.LongTensor([[0]]).to(device)
 
 
@@ -139,15 +196,15 @@ class DQNAgent:
 
 
                 if random.random() <= eps_threshold:
-                    action = random.choice(self.legal_actions)
+                    action = random.choice(legal_actions)
                 else:
                     with torch.no_grad():
-                        q_values = self.q_network(state).detach()
+                        q_values = self.current_network(state).detach()
 
                         indices_descending_order = torch.argsort(q_values,descending=True)[0]
 
                         for ind in indices_descending_order:
-                                if ind in self.legal_actions:
+                                if ind in legal_actions:
                                     action = ind
                                     break
 
@@ -156,9 +213,13 @@ class DQNAgent:
         return self.action_tensor
 
     def save_model(self, filename):
+        """
+        Saving the models and the optimizer parameters
+        Args: filename: the path where the model will be saved
+        """
         checkpoint = {
-            'q_network_state_dict': self.q_network.state_dict(),
-            'target_q_network_state_dict': self.target_q_network.state_dict(),
+            'q_network_state_dict': self.current_network.state_dict(),
+            'target_q_network_state_dict': self.target_network.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'steps_done': self.steps_done,
             # Add other parameters you want to save
@@ -168,18 +229,28 @@ class DQNAgent:
         print("Model and parameters saved successfully.")
 
     def load_model_train(self, filename):
+        """
+        Loading the models and the optimizer parameters
+        Args: filename: the path from where the model is loaded
+        """
         checkpoint = torch.load(filename)
-        self.q_network.load_state_dict(checkpoint['q_network_state_dict'])
-        self.target_q_network.load_state_dict(checkpoint['target_q_network_state_dict'])
+        self.current_network.load_state_dict(checkpoint['q_network_state_dict'])
+        self.target_network.load_state_dict(checkpoint['target_q_network_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.steps_done = checkpoint['steps_done']
         print("Model and parameters loaded successfully.")
 
-    def optimize(self):
-        if len(self.replay_memory)< self.batch_size:
+    def optimize(self,replay_memory):
+        """
+        Optimize the Deep Q-network using the MSE loss
+        Args: replay_memory: the shared replay memory
+        """
+
+        # Only optimize the model if the replay memory has at least the batch size
+        if len(replay_memory)< self.batch_size:
             return None
 
-        transitions = self.replay_memory.sample(self.batch_size)
+        transitions = replay_memory.sample(self.batch_size)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions
         # to Transition of batch-arrays.
@@ -199,7 +270,7 @@ class DQNAgent:
         # columns of actions taken. These are the actions which would've been taken
         # for each batch state according to policy_net
 
-        state_action_values = self.q_network(state_batch).gather(1, action_batch)
+        state_action_values = self.current_network(state_batch).gather(1, action_batch)
 
         # Compute V(s_{t+1}) for all next states.
 
@@ -209,15 +280,15 @@ class DQNAgent:
         # state value or 0 in case the state was final.
         next_state_values = torch.zeros(self.batch_size, device=device)
         if self.brain_type=="DDQN":
-            # Double DQN update
+            # DDQN update
             if sum(non_final_mask) > 0:
-                next_state_actions = self.q_network(non_final_next_states).max(1)[1].unsqueeze(1)
-                next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).gather(1,
-                                                                                                        next_state_actions).squeeze().detach()
+                next_state_actions = self.current_network(non_final_next_states).max(1)[1].unsqueeze(1)
+                next_state_values[non_final_mask] = self.target_network(non_final_next_states).gather(1,
+                                                                                                      next_state_actions).squeeze().detach()
         else:
             # Standard DQN update
             with torch.no_grad():
-                next_state_values[non_final_mask] = self.target_q_network(non_final_next_states).detach().max(1).values
+                next_state_values[non_final_mask] = self.target_network(non_final_next_states).detach().max(1).values
 
         # Compute the expected Q values
         expected_state_action_values = (next_state_values * self.gamma) + reward_batch
@@ -229,23 +300,19 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
 
-        # Print or log gradients
-        #for name, param in self.q_network.named_parameters():
-        #    if param.grad is not None:
-        #        print(f'Gradient {name}: {param.grad.norm().item()}')
-
         # In-place gradient clipping
-        #torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), 7.0)
-        #torch.nn.utils.clip_grad_value_(self.q_network.parameters(), 1.0)
+        #torch.nn.utils.clip_grad_value_(self.current_network.parameters(), 1.0)
 
         self.optimizer.step()
         return loss.item()
 
     def update_target_network(self):
-        # Update target Q-network by copying the weights from the current Q-network
-        target_net_state_dict = self.target_q_network.state_dict()
-        policy_net_state_dict = self.q_network.state_dict()
+        '''
+           Updating target Deep Q-network by copying the weights from the current Deep Q-network with Soft Update
+        '''
+        target_net_state_dict = self.target_network.state_dict()
+        policy_net_state_dict = self.current_network.state_dict()
         for key in policy_net_state_dict:
             target_net_state_dict[key] = policy_net_state_dict[key]*self.tau + target_net_state_dict[key]*(1-self.tau)
-        self.target_q_network.load_state_dict(target_net_state_dict)
+        self.target_network.load_state_dict(target_net_state_dict)
 

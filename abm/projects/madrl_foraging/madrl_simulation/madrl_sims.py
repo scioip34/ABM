@@ -12,7 +12,8 @@ from abm.projects.madrl_foraging.madrl_agent.madrl_agent import MADRLAgent as Ag
 from abm.contrib import colors,ifdb_params as logging_params
 from abm.projects.madrl_foraging.madrl_contrib import madrl_learning_params as learning_params
 from abm.simulation.sims import Simulation, notify_agent, refine_ar_overlap_group
-
+from abm.agent.supcalc import distance
+from abm.projects.madrl_foraging.madrl_agent.brain import ReplayMemory
 
 
 from datetime import datetime
@@ -24,23 +25,31 @@ class MADRLSimulation(Simulation):
     def __init__(self, **kwargs):
         """
         Inherited from Simulation class
-
-        :param train: boolean, if true the simulation will be ran in training mode, if false in evaluation mode
-        :param train_every: int, number of timesteps after which the agent will be trained
-        :param num_episodes: int, number of training episodes, if in evaluation it is set to 1
-
+        :param kwargs: Dictionary of simulation parameters
         """
         super().__init__(**kwargs)
 
-        self.train=learning_params.train
-        self.train_every = learning_params.train_every
+        # Setting the type of brain used in the simulation (DQN, DDQN, ideal, random)
+        self.brain_type = learning_params.brain_type
 
-        self.num_episodes = learning_params.num_episodes
+        # Settinng the number of episodes and the training flag
+        if self.brain_type =="ideal" or self.brain_type =="random":
+            self.train=False
+            self.num_episodes=1
+        else:
+            self.train=learning_params.train
+            self.train_every = learning_params.train_every
+            self.num_episodes = learning_params.num_episodes
 
+        # Setting the seed for reproducibility
         seed = learning_params.seed
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+
+        # Initializing the shared replay memory
+        self.replay_memory = ReplayMemory(learning_params.replay_memory_capacity)
+
 
 
     def add_new_agent(self, id, x, y, orient, with_proove=False, behave_params=None):
@@ -65,7 +74,7 @@ class MADRLSimulation(Simulation):
                     visual_exclusion=self.visual_exclusion,
                     patchwise_exclusion=self.patchwise_exclusion,
                     behave_params=None,
-                train=self.train,
+                train=self.train
                 )
             if with_proove:
                 if self.proove_sprite(agent):
@@ -76,6 +85,7 @@ class MADRLSimulation(Simulation):
                 agent_proven = True
 
     def agent_resource_overlap(self, agents):
+        """Checking for spatial overlap between agents and resource patches"""
         collision_group_ar = pygame.sprite.groupcollide(
             self.rescources,
             agents,
@@ -89,8 +99,24 @@ class MADRLSimulation(Simulation):
 
         return collision_group_ar
 
+    def assign_resources_to_agents(self):
+        """Assigning the closest resource patch to each agent, only relevant for ideal agents"""
 
+        for ag in sorted(self.agents, key=lambda x: min(
+                distance(x, res) for res in self.rescources)):
+
+            ag.closest_patch = None
+            smallest_dist = float('inf')
+
+            for res in self.rescources:
+                    tmp = distance(ag, res)
+                    if tmp < smallest_dist:
+                        smallest_dist = tmp
+                        ag.closest_patch = res
     def agent2resource_interaction(self,  collided_agents):
+        """Updating the resources and notifying agents about the resource patches
+        :param collided_agents: List of agents that are spatially colliding with each other
+        """
         collision_group_ar = self.agent_resource_overlap(self.agents)
 
         # collecting agents that are on resource patch
@@ -118,10 +144,6 @@ class MADRLSimulation(Simulation):
 
                         # Agent is exploiting this patch
                         if agent.get_mode() == "exploit":
-                            #if agent.id not in resc.agent_visits:
-                            #    agent.new_discovery = 1 / (1 + math.sqrt(len(resc.agent_visits)))
-                            #    resc.agent_visits.append(agent.id)
-
 
                             # continue depleting the patch
                             depl_units, destroy_resc = resc.deplete(agent.consumption)
@@ -130,12 +152,15 @@ class MADRLSimulation(Simulation):
 
                             # remember the time of last exploitation
                             if destroy_resc:  # consumed unit was the last in the patch
-                                # print(f"Agent {agent.id} has depleted the patch all agents must be notified that"
-                                #       f"there are no more units before the next timestep, otherwise they stop"
-                                #       f"exploiting with delays")
+
+                                if self.brain_type=="ideal":
+                                    notify_agent(agent, -1)
+
                                 for agent_tob_notified in agents:
                                     # print("C notify agent NO res ", agent_tob_notified.id)
                                     notify_agent(agent_tob_notified, -1)
+                                    if self.brain_type == "ideal":
+                                        agent_tob_notified.exploited_patch = None
 
                     # Collect all agents on resource patches
                     agents_on_rescs.append(agent)
@@ -156,27 +181,36 @@ class MADRLSimulation(Simulation):
                     elif agent.get_mode() == "exploit":
                         notify_agent(agent, -1)
 
-
         # Update resource patches
         self.rescources.update()
 
     def step(self,turned_on_vfield):
-        # order the agents by id to ensure that agent 0 has priority over agent 1 and agent 1 over agent 2
+        """
+        Executing the agents action,  update the agents and resources, and draw the environment
+        :param turned_on_vfield: Flag to indicate if the visual fields should be shown
+        """
 
         # Update internal states of the agents and their positions
         self.agents.update(self.agents)
 
-        # Check for agent-agent collisions
+        # Check for agent-agent collisions (Turned off for this simulation)
         # collided_agents = self.agent2agent_interaction()
         collided_agents = []
 
         # Check for agent-resource interactions and update the resource patches
         self.agent2resource_interaction(collided_agents)
 
+        if self.brain_type == "ideal":
+            self.assign_resources_to_agents()
+            for ag in self.agents:
+                ag.calc_social_V_proj([ag.closest_patch])
+                ag.search_efficiency = ag.collected_r / self.t if self.t != 0 else 0
 
-        for ag in self.agents:
-            ag.calc_social_V_proj(self.agents)
-            ag.search_efficiency = ag.collected_r / self.t if self.t != 0 else 0
+        else:
+            for ag in self.agents:
+                ag.calc_social_V_proj(self.agents)
+                ag.search_efficiency = ag.collected_r / self.t if self.t != 0 else 0
+
         collective_se = sum(ag.search_efficiency for ag in self.agents) / len(
             self.agents)
 
@@ -191,20 +225,27 @@ class MADRLSimulation(Simulation):
 
 
     def initialize_environment(self):
+        """Initialize the environment for the simulation, including the agents and resources"""
+        if self.brain_type=="ideal":
+            self.assign_resources_to_agents()
+
+
         for ag in self.agents:
-            # Check for agent-agent collisions
+            # Check for agent-agent collisions (Turned off for this simulation)
             # collided_agents = self.agent2agent_interaction()
 
             # Check for agent-resource interactions and update the resource patches
             ag_resc_overlap = self.agent_resource_overlap([ag])
             if len(ag_resc_overlap) > 0:
                 ag.env_status = 1
-
-            ag.calc_social_V_proj(self.agents)
+            if self.brain_type=="ideal":
+                ag.calc_social_V_proj([ag.closest_patch])
+            else:
+                ag.calc_social_V_proj(self.agents)
             # Concatenate the resource signal array for the state tensor (The social visual field (1D array )+ the
             # environment status (Scalar))
             if ag.env_status == 1:
-                # calculate number of resources left in the patch
+                # Calculating number of resources left in the patch
                 resc = list(ag_resc_overlap.keys())[0]
                 ag.policy_network.state_tensor = torch.FloatTensor(
                 ag.soc_v_field.tolist() + [resc.resc_left / resc.resc_units]).unsqueeze(0).to(device)
@@ -228,20 +269,31 @@ class MADRLSimulation(Simulation):
         # Create a directory to save the data (models and tensorboard logs)
         save_dir = logging_params.TIMESTAMP_SAVE_DIR
 
+        # Create a tensorboard writer to log the training process and hyperparameters
         writer = SummaryWriter(save_dir)
-        writer.add_text('Hyperparameters',
-                        f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, '
-                        f'\n Epsilon End: {learning_params.epsilon_end}, \n'
-                        f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning '
-                        f'Rate: {learning_params.lr}',
-                        0)
+        if self.brain_type=="DQN" or self.brain_type=="DDQN":
+
+            writer.add_text('Hyperparameters',
+                            f'Gamma: {learning_params.gamma}, \n Epsilon Start: {learning_params.epsilon_start}, '
+                            f'\n Epsilon End: {learning_params.epsilon_end}, \n'
+                            f'Epsilon Decay: {learning_params.epsilon_decay},\n Tau: {learning_params.tau},\n Learning '
+                            f'Rate: {learning_params.lr}',
+                            0)
+
+
+            mode = "training" if self.train else "evaluation"
+
+
+            print(f"Starting main simulation loop with {self.brain_type} with {len(self.agents)} {mode} agents and {len(self.rescources)} resources \n "
+              f"Saving data to {save_dir}!")
+
+        else:
+            print(f"Starting main simulation loop with {len(self.agents)} {self.brain_type} agents and {len(self.rescources)} resources")
 
         turned_on_vfield = 0
-
-        mode = "training" if self.train else "evaluation"
-        print(f"Starting main simulation loop in MADQN in {mode} with {len(self.agents)} agents and {len(self.rescources)} resources \n "
-              f"Saving data to {save_dir}!")
+        # Starting main simulation loop
         for episode in range(self.num_episodes ):
+
             # Create a variable to indicate if the simulation is done
             done= False
             self.initialize_environment()
@@ -249,30 +301,23 @@ class MADRLSimulation(Simulation):
             print("Starting episode: ",episode)
 
             while self.t < self.T:
-                # Indicate that the simulation is not done
+
                 if self.t==self.T-1:
                     done = True
 
-                # Agent 0 always has riority over agent 1 and agent 1 over agent 2
-                # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-                # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed
-                # to deplete the patch, followed by agent 1, then agent 2
-                # If the three of them are on the same patch, and there are not enough resources agent 0 will be allowed to deplete the patch, followed by agent 1, then agent 2
-
+                # Selecting an action for each agent
                 for ag in self.agents:
-                    # Select an action
                     _ = ag.policy_network.select_action(ag.policy_network.state_tensor)
 
+
+                # Executing the actions and calculate the collective search efficiency
                 collective_se = self.step(turned_on_vfield)
 
-                collective_se_list.append(collective_se)
-                # Train the agents
                 for ag in self.agents:
                     if done:
                         ag.policy_network.next_state_tensor = None
                         ag.reward = collective_se
                     else:
-
                         # Concatenate the resource signal array for the next state tensor (The social visual field (1D array )+ the environment status (Scalar))
                         if ag.env_status == 1:
 
@@ -291,36 +336,37 @@ class MADRLSimulation(Simulation):
                         if ag.policy_network.action_tensor.item() == 1:
                             ag.last_exploit_time = self.t
 
+                    # Updating the reward tensor
                     ag.policy_network.reward_tensor = torch.FloatTensor([reward]).to(device)
 
-                    # Add the experience to the replay memory and train the agent
-                    if self.train:
+                # Adding the experience to the shared replay memory
+                for ag in self.agents:
+                    self.replay_memory.push(
+                        ag.policy_network.state_tensor,
+                        ag.policy_network.action_tensor,
+                        ag.policy_network.next_state_tensor,
+                        ag.policy_network.reward_tensor
+                    )
+                # Optimizing the current networks  and updating the target networks
+                for ag in self.agents:
+                    if self.train and self.t % self.train_every == 0:
 
-
-                        ag.policy_network.replay_memory.push(
-                            ag.policy_network.state_tensor,
-                            ag.policy_network.action_tensor,
-                            ag.policy_network.next_state_tensor,
-                            ag.policy_network.reward_tensor
-                        )
-                    #   if self.train and self.t % self.train_every == 0:
-                        loss = ag.policy_network.optimize()
+                        loss = ag.policy_network.optimize(self.replay_memory)
 
                         # Update the target network with soft updates
                         ag.policy_network.update_target_network()
 
 
                         if loss is not None:
-
                             writer.add_scalar(f'Agent_{ag.id}/Loss', loss, ag.policy_network.steps_done)
                         elif ag.policy_network.steps_done > ag.policy_network.batch_size:
                             print(f"Loss is None at timestep {self.t}!")
 
-                        # Move to the next training step
-                        ag.policy_network.steps_done += 1
+                    # Moving on to the next training step
+                    ag.policy_network.steps_done += 1
                     ag.policy_network.state_tensor = ag.policy_network.next_state_tensor
                     ag.policy_network.last_action = ag.policy_network.action_tensor.item()
-                # move to next simulation timestep (only when not paused)
+                # Moving on to next simulation timestep
                 self.t += 1
                 #time.sleep(600)
 
@@ -330,32 +376,36 @@ class MADRLSimulation(Simulation):
 
 
 
-
+            # Logging the individual and collective search efficiencies at the end of the episode
             for ag in self.agents:
 
                 writer.add_scalar(f'Agent_{ag.id}/Individual search efficiency)', ag.search_efficiency,
                                         episode)
                 writer.add_scalar('Collective search efficiency', collective_se, episode)
-
+                # Resetting the agents positions and consumptions for the next episode
                 ag.reset()
+
+            # Resetting the resources for the next episode
             for resc in self.rescources:
                 self.kill_resource(resc)
+
             self.t=0
-
-
 
             print(f"Episode {episode} ended with collective search efficiency: ", collective_se)
 
-        # Save the models
+        # Saving the trained models
         if self.train:
             for count, ag in enumerate(self.agents):
                 ag.policy_network.save_model(f'{save_dir}/model_{ag.id}.pth')
-        # Close the tensorboard writer
+
+        # Closing the tensorboard writer
         writer.close()
+        # Saving the simulation parameters
         env_saver.save_env_vars([self.env_path], "env_params.json", pop_num=None)
 
         if self.save_csv_files:
             if self.save_in_ifd or self.save_in_ram:
+                #Save the trajectories (For this simulation we only use ram logging)
 
                 ifdb.save_ifdb_as_csv(exp_hash=self.ifdb_hash, use_ram=self.save_in_ram, as_zar=self.use_zarr,
                                       save_extracted_vfield=False, pop_num=None)

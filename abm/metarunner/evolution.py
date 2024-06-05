@@ -13,6 +13,8 @@ import shutil
 from abm import app
 from time import sleep
 import random
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from multiprocessing import Process
 

@@ -83,9 +83,9 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 cmap_vel = matplotlib.colors.LinearSegmentedColormap.from_list(
-    'mycmap', ["red", "white", "green"])
+    'mycmap', ["#d35564", "white", "#0087a9"])
 cmap_ori = matplotlib.colors.LinearSegmentedColormap.from_list(
-    'mycmap', ["orange", "white", "blue"])
+    'mycmap', ["#5f4fc6", "white", "#ffbb00"])
 plt.figure()
 plt.imshow(dv_matrix.T, cmap=cmap_vel)
 plt.show()

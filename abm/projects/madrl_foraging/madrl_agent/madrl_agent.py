@@ -201,7 +201,6 @@ class MADRLAgent(Agent):
         if self.exclude_agents_same_patch:
             # in case agents on same patch are excluded they can still cause visual exclusion for exploiting agents
             # on the same patch (i.e. they can cover agents on other patches)
-            #print("we do exclude agents on the same patch")
             non_exploit_agents.extend([ag for ag in exploit_agents if ag.exploited_patch_id == self.exploited_patch_id])
             exploit_agents = [ag for ag in exploit_agents if ag.exploited_patch_id != self.exploited_patch_id]
 
@@ -209,7 +208,6 @@ class MADRLAgent(Agent):
         exploit_agents = [ag for ag in exploit_agents if ag.exploited_patch_id != -1]
 
         if self.visual_exclusion:
-            print("we do exclude agents")
             self.soc_v_field = self.projection_field(exploit_agents, keep_distance_info=True,
                                                      non_expl_agents=non_exploit_agents)
 

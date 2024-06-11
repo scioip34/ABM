@@ -39,6 +39,7 @@ setup(
             'abm-start=abm.app:start',
             'abm-start-coopsig=abm.app_collective_signaling:start',
             'abm-start-visflock=abm.app_visual_flocking:start',
+            'abm-start-madrl=abm.app_madrl:start',
             'headless-abm-start=abm.app:start_headless',
             'playground-start=abm.app:start_playground',
             'playground-start-coopsig=abm.app_collective_signaling:start_playground',
@@ -50,7 +51,7 @@ setup(
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Operating System :: Other OS',
-        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.10'
     ],
     test_suite='tests',
     zip_safe=False

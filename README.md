@@ -1,8 +1,12 @@
-# ABM
-Agent based model framework to simulate collective foraging with visual private and social cues
+# Collective Foraging by Deep Reinforcement Learning Agents: Analysing Adaptation, Behaviour Balancing, and Collective Outcomes
 
-## Running the Application
-This repository hold the code base for the agent based model framework implemented in python/pygame to model and simualate agents collectively foraging in the environment.
+## Acknowledgements
+Many elements in this README.md were copied and adapted from the main branch.
+
+# ABM
+This branch contains the codebase for a "multi-agent DQN" model framework implemented using Python, PyTorch, and PyGame. 
+We can train the model and evaluate its performance. 
+Additionally, we can run comparative models to compare our DQN implementation with other approaches, namely EAM-based, ideal, and random models.
 
 ### (No GUI) Runnning with docker or docker-compose
 The application is fully dockerized (only in headless/no gui mode) so that your only requirement is a docker/docker-compose compatible system, with installed `docker` and `docker-compose`. 
@@ -18,7 +22,7 @@ If `docker-compose` is not available you can use the following pure docker comma
 Be sure, that you are in the root ABM folder (in which e.g. `.env` file is present) then (pull and) run the application
 as follows:
 ```bash
-docker run -it --mount type=bind,source="/$(pwd)/abm/data",target=/app/abm/data --name scioip34abmcontainer mezdahun/scioip34abm:latest
+docker run -it --mount type=bind,source="/$(pwd)/abm/data",target=/app/abm/data --name scioip34abmcontainer ferielamira1/scioip34abm_madrl:latest
 ```
 In case the image has not yet been pulled on your system (from DockerHub) it will be now. Then the host machine's
 `abm/data` folder will be bind-mounted to the container's corresponding folder so that the experiment to be run
@@ -27,103 +31,22 @@ can be changed from the host, and the generated data will be visible on the host
 After running the container don't forget to cleanup. Remove the container and the image (if you don't want to use it anymore):
 ```bash
 docker rm scioip34abmcontainer -v
-docker rmi mezdahun/scioip34abm:latest
+docker rmi ferielamira1/scioip34abm_madrl:latest
 ```
 
 ### (With GUI) Running without docker
 In case you would like to interact with the filesystem or the application (with GUI) while runnning it, first install it's requirements and run the application as follows 
 
 #### Requirements
-To run the simulations you will need python 3.8 or 3.9 and pip correspondingly. It is worth to set up a virtualenvironment using pipenv or venv for the project so that your global workspace is not polluted.
+To run the simulations you will need python 3.10  and pip correspondingly. It is worth to set up a virtualenvironment using pipenv or venv for the project so that your global workspace is not polluted.
 
 #### Test Requirements
 To test if all the requirements are ready to use:
   1. Clone the repo
   2. Activate your virtual environment (pipenv, venv) if you are using one
   3. Move into the cloned repo where `setup.py` is located and run `pip install -e .` with that you installed the simulation package
-  4. run the start entrypoint of the simulation package by running `playground-start` or `abm-start`
-  5. If you also would like to save data you will need an InfluxDB instance. To setup one, please follow the instructions below.
-  6. If you would like to run simulations in headless mode (without graphics) you will need to install xvfb first (only tested on Ubuntu) with `sudo apt-get install xvfb`. After this, you can start the simulation in headless mode by calling the `headless-abm-start` entrypoint instead of the normal `abm-start` entrypoint.
-
-#### Install Grafana and InfluxDB
-To monitor individual agents real time and save simulation data (i.e. write simulation data real time and save upon request at the end) we use InfluxDB and a grafana server for visualization. For this purpose you will need to install influx and grafana. If you don't do these steps you are still going to be able to run simulations, but you won't be able to save the resulting data or visualize the agent's parameters. This installation guide is only tested on Ubuntu. If you decide to use another op.system or you don't want to monitor and save simulation data, set `USE_IFDB_LOGGING` and `SAVE_CSV_FILES` parameters in the `.env` file to `0`.
-<details>
-  <summary>Click to expand for Grafana and InfluxDB installation details!</summary>
-  
-##### Install Grafana
-1. run the following commands to add the grafana APT repository and install grafana
-```bash
-wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
-echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
-sudo apt-get update
-sudo apt-get install -y grafana
-```
-2. enable and start the grafana server
-```bash
-sudo /bin/systemctl enable grafana-server
-sudo /bin/systemctl start grafana-server
-```
-
-3. as we will use real time monitoring we have to change the minimal graph refresh rate in the config file of grafana.
-   1. use `sudo nano /etc/grafana/grafana.ini` to edit the config file
-   2. use `Ctrl` + `W` to serach for the term `min_refresh_interval`
-   3. change the value from `5s` to `100ms`
-   4. delete the commenting `;` character from the beginning of the row
-   5. save the file
-
-4. restart your computer with `sudo reboot`
-5. you can now check your installation. Open a browser on the client PC and go to `http://localhost:3000`. You’re greeted with the Grafana login page.
-6. Log in to Grafana with the default username `admin`, and the default `password` admin.
-7. Change the password for the admin user when asked.
-
-##### Install influxdb:
-1. Use the following commands to add InfluxDB APT repository and install InfluxDB
-```bash
-wget -qO- https://repos.influxdata.com/influxdb.key | sudo apt-key add -
-source /etc/os-release
-echo "deb https://repos.influxdata.com/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
-sudo apt update && sudo apt install -y influxdb
-```
-
-2. Start and enable the service
-```bash
-sudo systemctl unmask influxdb.service
-sudo systemctl start influxdb
-sudo systemctl enable influxdb.service
-```
-3. Use the following commands to initialize a home InfluxDB instance and grant priviliges to grafana. Please note that in general passwords should not be uploaded to github. We are doing it now as this process is not sensitive (saving simulation data on local database) and doesn't make sense to parametrize the password.
-```bash
-influx --execute "create database home"
-influx --execute "use home"
-influx --execute "create user monitoring with password 'password' with all privileges"
-influx --execute "grant all privileges on home to monitoring"
-influx --execute "show users"
-```
-4. after the last command you will see this
-> user admin
-> ---- -----
-> grafana true
-
-##### Connect Grafana with Influx
-(the following instructions were copied from Step4. of [this source](https://simonhearne.com/2020/pi-influx-grafana/#step-4-add-influx-as-a-grafana-data-source))
-
-> Now we have both Influx and Grafana running, we can stitch them together. Log in to your Grafana instance and head to “Data Sources”. Select “Add new Data Source” and find InfluxDB under “Timeseries Databases”.
-
-> As we are running both services on the same Pi, set the URL to localhost and use the default influx port of 8086:
-> 
-> [Image](https://simonhearne.com/images/grafana1.png)
-> 
-> We then need to add the database (home), user (monitoring) and password (password) that we set earlier:
-> 
-> [Image](https://simonhearne.com/images/grafana2.png)
-> 
-> That’s all we need! Now go ahead and hit “Save & Test” to connect everything together. You will see a "Data source is working" message
-
-##### Import Dashboard from repo
-1. Open your grafana app from the browser and on the left menu bar click on the "+" button and the on the "Import button"
-2. Upload the json file (that holds the blueprint of the grafana dashboard) from the repo under the path `abm/data/grafana_dashboard.json`
-  
-</details>
+  4. run the start entrypoint of the simulation package by running `abm-start-madrl` 
+  5. If you would like to run simulations in headless mode (without graphics) you will need to install xvfb first (only tested on Ubuntu) with `sudo apt-get install xvfb`. After this, you can start the simulation in headless mode by calling the `headless-abm-start` entrypoint instead of the normal `abm-start` entrypoint.
 
 ### (HPC) Using singularity on HPC
 To run experiments on cluster nodes of the HPC we need to use singularity, as docker is not directly allowed on cluster nodes. To do so, first we need to transform the automatically built docker image on DockerHub to an immutable singularity image (SIF file). This can be done on any linux based host computer with `sudo` privileges and installed singularity (v3.7.0).
@@ -131,7 +54,7 @@ To run experiments on cluster nodes of the HPC we need to use singularity, as do
 Choose a local host machine with sudo right.
 
 1. Install singularity on host with [this](https://github.com/apptainer/singularity/issues/5099#issuecomment-814563244) or [this](https://github.com/sylabs/singularity/blob/master/INSTALL.md) method.
-2. Pull and build docker image to sif file: `sudo singularity build scioip34abm.sif docker://mezdahun/scioip34abm`. Note that the container always represents the develop branch and only rebuilt when another branch is merged or a push event is carried out on develop.
+2. Pull and build docker image to sif file: `sudo singularity build scioip34abm.sif docker://ferielamira1/scioip34abm_madrl`. Note that the container always represents the develop branch and only rebuilt when another branch is merged or a push event is carried out on develop.
 3. Use sshfs to create a mount between your linux system and the HPC gateway
 4. Then upload your sif image into the mount (copy)
 
@@ -200,30 +123,65 @@ The package includes the following submodules:
 * `simulation`: including the main `Simulation` class that defines how the environment is visualized, what interactions the user can have with the pygame environment (e.g.: via cursor or buttons), and how the environment enforces some restrictions on agents, and how resources are regenerated. Furthermore a `PlaygroundSimulation` class is dedicated to provide an interactive playground where the user can explore different parameter combinations with the help of sliders and buttons. This class inherits all of it's simulation functionality from the main `Simulation` class but might change the visualization and adds additional interactive optionalities. When the framework is started as a playground, the parameters in the `.env` file don't matter anymore, but a `.env` file is still needed in the main ABM folder so that the supercalss can be initiated.
 * `replay`: to explore large batches of simulated experimental data, a replay class has been implemented. To initialize the class one needs to pass the absolute path of an experiment folder generated by the metaruneer tool. Upon initialization, in case the experiment is not yet summarized into numpy arrays this step is carried out. The arrays are then read back to the memory at once. The different batches and parameter combinations can be explored with interactive GUI elements. In case the amount of data is too large, one can use undersampling of data to only include every n-th timestep in the summary arrays.
 
+This thesis' added contributions are located in the `projects/madrl_foraging` folder, which includes the following modules:
+
+1. `madrl_agent`:
+   - Contains the `MADRLAgent` class, which inherits from the `agent` module.
+   - This module includes the agent model and essential calculation functions.
+   - The `IDQN` model is specifically implemented in the `brain.py` file within this module.
+
+2. `madrl_simulation`:
+   - Contains the `MADRLSimulation` class, which inherits from the `Simulation` module.
+   - This module includes the necessary modifications to run simulations with DRL agents, covering both training and evaluation processes.
+
+3. `madrl_contrib`:
+   - Provides parameters for running `MADRLSimulation`.
+   - Holds the files utilized by the other modules to ensure seamless integration and functionality.
 ### Functionality and Behavior
 Here you can read about how the framework works in large scale behavior and what restrictions and assumptions we used throughout the simulation.
 
 #### Behavior
 Upon starting the simulation an arena will pop up with given number of agents and resource patches. Details of these are controlled via `.env` variables and you can read more below. Agents will search for hidden resource patches and exploit/consume these with a given rate (resource unit/time) when found. The remaining resource units are shown on the patches as well as their quality (how much unit can be exploited in a time unit per agent). 
 
-Agents can behave according to 3 distinct behavioral states. These are: Exploration (individual uninformed state looking for resources with random movement and integration of individual and social cues in the meanwhile). Relocation (informed state in which the agent "decides" to join to another agent's patch). Exploitation (in which the agent consumes a resource patch and is recognized as a social visual cue for other agents). The mode of the agents are depicted with their colors, that is blue, purple and green respectively. Agents can collide with each other (red color) and in this case they avoid the collision by turning away from the other agents. Collision can be turned off during exploitation (ghost mode). Recognizing exploiting agents as social cues on the same patch can be turned off. 
+Agents can behave according to 3 distinct behavioral states. These are: Exploration (individual uninformed state looking for resources with random movement and integration of individual and social cues in the meanwhile). Relocation (informed state in which the agent "decides" to join to another agent's patch). Exploitation (in which the agent consumes a resource patch and is recognized as a social visual cue for other agents). The mode of the agents are depicted with their colors, that is blue, purple and green respectively.  
 
-Each social cue (other exploiting agent) creates a visual projection on the focal agent's retina if in visual range (and the limited FOV allows). Relocation happens according to the overall excitation of the agent's retina. The focal agent steers right if the right hemifield is more excited and left if the left hemifield is more excited.
+Each social cue (other exploiting agent) creates a visual projection on the focal agent's retina if in visual range (and the limited FOV allows). 
+
+Relocation happens according to the overall excitation of the agent's retina. The focal agent steers right if the right hemifield is more excited and left if the left hemifield is more excited.
 
 During exploitation agents slow down and stop on patches.
 
-Agents decide on which mode to enter via a dedicated decision process. The decision process continously integrates private information (Did I find a new patch? How good the quality of the new patch is?) and social information (Do I see any other agents axploiting nearby? How many/how close according to visual projection field?). With the parameters of the decision process one con control how socially susceptible agents are and how much being in e.g. relocation inhibits exploitation and vica versa. Agents integrate infromation all the time and they can deliberately stop being in a behavioral mode to switch into another.
+Agents decide on which mode to enter via a dedicated decision process that uses a Deep Q-Network to choose one of the three behavioral states
 
-#### Interaction
-During the simulation visualization can be turned off to speed up the run. In case it is turned on, the user is able to interact with the simulation as follows:
+##### Tested Models
 
-* click (left) and move agents in space
-* rotate agents with mouse scroll
-* pause/unpause simulation with `space`
-* show social visual field with `return`
-* increase/decrease framrate with `f`/`s`
-* reset default framerate with `d`
+There  are three model directories: `exp_heuristic`, `exp_ideal`, and `exp_dqn_M6`.  The models can be found on Tubcloud: https://tubcloud.tu-berlin.de/s/7SjpfXEaEtTTWWghttps://tubcloud.tu-berlin.de/s/7SjpfXEaEtTTWWg.
 
+As an example, the `exp_dqn_M6` directory is described below:
+```
+exp_dqn_M6/
+├── N3/
+│   ├── exp_sparse/
+│   │   ├── model_0.pth (DQN models only)
+│   │   ├── model_1.pth (DQN models only)
+│   │   ├── model_2.pth (DQN models only)
+│   │   ├── env_params.json
+│   │   └── eval/
+│   │       └── batch_1/
+│   │           ├── agent_data.json
+│   │           ├── resource_data.json
+│   │           └── env_params.json
+│   ├── exp_interm/
+│   ├── exp_uniform/
+│   └── exp_highly_uniform/
+├── N5/
+├── N8/
+└── N10/
+
+```
+
+This structure provides an organized way to access and analyze different models and their corresponding evaluation data.
+The model folders need to be downloaded to the following directory: `abm/data/metaprotocol/experiments/data`.
 ##### Environment variables as parameters
 To parametrize the simulation we use `.env` files. These include the main parameters line by line. This means, that a single `.env` file defines a simulation run fully. The env variables are as follows:
 
@@ -255,10 +213,9 @@ To parametrize the simulation we use `.env` files. These include the main parame
 * `SHOW_VISUAL_FIELDS`: always show visual fields of agents when turned on.
 * `SHOW_VISUAL_FIELDS_RETURN`: show visual fields of agents when return pressed if turned on
 * `SHOW_VISION_RANGE`: visualizing visual range and field of view of agents when turned on.
-* `USE_IFDB_LOGGING`: logs simulation data into a connected InfluxDB database when turned on (and InfluxDB is initialized)
 * `SAVE_CSV_FILES`: saves data from connected InfluxDB instance as csv files if turned on.
   
- Parameters of the decision process as decsribed in rpopsal:
+ Parameters of the decision process for the EAM model:
 * `DEC_TW`: time constant of w process
 * `DEC_EPSW`: social excitability
 * `DEC_GW`: social decay
@@ -283,6 +240,27 @@ Movement parameters:
 * `MOV_REL_DES_VEL`: relocation velocity
 * `MOV_REL_TH_MAX`: relocation maximal orientation change
 * `CONS_STOP_RATIO`: deceleration during exploitation
+
+Parameters of the decision process for the DRL model:
+* `TRAIN`: Determines the mode of operation. Set to 1 for training mode, and 0 for evaluation mode.
+* `TRAIN_EVERY`: Specifies how often the model should be trained, in terms of timesteps.
+* `PRETRAINED`: Indicates whether a pretrained model should be used. Set to 1 for using a pretrained model, and 0 for starting from scratch.
+* `BATCH_SIZE`: The number of samples to be used in each training batch.
+* `REPLAY_MEMORY_CAPACITY`: The maximum capacity of the replay memory which stores past experiences for training.
+* `GAMMA`: The discount factor for future rewards, which balances the importance of immediate and future rewards.
+* `LR`: The learning rate for the optimizer, controlling how much to change the model in response to the estimated error each time the model weights are updated.
+* `EPSILON_START`: The initial exploration rate, determining the probability of choosing a random action at the start of training.
+* `EPSILON_END`: The minimum exploration rate, setting the lowest probability of selecting a random action during training.
+* `EPSILON_DECAY`: The rate at which the exploration rate decays over time.
+* `TAU`: The parameter for the soft update of the target network, determining how much of the target network is updated with the primary network's weights.
+* `OPTIMIZER`: The optimizer used for training the neural network, can be either Adam or RMSprop.
+* `PRETRAINED_MODELS_DIR`: The directory where pretrained models are stored.
+
+To choose the model to be used: 
+* `BRAIN_TYPE`: "DQN" or "DDQN" for the DRL model, "random" for random actions, and "ideal" for the ideal model.
+
+
+
   
 </details>
 
@@ -340,11 +318,6 @@ To get more detailed information about resource patches and agents, click and ho
 #### Video Recording
 To show the effect of parameter combinations and make experiments reproducable, you can also record a short video of particularly interesting phenomena. To do so, use the `Record Video` action button under the simulation arena. When the recording is started, the button turns red as well as a red "Rec" dot will pop up in the upper left corner. When you stop the recording with the same action button, the tool will save and compress the resulting video and save in the data folder of the package. Please note that this might take a few minutes for longer videos.
 
-#### Other Function Buttons
-Some boolean parameters can be turned on and off with the help of additional function buttons (below the visualization area). These are
-  * Turn on Ghost Mode: overalpping on the patches are allowed
-  * Turn on IFDB logging: in case a visualization through the grafana interface is required one can start IFDB logging with this button. By default it is turned off so that we can avoid a database writing overhead and the tool can be aslo started without IFDB installed on the system.
-  * Turn on Visual Occlusion: in case it is turned on, agents can occlude visual cues from farther away agants. 
 
 ### Replay Tool
 To visualize large batches of data generated as experiment folders with the metarunner tool, one can use the replay tool. A demonstrative script has been provided in the repo to show how one can start such a replay of experiment.
@@ -357,3 +330,5 @@ Possible parameter combinations are read automatically from the data and the cor
 
 #### Plotting
 To plot some global statistics of the data corresponding action buttons have been implemented on the right. Note that it only works with 1, 2 or 3 changed parameters. In case 3 parameters were tuned throughout the experiment one can either plot multiple 2 dimensional figures or "collapse" the plot along an axis using some method, such as minimum or maximum collision. This means that along that axis instead of taking all values into consideration one will onmly take the max or min of the values. This is especially useful when 2 parameters were tuned together in a way that their product should remain the same (That can be done adding so called Tuned Pairs to the criterion of the metarunner tool). In these cases only specified parameter combinations have informative values and not the whole parameter space provided with the parameter ranges. 
+
+

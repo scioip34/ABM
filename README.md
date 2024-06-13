@@ -1,7 +1,7 @@
 # Collective Foraging by Deep Reinforcement Learning Agents: Analysing Adaptation, Behaviour Balancing, and Collective Outcomes
 
 ## Acknowledgements
-Many elements in this README.md were copied and adapted from the main branch.
+Many elements in this README.md were adapted from the main branch.
 
 # ABM
 This branch contains the codebase for a "multi-agent DQN" model framework implemented using Python, PyTorch, and PyGame. 

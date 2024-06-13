@@ -328,7 +328,4 @@ Upon start if the experiment was not summarized before into numpy arrays this wi
 #### Parameter Combinations
 Possible parameter combinations are read automatically from the data and the corresponding sliders will be initialized in the action area accordingly. By that, one can go through the simulated parameter combinations and different batches by moving the sliders on the right.
 
-#### Plotting
-To plot some global statistics of the data corresponding action buttons have been implemented on the right. Note that it only works with 1, 2 or 3 changed parameters. In case 3 parameters were tuned throughout the experiment one can either plot multiple 2 dimensional figures or "collapse" the plot along an axis using some method, such as minimum or maximum collision. This means that along that axis instead of taking all values into consideration one will onmly take the max or min of the values. This is especially useful when 2 parameters were tuned together in a way that their product should remain the same (That can be done adding so called Tuned Pairs to the criterion of the metarunner tool). In these cases only specified parameter combinations have informative values and not the whole parameter space provided with the parameter ranges. 
-
 

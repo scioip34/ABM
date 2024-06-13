@@ -11,7 +11,7 @@ env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 envconf = dotenv_values(env_path)
 print("envconf:", env_path)
 
-# Exploration movement parameters
+# Learning parameters
 pretrained = bool(int(envconf.get("PRETRAINED")))
 pretrained_models_dir = envconf.get("PRETRAINED_MODELS_DIR")
 train = bool(int(envconf.get("TRAIN")))

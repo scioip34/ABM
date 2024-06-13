@@ -1,4 +1,4 @@
-"""parameters for individual exploration, relocation and exploitation movements"""
+"""learning parameters for the drl model"""
 from pathlib import Path
 
 from dotenv import dotenv_values

@@ -3,9 +3,9 @@
 
 cff-version: 1.2.0
 title: >-
-  P34ABM: A novel vision-based mechanistic model wrapped in
-  a pygame-based simulation framework to study social
-  information use in collective foraging
+  P34ABM: A pygame-based simulation framework to study social
+  information use in collective foraging, vision-based flocking,
+  and more.
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -26,3 +26,4 @@ keywords:
   - foraging
   - visual
   - social-information
+  - flocking

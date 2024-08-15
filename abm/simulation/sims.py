@@ -13,6 +13,7 @@ from math import atan2
 import os
 import uuid
 import json
+
 if spout.WITH_SPOUT:
     # Only works on Windows
     import SpoutGL
@@ -29,15 +30,6 @@ env_path = os.path.join(root_abm_dir, f"{EXP_NAME}.env")
 
 envconf = dotenv_values(env_path)
 
-def read_cobe_input():
-    """Reads input from CoBe"""
-    try:
-        with open(os.path.join(cobe_settings.ABM_COBE_INPUT_FOLDER, cobe_settings.COBE_INPUT_FILENAME), "r") as f:
-            cobe_input = json.load(f)
-    except:
-        print("Could not read CoBe input")
-        cobe_input = []
-    return cobe_input
 
 
 def notify_agent(agent, status, res_id=None):
@@ -163,6 +155,11 @@ class Simulation:
         self.show_vis_field_return = show_vis_field_return
         self.show_vision_range = show_vision_range
 
+        # Creating spout sender if forwarding via spout is requested
+        if spout.WITH_SPOUT:
+            self.sender = SpoutGL.SpoutSender()
+            self.sender.setSenderName(spout.SENDER_NAME)
+
         # Agent parameters
         self.agent_radii = agent_radius
         self.v_field_res = v_field_res
@@ -202,7 +199,8 @@ class Simulation:
         # pygame related class attributes
         self.agents = pygame.sprite.Group()
         self.rescources = pygame.sprite.Group()
-        self.screen = pygame.display.set_mode([self.WIDTH + 2 * self.window_pad, self.HEIGHT + 2 * self.window_pad])
+        self.display = pygame.display.set_mode([500, 500], pygame.RESIZABLE)
+        self.screen = pygame.Surface([self.WIDTH + 2 * self.window_pad, self.HEIGHT + 2 * self.window_pad])
         # todo: look into this more in detail so we can control dt
         self.clock = pygame.time.Clock()
 
@@ -268,20 +266,72 @@ class Simulation:
         else:
             return True
 
+    def read_cobe_input(self):
+        """Reads input from CoBe"""
+        try:
+            input_file = os.path.join(cobe_settings.ABM_COBE_INPUT_FOLDER, cobe_settings.COBE_INPUT_FILENAME)
+            with open(input_file, "r") as f:
+                cobe_input = json.load(f)
+        except:
+            print("Could not read CoBe input")
+            cobe_input = []
+
+        return cobe_input
+
+    def read_cobe_input_pmodule(self):
+        """Reads input from CoBe"""
+        global num_files
+        try:
+            # get filenames in the folder cobe_settings.ABM_COBE_INPUT_FOLDER and return the 3rd latest file
+            input_folder = os.path.join(cobe_settings.ABM_COBE_INPUT_FOLDER_PM, "current")
+            # print(f"Reading CoBe input from {input_folder}")
+            files = os.listdir(input_folder)
+            files = [f for f in files if f.endswith(".json")]
+            # print(files)
+            # sort file according to filenam
+            print(f"{len(files)}")
+            if len(files) < 3:
+                # print("Not enough files in the folder")
+                return []
+            else:
+                files.sort(key=lambda x: os.path.getmtime(os.path.join(input_folder, x)))
+                cobe_input_file = files[-3]
+                # print(f"Reading CoBe input from {cobe_input_file}")
+                with open(os.path.join(input_folder, cobe_input_file), "r") as f:
+                    cobe_input_json = json.load(f)
+                    cobe_input = cobe_input_json["Prey"]
+                    for prey in cobe_input:
+                        # increasing id to visualize predators
+                        prey["ID"] = prey["ID"] + cobe_settings.PM_NUM_PREDATORS
+                    cobe_input_pred = cobe_input_json["Predator"]
+                    cobe_input += cobe_input_pred
+                # consuming the file
+                os.remove(os.path.join(input_folder, cobe_input_file))
+                # removing residues until only 2 files are left
+                while len(files) > 3:
+                    print(f"Removing {files[0]}")
+                    os.remove(os.path.join(input_folder, files.pop(0)))
+        except:
+            print("Could not read CoBe input")
+            cobe_input = []
+
+        return cobe_input
+
     def draw_walls(self):
         """Drwaing walls on the arena according to initialization, i.e. width, height and padding"""
-        pygame.draw.line(self.screen, colors.BLACK,
-                         [self.window_pad, self.window_pad],
-                         [self.window_pad, self.window_pad + self.HEIGHT])
-        pygame.draw.line(self.screen, colors.BLACK,
-                         [self.window_pad, self.window_pad],
-                         [self.window_pad + self.WIDTH, self.window_pad])
-        pygame.draw.line(self.screen, colors.BLACK,
-                         [self.window_pad + self.WIDTH, self.window_pad],
-                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
-        pygame.draw.line(self.screen, colors.BLACK,
-                         [self.window_pad, self.window_pad + self.HEIGHT],
-                         [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+        if not cobe_settings.ABM_WITH_COBE_INPUT and not cobe_settings.WITH_PMODULE:
+            pygame.draw.line(self.screen, colors.BLACK,
+                             [self.window_pad, self.window_pad],
+                             [self.window_pad, self.window_pad + self.HEIGHT])
+            pygame.draw.line(self.screen, colors.BLACK,
+                             [self.window_pad, self.window_pad],
+                             [self.window_pad + self.WIDTH, self.window_pad])
+            pygame.draw.line(self.screen, colors.BLACK,
+                             [self.window_pad + self.WIDTH, self.window_pad],
+                             [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
+            pygame.draw.line(self.screen, colors.BLACK,
+                             [self.window_pad, self.window_pad + self.HEIGHT],
+                             [self.window_pad + self.WIDTH, self.window_pad + self.HEIGHT])
 
     def draw_visual_fields(self):
         """Visualizing the range of vision for agents as opaque circles around the agents"""
@@ -678,7 +728,8 @@ class Simulation:
     def draw_frame(self, stats, stats_pos):
         """Drawing environment, agents and every other visualization in each timestep"""
         self.screen.fill(colors.BACKGROUND)
-        self.rescources.draw(self.screen)
+        if not cobe_settings.WITH_PMODULE:
+            self.rescources.draw(self.screen)
         self.draw_walls()
         self.agents.draw(self.screen)
         if self.show_vision_range:
@@ -732,18 +783,48 @@ class Simulation:
         """Updating agent positions with the positions passed from the COBE system
         through a json file. For each passed position we first look for the closest agent (in the previous step). Then
         we update this agent's position and state according to the one read from the file."""
-        print(position_list)
+
         for agent_dict in position_list:
             agent_id = agent_dict["ID"]
             agent_pos = np.array([agent_dict["x0"], agent_dict["x1"]])
-            agent_state = agent_dict["MODE"]
+            # agent_state = agent_dict["MODE"]
             target_agent_id = agent_id #self.find_closest_agent(agent_pos)
             if target_agent_id is not None:
-                target_agent = self.agents.sprites()[target_agent_id]
-                target_agent.position = agent_pos + np.array([self.WIDTH / 2, self.HEIGHT / 2]) + self.window_pad
-                # target_agent.set_mode(agent_state)
-                target_agent.draw_update()
-                target_agent.cobe_updated = True
+                if target_agent_id < len(self.agents):
+                    target_agent = self.agents.sprites()[target_agent_id]
+                    target_agent.position = agent_pos + self.window_pad + np.array([self.WIDTH / 2, self.WIDTH / 2])
+                    # target_agent.set_mode(agent_state)
+                    target_agent.draw_update()
+                    target_agent.cobe_updated = True
+
+    def update_agent_positions_with_cobe_pm(self, position_list):
+        """Updating agent positions with the positions passed from the COBE system
+        through a json file. For each passed position we first look for the closest agent (in the previous step). Then
+        we update this agent's position and state according to the one read from the file."""
+
+        for agent_dict in position_list:
+            agent_id = agent_dict["ID"]
+            agent_pos = np.array([agent_dict["x0"], agent_dict["x1"]])
+            x = agent_pos[0]
+            y = agent_pos[1]
+            # rescaling positions according to env width and height
+            x_rescale = 3.5
+            y_rescale = 3.5
+            max_abs_coord = self.WIDTH / 2
+            pmodule_abs_coord = 20
+            x = x / pmodule_abs_coord * max_abs_coord
+            y = - y / pmodule_abs_coord * max_abs_coord
+            agent_pos = np.array([x, y])
+            # print(f"Agent {agent_id} position: {agent_pos}")
+            # agent_state = agent_dict["MODE"]
+            target_agent_id = agent_id #self.find_closest_agent(agent_pos)
+            if target_agent_id is not None:
+                if target_agent_id < len(self.agents):
+                    target_agent = self.agents.sprites()[target_agent_id]
+                    target_agent.position = agent_pos + np.array([self.WIDTH / 2, self.HEIGHT / 2]) + self.window_pad
+                    # target_agent.set_mode(agent_state)
+                    target_agent.draw_update()
+                    target_agent.cobe_updated = True
 
     def start(self):
 
@@ -768,10 +849,6 @@ class Simulation:
         print("Starting main simulation loop!")
         # Main Simulation loop until dedicated simulation time
 
-        if spout.WITH_SPOUT:
-            sender = SpoutGL.SpoutSender()
-            sender.setSenderName(spout.SENDER_NAME)
-
         while self.t < self.T:
 
             if cobe_settings.ABM_WITH_COBE_INPUT:
@@ -779,7 +856,9 @@ class Simulation:
                     agent.cobe_updated = False
 
             if spout.WITH_SPOUT:
-                result = sender.sendImage(pygame.image.tostring(self.screen, 'RGBA'), self.screen.get_width(), self.screen.get_height(), GL.GL_RGBA, False, 0)
+                scaled_win = pygame.transform.smoothscale(self.screen, self.display.get_size())
+                self.display.blit(scaled_win, (0, 0))
+                result = self.sender.sendImage(pygame.image.tostring(self.screen, 'RGBA'), self.screen.get_width(), self.screen.get_height(), GL.GL_RGBA, False, 0)
 
             events = pygame.event.get()
             # Carry out interaction according to user activity
@@ -913,14 +992,20 @@ class Simulation:
                                 notify_agent(agent, -1)
 
                 # Update resource patches
-                self.rescources.update()
+                if not cobe_settings.WITH_PMODULE:
+                    self.rescources.update()
 
                 # Update agents according to current visible obstacles
                 if not cobe_settings.ABM_WITH_COBE_INPUT:
                     self.agents.update(self.agents)
                 else:
-                    self.agents.update(self.agents)
-                    self.update_agent_positions_with_cobe(read_cobe_input())
+                    if cobe_settings.WITH_PMODULE:
+                        # updating all agents position with input coming from pmodule, no other computation
+                        self.update_agent_positions_with_cobe_pm(self.read_cobe_input_pmodule())
+                    else:
+                        # updating all agents position with input coming from cobe, no other computation
+                        self.agents.update(self.agents)
+                        self.update_agent_positions_with_cobe(self.read_cobe_input())
 
                 # move to next simulation timestep (only when not paused)
                 self.t += 1
@@ -936,7 +1021,7 @@ class Simulation:
                 self.draw_frame(self.stats, self.stats_pos)
                 if spout.WITH_SPOUT:
                     # Indicate that a frame is ready to read
-                    sender.setFrameSync(spout.SENDER_NAME)
+                    self.sender.setFrameSync(spout.SENDER_NAME)
                 pygame.display.flip()
 
             # Monitoring with IFDB (also when paused)

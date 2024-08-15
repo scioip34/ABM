@@ -4,12 +4,17 @@ import numpy as np
 import pygame
 
 from abm.agent import supcalc
-from abm.contrib import colors
+from abm.contrib import colors, cobe_settings, spout
 from abm.monitoring import ifdb, env_saver
 from abm.projects.visual_flocking.vf_agent.vf_agent import VFAgent
 from abm.projects.visual_flocking.vf_contrib import vf_params
 from abm.simulation.sims import Simulation
 from matplotlib import cm as colmaps
+
+if spout.WITH_SPOUT:
+    # Only works on Windows
+    import SpoutGL
+    from OpenGL import GL
 
 
 class VFSimulation(Simulation):
@@ -297,9 +302,17 @@ class VFSimulation(Simulation):
         self.turned_on_vfield = self.decide_on_vis_field_visibility(
             self.turned_on_vfield)
 
+        if spout.WITH_SPOUT:
+            result = self.sender.sendImage(pygame.image.tostring(self.screen, 'RGBA'), self.screen.get_width(),
+                                           self.screen.get_height(), GL.GL_RGBA, False, 0)
+
         if not self.is_paused:
-            # Update agents according to current visible obstacles
-            self.agents.update(self.agents)
+            if not cobe_settings.ABM_WITH_COBE_INPUT:
+                # Update agents according to current visible obstacles
+                self.agents.update(self.agents)
+            else:
+                self.agents.update(self.agents)
+                self.update_agent_positions_with_cobe(self.read_cobe_input())
             # move to next simulation timestep (only when not paused)
             self.t += 1
         # Simulation is paused
@@ -315,6 +328,9 @@ class VFSimulation(Simulation):
         # Draw environment and agents
         if self.with_visualization:
             self.draw_frame(self.stats, self.stats_pos)
+            if spout.WITH_SPOUT:
+                # Indicate that a frame is ready to read
+                self.sender.setFrameSync(spout.SENDER_NAME)
             pygame.display.flip()
         # Monitoring with IFDB (also when paused)
         if self.save_in_ifd:

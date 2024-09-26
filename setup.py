@@ -13,6 +13,7 @@ setup(
     package_data={'p34abm': ['*.txt']},
     python_requires=">=3.7",
     install_requires=[
+        'pydantic',
         'pygame',
         'pygame-widgets',
         'numpy',
